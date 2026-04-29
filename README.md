@@ -1,4 +1,4 @@
-# Sciveto ERP - Production-Grade Monorepo
+# Sadoksan ERP - Production-Grade Monorepo
 
 Modular B2B + B2C ecommerce ERP system built with Nuxt 4, NestJS 11, PostgreSQL, and Docker.
 
@@ -20,7 +20,7 @@ pnpm run docker:up
 - Storefront: http://localhost:3000
 - Admin Panel: http://localhost:3002
 - API: http://localhost:3001
-- Database: postgres://sciveto:sciveto_dev@localhost:5432/sciveto_dev
+- Database: postgres://sadoksan:sadoksan_dev@localhost:5432/sadoksan_dev
 - Redis: redis://localhost:6379
 
 # 4. Run migrations
@@ -118,8 +118,8 @@ git push origin feature/some-feature
 docker-compose -f docker-compose.prod.yml build
 
 # Push to registry
-docker tag sciveto-api:latest registry.example.com/sciveto-api:latest
-docker push registry.example.com/sciveto-api:latest
+docker tag sadoksan-api:latest registry.example.com/sadoksan-api:latest
+docker push registry.example.com/sadoksan-api:latest
 
 # Deploy to server
 docker-compose -f docker-compose.prod.yml up -d
@@ -147,7 +147,7 @@ pnpm run db:migrate:reset  # Danger: resets DB, use only in dev
 ## Team
 
 - **Owner:** John (brkcnt6@gmail.com)
-- **Project:** Sciveto ERP
+- **Project:** Sadoksan ERP
 - **Status:** Foundation ready, integration phase pending
 
 ---

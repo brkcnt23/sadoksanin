@@ -1,6 +1,6 @@
-# CLAUDE Project Context: Sciveto ERP
+# CLAUDE Project Context: Sadoksan ERP
 
-**Project:** Sciveto — Modular ERP system (B2B + B2C ecommerce hybrid)  
+**Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
 **Last Updated:** 2026-04-29  
 **Owner:** John (brkcnt6@gmail.com)
 
