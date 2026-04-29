@@ -3,11 +3,11 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: sciveto-postgres
+    container_name: sadoksan-postgres
     environment:
-      POSTGRES_USER: sciveto
-      POSTGRES_PASSWORD: sciveto_dev
-      POSTGRES_DB: sciveto_dev
+      POSTGRES_USER: sadoksan
+      POSTGRES_PASSWORD: sadoksan_dev
+      POSTGRES_DB: sadoksan_dev
     ports:
       - "5432:5432"
     volumes:
@@ -18,11 +18,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - sciveto-network
+      - sadoksan-network
 
   redis:
     image: redis:7-alpine
-    container_name: sciveto-redis
+    container_name: sadoksan-redis
     ports:
       - "6379:6379"
     volumes:
@@ -33,19 +33,19 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - sciveto-network
+      - sadoksan-network
 
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
       target: development
-    container_name: sciveto-api
+    container_name: sadoksan-api
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://sciveto:sciveto_dev@postgres:5432/sciveto_dev
+      DATABASE_URL: postgresql://sadoksan:sadoksan_dev@postgres:5432/sadoksan_dev
       REDIS_URL: redis://redis:6379
       API_PORT: 3001
       API_HOST: 0.0.0.0
@@ -60,7 +60,7 @@ services:
       - ./packages/shared:/app/packages/shared
       - /app/node_modules
     networks:
-      - sciveto-network
+      - sadoksan-network
     command: npm run dev
 
   storefront:
@@ -68,7 +68,7 @@ services:
       context: .
       dockerfile: apps/storefront/Dockerfile
       target: development
-    container_name: sciveto-storefront
+    container_name: sadoksan-storefront
     ports:
       - "3000:3000"
     environment:
@@ -82,7 +82,7 @@ services:
       - ./packages/ui:/app/packages/ui
       - /app/node_modules
     networks:
-      - sciveto-network
+      - sadoksan-network
     command: npm run dev
 
   admin:
@@ -90,7 +90,7 @@ services:
       context: .
       dockerfile: apps/admin/Dockerfile
       target: development
-    container_name: sciveto-admin
+    container_name: sadoksan-admin
     ports:
       - "3002:3002"
     environment:
@@ -104,7 +104,7 @@ services:
       - ./packages/ui:/app/packages/ui
       - /app/node_modules
     networks:
-      - sciveto-network
+      - sadoksan-network
     command: npm run dev -p 3002
 
 volumes:
@@ -112,5 +112,5 @@ volumes:
   redis_data:
 
 networks:
-  sciveto-network:
+  sadoksan-network:
     driver: bridge
