@@ -9,6 +9,6 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   typescript: {
     strict: true,
-    typeCheck: true,
+    typeCheck: false, // Disabled: use IDE + pnpm type-check instead
   },
 })

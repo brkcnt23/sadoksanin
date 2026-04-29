@@ -1,0 +1,40 @@
+# ============================================================================
+# Unified Development Dockerfile (monorepo)
+# Single image used by api, storefront, admin services in docker-compose.dev.yml
+# Per-service production Dockerfiles remain under apps/*/Dockerfile
+# ============================================================================
+FROM node:20-alpine
+
+# libc6-compat: required by Prisma engines and some native binaries on Alpine
+# bash: nicer shell for "sh -c" commands and debugging
+RUN apk add --no-cache libc6-compat bash \
+ && corepack enable \
+ && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+# ----------------------------------------------------------------------------
+# Layer 1: workspace manifests only (maximizes Docker layer cache)
+# Re-install only triggers when a package.json or the lockfile changes
+# ----------------------------------------------------------------------------
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY apps/api/package.json        ./apps/api/
+COPY apps/storefront/package.json ./apps/storefront/
+COPY apps/admin/package.json      ./apps/admin/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json     ./packages/ui/
+
+# Install full workspace deps (dev included). --frozen-lockfile = reproducible.
+RUN pnpm install --frozen-lockfile
+
+# ----------------------------------------------------------------------------
+# Layer 2: source code
+# In docker-compose.dev.yml we override these paths with bind mounts for HMR.
+# This COPY exists so the image is also runnable standalone (e.g. CI).
+# ----------------------------------------------------------------------------
+COPY . .
+
+EXPOSE 3000 3001 3002
+
+# Default command is overridden by docker-compose per service.
+CMD ["pnpm", "-r", "--parallel", "run", "dev"]

@@ -14,11 +14,17 @@
     "nuxt": "^4.4.0",
     "vue": "^3.4.0",
     "@nuxtjs/tailwindcss": "^6.11.0",
+    "@nuxt/image": "^1.8.1",
+    "@nuxt/icon": "^1.10.3",
+    "@vueuse/nuxt": "^11.3.0",
+    "@vueuse/core": "^11.3.0",
     "axios": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@iconify-json/lucide": "^1.2.18",
     "typescript": "^5.3.3",
+    "vue-tsc": "^2.1.0",
     "eslint": "^8.55.0"
   }
 }
