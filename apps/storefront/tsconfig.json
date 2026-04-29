@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "~": ["."],
+      "~~": ["."],
+      "@/*": ["./*"]
+    }
+  },
+  "include": [".nuxt/tsconfig.json", "**/*.ts", "**/*.vue"]
+}

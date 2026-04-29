@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sciveto-postgres
+    environment:
+      POSTGRES_USER: sciveto
+      POSTGRES_PASSWORD: sciveto_dev
+      POSTGRES_DB: sciveto_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sciveto"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sciveto-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sciveto-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sciveto-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    container_name: sciveto-api
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://sciveto:sciveto_dev@postgres:5432/sciveto_dev
+      REDIS_URL: redis://redis:6379
+      API_PORT: 3001
+      API_HOST: 0.0.0.0
+      JWT_SECRET: dev-secret-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages/shared:/app/packages/shared
+      - /app/node_modules
+    networks:
+      - sciveto-network
+    command: npm run dev
+
+  storefront:
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+      target: development
+    container_name: sciveto-storefront
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NUXT_PUBLIC_API_BASE: http://localhost:3001
+    depends_on:
+      - api
+    volumes:
+      - ./apps/storefront:/app/apps/storefront
+      - ./packages/shared:/app/packages/shared
+      - ./packages/ui:/app/packages/ui
+      - /app/node_modules
+    networks:
+      - sciveto-network
+    command: npm run dev
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      target: development
+    container_name: sciveto-admin
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      ADMIN_API_BASE: http://localhost:3001
+    depends_on:
+      - api
+    volumes:
+      - ./apps/admin:/app/apps/admin
+      - ./packages/shared:/app/packages/shared
+      - ./packages/ui:/app/packages/ui
+      - /app/node_modules
+    networks:
+      - sciveto-network
+    command: npm run dev -p 3002
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  sciveto-network:
+    driver: bridge

@@ -1,0 +1,23 @@
+{
+  "name": "@sadoksan/admin",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0 -p 3002",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "type-check": "nuxt typecheck"
+  },
+  "dependencies": {
+    "nuxt": "^4.4.0",
+    "vue": "^3.4.0",
+    "@nuxtjs/tailwindcss": "^6.11.0",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "eslint": "^8.55.0"
+  }
+}

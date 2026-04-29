@@ -1,0 +1,10 @@
+{
+  "name": "@sadoksan/ui",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'UI package is library-only'",
+    "build": "echo 'UI components are used directly from source'"
+  }
+}

@@ -1,0 +1,377 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE USERS & AUTH
+// ============================================================================
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole   @default(CUSTOMER)
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  dealer        Dealer?
+  orders        Order[]
+  favorites     Favorite[]
+  cartItems     CartItem[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  CUSTOMER  // B2C
+  DEALER    // B2B
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ============================================================================
+// DEALERS (B2B)
+// ============================================================================
+
+model Dealer {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  netsisCarieNumber   String   @unique // Netsis cari hesap numarası
+  companyName         String
+  firstName           String
+  lastName            String
+  email               String
+  phone               String
+  address             String
+  city                String
+  region              String
+  approvalStatus      ApprovalStatus @default(PENDING)
+  active              Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  orders              Order[]
+  locations           DealerLocation[]
+  reservedStock       ReservedStock[]
+
+  @@index([approvalStatus])
+  @@index([active])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+model DealerLocation {
+  id          String @id @default(cuid())
+  dealerId    String
+  dealer      Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  city        String
+  region      String
+  logisticsId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([dealerId, city])
+  @@index([dealerId])
+}
+
+// ============================================================================
+// PRODUCTS
+// ============================================================================
+
+model Product {
+  id            String  @id @default(cuid())
+  netsisId      String  @unique // External ID from Netsis
+  sku           String  @unique
+  name          String
+  description   String?
+  basePrice     Float
+  category      String
+  stock         Int     @default(0)
+  visible       Boolean @default(true)
+  purchasable   Boolean @default(true)
+  image         String?
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  variations    ProductVariation[]
+  orderLines    OrderLine[]
+  favorites     Favorite[]
+  notifications NotifyWhenAvailable[]
+  reserved      ReservedStock[]
+
+  @@index([visible])
+  @@index([purchasable])
+  @@index([netsisId])
+}
+
+model ProductVariation {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  value     String
+  price     Float?
+  stock     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([productId, name, value])
+  @@index([productId])
+}
+
+// ============================================================================
+// ORDERS
+// ============================================================================
+
+model Order {
+  id              String  @id @default(cuid())
+  orderNumber     String  @unique
+  userId          String
+  user            User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  dealerId        String?
+  dealer          Dealer? @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  orderType       OrderType
+  status          OrderStatus @default(PENDING)
+  approvalStatus  ApprovalStatus @default(PENDING) // For B2B orders
+  totalAmount     Float
+  logisticsCost   Float   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lines           OrderLine[]
+  reserved        ReservedStock[]
+  invoices        Invoice[]
+
+  @@index([userId])
+  @@index([dealerId])
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([orderType])
+}
+
+enum OrderType {
+  B2C
+  B2B
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model OrderLine {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+  unitPrice Float
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model ReservedStock {
+  id        String @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dealerId  String?
+  dealer    Dealer? @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  @@unique([productId, orderId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([dealerId])
+}
+
+// ============================================================================
+// CART
+// ============================================================================
+
+model CartItem {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Int
+  addedAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// ============================================================================
+// FAVORITES & NOTIFICATIONS
+// ============================================================================
+
+model Favorite {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+model NotifyWhenAvailable {
+  id        String @id @default(cuid())
+  email     String
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  notified  Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([email, productId])
+  @@index([productId])
+  @@index([notified])
+}
+
+// ============================================================================
+// PRICING & LOGISTICS
+// ============================================================================
+
+model LogisticsRule {
+  id        String @id @default(cuid())
+  region    String @unique
+  basePrice Float
+  surcharge Float
+  description String?
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([region])
+  @@index([active])
+}
+
+// ============================================================================
+// INVOICES & E-DOCUMENTS (Alneo)
+// ============================================================================
+
+model Invoice {
+  id            String @id @default(cuid())
+  orderId       String
+  order         Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  invoiceNumber String @unique
+  alneoPdfUrl   String?
+  status        InvoiceStatus @default(DRAFT)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  ARCHIVED
+  CANCELLED
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+model PopupConfig {
+  id              String @id @default(cuid())
+  title           String
+  content         String
+  imageUrl        String?
+  dealerSpecific  Boolean @default(false)
+  targetCities    String[]  @default([])
+  active          Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active])
+}
+
+model SystemConfig {
+  id              String @id @default(cuid())
+  maintenanceMode Boolean @default(false)
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================================================
+// AUDIT & SYNC
+// ============================================================================
+
+model AuditLog {
+  id        String @id @default(cuid())
+  userId    String?
+  user      User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String
+  changes   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model NetsisProductSync {
+  id              String @id @default(cuid())
+  lastSyncAt      DateTime
+  nextSyncAt      DateTime
+  syncStatus      SyncStatus @default(PENDING)
+  totalProducts   Int
+  syncedProducts  Int
+  failedProducts  Int
+  errors          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model NetsisStockSnapshot {
+  id              String @id @default(cuid())
+  productId       String
+  netsisTotal     Int
+  siteReserved    Int
+  displayStock    Int
+  snapshotAt      DateTime @default(now())
+}
+
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  PAUSED
+}
