@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type SiteDotLogo from '../site/DotLogo.vue'
+
 const stats = [
   { value: '23+',   label: 'Yıllık Tecrübe' },
   { value: '50+',   label: 'Marka' },
@@ -37,8 +39,7 @@ function onMouseLeave() {
     </div>
 
     <!-- Dot logo — Canvas, mouse repulsion hero section'dan geliyor -->
-    <div class="absolute right-0 top-0 bottom-0 pointer-events-none hidden lg:block"
-         style="width: 52vw; max-width: 720px; opacity: 0.28;">
+    <div class="absolute inset-0 pointer-events-none block opacity-25 sm:opacity-30 lg:opacity-30">
       <SiteDotLogo ref="dotLogoRef" :ambient="true" />
     </div>
 

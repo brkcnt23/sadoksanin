@@ -15,7 +15,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'tr' },
-      title: 'Sadoksan — Banyo & Sıhhi Tesisat Distribütörlüğü',
+      title: 'Sadoksan — İnşaat',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

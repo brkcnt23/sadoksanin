@@ -70,9 +70,14 @@ const hovered = ref<number | null>(null)
 
 // Dropdown hangi kategori için açık?
 const activeIndex = computed(() => pinned.value ?? hovered.value)
+const activeCategory = computed(() => {
+  const index = activeIndex.value
+  return index === null ? null : categories[index] ?? null
+})
 
 function onCategoryClick(index: number) {
-  if (categories[index].children.length === 0) {
+  const category = categories[index]
+  if (!category || category.children.length === 0) {
     pinned.value = null
     return
   }
@@ -109,19 +114,19 @@ function onOutsideClick(e: MouseEvent) {
 <template>
   <nav
     ref="navRef"
-    class="sticky top-[80px] z-30 w-full bg-primary-900 shadow-md"
+    class="sticky top-[64px] lg:top-[80px] z-30 w-full bg-primary-900 shadow-md"
   >
     <!-- Kategori butonları -->
-    <div class="flex items-stretch justify-center overflow-x-auto scrollbar-none">
+    <div class="flex items-center justify-start gap-2 overflow-x-auto px-3 py-2 scrollbar-none lg:items-stretch lg:justify-center lg:gap-0 lg:px-0 lg:py-0">
       <button
         v-for="(cat, i) in categories"
         :key="cat.to"
         type="button"
-        class="flex-shrink-0 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-colors whitespace-nowrap border-b-2"
+        class="flex-shrink-0 rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide transition-colors whitespace-nowrap lg:rounded-none lg:border-x-0 lg:border-t-0 lg:px-4 lg:py-3 lg:text-xs lg:border-b-2"
         :class="[
           activeIndex === i
-            ? 'bg-white text-primary-900 border-accent-500'
-            : 'text-white/90 hover:text-white hover:bg-primary-800 border-transparent'
+            ? 'bg-white text-primary-900 border-white lg:border-accent-500'
+            : 'text-white/90 hover:text-white hover:bg-primary-800 border-white/10 lg:border-transparent'
         ]"
         @click="onCategoryClick(i)"
         @mouseenter="onMouseEnter(i)"
@@ -141,27 +146,27 @@ function onOutsideClick(e: MouseEvent) {
       leave-to-class="opacity-0 -translate-y-1"
     >
       <div
-        v-if="activeIndex !== null && categories[activeIndex].children.length > 0"
-        class="absolute left-0 right-0 bg-white border-t border-ink-100 shadow-lg"
+        v-if="activeIndex !== null && activeCategory && activeCategory.children.length > 0"
+        class="absolute left-0 right-0 max-h-[65vh] overflow-y-auto bg-white border-t border-ink-100 shadow-lg"
         @mouseenter="onMouseEnter(activeIndex!)"
         @mouseleave="onMouseLeave"
       >
-        <div class="container-x py-5">
+        <div class="container-x py-4 lg:py-5">
           <!-- Kategori başlığı (link) -->
           <NuxtLink
-            :to="categories[activeIndex!].to"
+            :to="activeCategory.to"
             class="inline-flex items-center gap-1.5 mb-4 text-sm font-bold text-primary-900 hover:text-accent-600 transition-colors"
             @click="pinned = null"
           >
-            {{ categories[activeIndex!].label }}
+            {{ activeCategory.label }}
             <Icon name="lucide:arrow-right" class="h-4 w-4" />
             <span class="text-xs font-normal text-ink-500">— Tümünü Görüntüle</span>
           </NuxtLink>
 
           <!-- Alt kategoriler -->
-          <ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-2">
+          <ul class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-2">
             <li
-              v-for="child in categories[activeIndex!].children"
+              v-for="child in activeCategory.children"
               :key="child.to"
             >
               <NuxtLink
