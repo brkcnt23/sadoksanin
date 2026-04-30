@@ -5,7 +5,7 @@ const route = useRoute()
 const nav = [
   { label: 'Anasayfa', to: '/' },
   { label: 'Ürünler', to: '/urunler' },
-  { label: 'Markalar', to: '/markalar' },
+  { label: 'Mağazamız', to: '/magaza' },
   { label: 'Bayilik', to: '/bayilik' },
   { label: 'Hakkımızda', to: '/hakkimizda' },
   { label: 'İletişim', to: '/iletisim' },

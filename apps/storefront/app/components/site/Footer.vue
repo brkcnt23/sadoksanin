@@ -104,13 +104,59 @@ const year = new Date().getFullYear()
       </div>
     </div>
 
+    <!-- Payment Methods & Security -->
+    <div class="border-t border-white/5">
+      <div class="container-x py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8">
+          <!-- Payment Methods -->
+          <div>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-white mb-4">Güvenli Ödeme Yöntemleri</h5>
+            <div class="flex items-center gap-3">
+              <div class="h-8 px-2 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white">VISA</div>
+              <div class="h-8 px-2 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white">MC</div>
+              <div class="h-8 px-2 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white">BONUS</div>
+              <div class="h-8 px-2 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white">WORLD</div>
+              <div class="h-8 px-2 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white">AXESS</div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-white mb-4">🔒 Güvenlik</h5>
+            <div class="flex items-center gap-3">
+              <div class="flex flex-col text-[10px] text-ink-400">
+                <span class="font-semibold text-white">256-bit SSL</span>
+                <span>Şifreleme Sertifikası</span>
+              </div>
+            </div>
+            <p class="text-xs text-ink-400 mt-3 leading-relaxed">
+              Tüm verileriniz 256-bit SSL şifreleme ile korunmaktadır. Kredi kartı bilgileriniz hiçbir zaman sunucularımızda saklanmaz.
+            </p>
+          </div>
+
+          <!-- Platform -->
+          <div>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-white mb-4">Platform</h5>
+            <p class="text-xs text-ink-400 leading-relaxed">
+              Platform by <a href="#" class="text-accent-400 hover:text-white transition-colors font-semibold">Burak Can®</a>
+            </p>
+            <p class="text-xs text-ink-500 mt-3">
+              Teknoloji ve tasarım çözümleri
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legal Links -->
     <div class="border-t border-white/5">
       <div class="container-x py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-ink-500">
         <p>© {{ year }} Sadöksan İnşaat. Tüm hakları saklıdır.</p>
-        <div class="flex items-center gap-6">
-          <NuxtLink to="/kvkk" class="hover:text-white">KVKK</NuxtLink>
-          <NuxtLink to="/gizlilik" class="hover:text-white">Gizlilik</NuxtLink>
-          <NuxtLink to="/satis-sozlesmesi" class="hover:text-white">Satış Sözleşmesi</NuxtLink>
+        <div class="flex flex-wrap items-center gap-4 md:gap-6">
+          <NuxtLink to="/yasal/mesafeli-satis" class="hover:text-white">Mesafeli Satış Sözleşmesi</NuxtLink>
+          <NuxtLink to="/yasal/gizlilik" class="hover:text-white">Gizlilik Politikası</NuxtLink>
+          <NuxtLink to="/yasal/tuketici-haklari" class="hover:text-white">Tüketici Hakları</NuxtLink>
+          <NuxtLink to="/yasal/kisisel-veriler" class="hover:text-white">Kişisel Veriler</NuxtLink>
         </div>
       </div>
     </div>

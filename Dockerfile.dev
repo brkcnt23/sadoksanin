@@ -24,8 +24,8 @@ COPY apps/admin/package.json      ./apps/admin/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json     ./packages/ui/
 
-# Install full workspace deps (dev included). --frozen-lockfile = reproducible.
-RUN pnpm install --frozen-lockfile
+# Install full workspace deps (dev included). Dev mode: flexibility over strict lockfile.
+RUN pnpm install --no-frozen-lockfile
 
 # ----------------------------------------------------------------------------
 # Layer 2: source code
