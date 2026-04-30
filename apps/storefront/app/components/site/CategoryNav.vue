@@ -63,17 +63,19 @@ const categories = [
   },
 ]
 
-// Pinned: tıklanmış kategori index'i, null = hiçbiri
+// Click ile pinned
 const pinned = ref<number | null>(null)
-// Hovered: mouse üzerinde olan kategori index'i
+// Hover ile temporary
 const hovered = ref<number | null>(null)
-
-// Dropdown hangi kategori için açık?
+// Dropdown göster mi? pinned varsa hep, yoksa hovered varsa
 const activeIndex = computed(() => pinned.value ?? hovered.value)
 const activeCategory = computed(() => {
   const index = activeIndex.value
   return index === null ? null : categories[index] ?? null
 })
+
+// LeaveTimeout: gap'de close'ı delay'le
+let leaveTimeout: ReturnType<typeof setTimeout> | null = null
 
 function onCategoryClick(index: number) {
   const category = categories[index]
@@ -81,16 +83,25 @@ function onCategoryClick(index: number) {
     pinned.value = null
     return
   }
-  // Aynı kategori → toggle (kapat)
+  // Toggle: click ise permanent
   pinned.value = pinned.value === index ? null : index
+  // Timeout'u temizle çünkü artık pinned'ız
+  if (leaveTimeout) clearTimeout(leaveTimeout)
 }
 
 function onMouseEnter(index: number) {
+  // Timeout'u temizle — hovering başladı
+  if (leaveTimeout) clearTimeout(leaveTimeout)
   hovered.value = index
 }
 
 function onMouseLeave() {
-  hovered.value = null
+  // Timeout ile delay'le: 100ms'de hovered = null
+  // (button-to-panel gap varsa panel'e giriş timeout'u clear'layacak)
+  leaveTimeout = setTimeout(() => {
+    hovered.value = null
+    leaveTimeout = null
+  }, 100)
 }
 
 // Route değişince pinned'ı temizle
@@ -103,10 +114,13 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', onOutsideClick)
+  if (leaveTimeout) clearTimeout(leaveTimeout)
 })
 function onOutsideClick(e: MouseEvent) {
   if (navRef.value && !navRef.value.contains(e.target as Node)) {
     pinned.value = null
+    hovered.value = null
+    if (leaveTimeout) clearTimeout(leaveTimeout)
   }
 }
 </script>
