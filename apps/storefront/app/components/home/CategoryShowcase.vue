@@ -11,7 +11,7 @@ const items = categories()
           <p class="eyebrow">Kategoriler</p>
           <h2 class="mt-3 heading-lg">Aradığınız her şey, tek tedarikçide</h2>
           <p class="mt-4 lead">
-            Banyodan sıhhi tesisata, vitrifiyeden mobilyaya — projenize özel kapsamlı ürün gamı.
+            4.500+ ürün ile inşaat malzemeleri, banyo, sıhhi tesisat ve daha fazlası — projenize özel kapsamlı ürün gamı.
           </p>
         </div>
         <NuxtLink to="/urunler" class="btn-ghost text-primary-900">

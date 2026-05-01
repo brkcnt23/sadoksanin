@@ -1,5 +1,9 @@
 <script setup lang="ts">
-const { isDealer, dealer } = useDealer()
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, navigateTo } from '#app'
+import { useDealer } from '~/composables/useDealer'
+
+const { isDealer, disableDealer } = useDealer()
 const route = useRoute()
 
 const nav = [
@@ -13,6 +17,11 @@ const nav = [
 
 const mobileOpen = ref(false)
 const scrolled = ref(false)
+
+const handleDealerLogout = () => {
+  disableDealer()
+  navigateTo('/')
+}
 
 const onScroll = () => {
   if (typeof window !== 'undefined') scrolled.value = window.scrollY > 8
@@ -37,12 +46,17 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
   >
     <div class="container-x flex h-20 items-center justify-between gap-8">
       <!-- Logo -->
-      <NuxtLink to="/" class="flex items-baseline gap-2 group">
-        <span class="font-display text-2xl font-extrabold tracking-tight text-primary-900 group-hover:text-primary-800 transition-colors">
-          Sadöksan
-        </span>
-        <span class="hidden sm:block text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-600">
-          inşaat
+      <NuxtLink to="/" class="flex flex-col gap-0.5 group">
+        <div class="flex items-baseline gap-2">
+          <span class="font-display text-2xl font-extrabold tracking-tight text-primary-900 group-hover:text-primary-800 transition-colors">
+            Sadöksan
+          </span>
+          <span class="hidden sm:block text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-600">
+            inşaat
+          </span>
+        </div>
+        <span class="hidden lg:block text-xs font-medium text-ink-600 group-hover:text-primary-900 transition-colors tracking-tight">
+          Premium işçilik, profesyonel tedarik
         </span>
       </NuxtLink>
 
@@ -88,24 +102,32 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           </span>
         </button>
 
-        <NuxtLink
-          v-if="!isDealer"
-          to="/bayi"
-          class="hidden md:inline-flex btn-outline h-10 px-4 text-xs"
-        >
-          <Icon name="lucide:user-cog" class="h-4 w-4" />
-          Bayi Girişi
-        </NuxtLink>
-
-        <div
-          v-else
-          class="hidden md:flex items-center gap-2 px-3 h-10 rounded-md bg-primary-900 text-white"
-        >
-          <Icon name="lucide:badge-check" class="h-4 w-4 text-accent-400" />
-          <span class="text-xs font-semibold">{{ dealer?.code }}</span>
-          <span class="text-[10px] uppercase tracking-wider text-accent-400">
-            {{ dealer?.city }}
-          </span>
+        <div class="hidden md:flex items-center gap-2">
+          <template v-if="!isDealer">
+            <NuxtLink
+              to="/giris"
+              class="inline-flex btn-outline h-10 px-4 text-xs"
+            >
+              <Icon name="lucide:user" class="h-4 w-4" />
+              Üye Girişi
+            </NuxtLink>
+            <NuxtLink
+              to="/bayi"
+              class="inline-flex btn-outline h-10 px-4 text-xs"
+            >
+              <Icon name="lucide:user-cog" class="h-4 w-4" />
+              Bayi Girişi
+            </NuxtLink>
+          </template>
+          <template v-else>
+            <button
+              @click="handleDealerLogout"
+              class="inline-flex btn-outline h-10 px-4 text-xs text-red-600 hover:bg-red-50 border-red-200"
+            >
+              <Icon name="lucide:log-out" class="h-4 w-4" />
+              Bayi Çıkışı
+            </button>
+          </template>
         </div>
 
         <button
@@ -138,10 +160,27 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
           >
             {{ item.label }}
           </NuxtLink>
-          <NuxtLink to="/bayi" class="btn-outline mt-2 justify-start">
-            <Icon name="lucide:user-cog" class="h-4 w-4" />
-            Bayi Girişi
-          </NuxtLink>
+          <template v-if="!isDealer">
+            <div class="flex flex-col gap-2 mt-2">
+              <NuxtLink to="/giris" class="btn-outline justify-start">
+                <Icon name="lucide:user" class="h-4 w-4" />
+                Üye Girişi
+              </NuxtLink>
+              <NuxtLink to="/bayi" class="btn-outline justify-start">
+                <Icon name="lucide:user-cog" class="h-4 w-4" />
+                Bayi Girişi
+              </NuxtLink>
+            </div>
+          </template>
+          <template v-else>
+            <button
+              @click="handleDealerLogout"
+              class="w-full mt-2 btn-outline justify-start text-red-600 hover:bg-red-50 border-red-200"
+            >
+              <Icon name="lucide:log-out" class="h-4 w-4" />
+              Bayi Çıkışı
+            </button>
+          </template>
         </div>
       </div>
     </Transition>

@@ -8,7 +8,6 @@ interface Product {
   imageUrl: string
 }
 
-// Category name mapping
 const categoryNames: Record<string, string> = {
   seramik: 'Seramik',
   vitrifiye: 'Vitrifiye',
@@ -77,24 +76,18 @@ const allProducts = ref<Product[]>([
   },
 ])
 
+const selectedCategories = ref<string[]>([])
 const selectedBrands = ref<string[]>([])
 const showOnlySponsored = ref(false)
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const itemsPerPageOptions = [10, 20, 50, 100]
 
-// Get slug from route params - no composables, pure function
-const getSlug = (slug: string | string[] | undefined): string => {
-  if (Array.isArray(slug)) return slug[0] || ''
-  return slug || ''
-}
-
-// Get category title from slug
-const getCategoryTitle = (slug: string): string => {
-  return categoryNames[slug] || slug
-}
-
-// Filter products
-const getFilteredProducts = (slug: string): Product[] => {
+const getFilteredProducts = (): Product[] => {
   return allProducts.value.filter(product => {
-    if (product.category !== slug) return false
+    if (selectedCategories.value.length > 0 && !selectedCategories.value.includes(product.category)) {
+      return false
+    }
     if (selectedBrands.value.length > 0 && !selectedBrands.value.includes(product.brand)) {
       return false
     }
@@ -103,14 +96,42 @@ const getFilteredProducts = (slug: string): Product[] => {
   })
 }
 
-// Get unique brands
-const getUniqueBrands = (slug: string): string[] => {
-  const brands = new Set(getFilteredProducts(slug).map(p => p.brand))
+const filteredProducts = computed(() => getFilteredProducts())
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredProducts.value.length / itemsPerPage.value)
+})
+
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredProducts.value.slice(start, end)
+})
+
+const getUniqueCategories = (): Array<{ slug: string; name: string }> => {
+  const cats = new Set(allProducts.value.map(p => p.category))
+  return Array.from(cats)
+    .sort()
+    .map(slug => ({ slug, name: categoryNames[slug] || slug }))
+}
+
+const getUniqueBrands = (): string[] => {
+  const brands = new Set(getFilteredProducts().map(p => p.brand))
   return Array.from(brands).sort()
 }
 
 const handleImageError = (productId: string) => {
   failedImages.value[productId] = true
+}
+
+const toggleCategory = (category: string) => {
+  const idx = selectedCategories.value.indexOf(category)
+  if (idx > -1) {
+    selectedCategories.value.splice(idx, 1)
+  } else {
+    selectedCategories.value.push(category)
+  }
+  currentPage.value = 1
 }
 
 const toggleBrand = (brand: string) => {
@@ -120,25 +141,29 @@ const toggleBrand = (brand: string) => {
   } else {
     selectedBrands.value.push(brand)
   }
+  currentPage.value = 1
 }
 
 const toggleSponsored = () => {
   showOnlySponsored.value = !showOnlySponsored.value
+  currentPage.value = 1
 }
 
 const clearFilters = () => {
+  selectedCategories.value = []
   selectedBrands.value = []
   showOnlySponsored.value = false
+  currentPage.value = 1
 }
 
-const orderViaWhatsApp = (product: Product, slug: string, categoryTitle: string) => {
+const orderViaWhatsApp = (product: Product) => {
   const phoneNumber = '905396541720'
-  const productPageUrl = `${window.location.origin}/kategori/${slug}#${product.id}`
+  const productPageUrl = `${window.location.origin}/urunler#${product.id}`
 
   const message = `*${product.name}* hakkında bilgi istiyorum
 
 Marka: ${product.brand}
-Kategori: ${categoryTitle}
+Kategori: ${categoryNames[product.category]}
 ${product.isSponsored ? '⭐ Sponsor Ürün\n' : ''}
 Ürün Linki: ${productPageUrl}
 
@@ -150,7 +175,6 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
 </script>
 
 <template>
-  <!-- No composables needed - use $route global directly -->
   <div class="min-h-screen bg-gradient-to-b from-primary-50 to-white">
     <!-- Hero Section -->
     <section class="relative py-16 lg:py-20 bg-gradient-to-r from-primary-900 via-primary-800 to-accent-600 overflow-hidden">
@@ -161,26 +185,17 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
 
       <div class="relative px-6 lg:px-12 mx-auto max-w-5xl">
         <h1 class="text-4xl lg:text-5xl font-bold text-white mb-3">
-          {{ getCategoryTitle(getSlug($route.params.slug)) }}
+          Ürün Kataloğu
         </h1>
         <p class="text-white/80 text-lg">
-          {{ getFilteredProducts(getSlug($route.params.slug)).length }} ürün listeleniyor
+          {{ filteredProducts.length }} ürün bulundu
         </p>
       </div>
     </section>
 
-    <!-- Sticky Category Header (for scroll) -->
-    <div class="sticky top-[64px] z-30 bg-white border-b border-ink-100 shadow-sm py-5">
-      <div class="px-6 lg:px-12 mx-auto max-w-6xl">
-        <h2 class="text-xl font-bold text-primary-900">
-          {{ getCategoryTitle(getSlug($route.params.slug)) }}
-        </h2>
-      </div>
-    </div>
-
     <!-- Main Content -->
     <section class="py-12 lg:py-16">
-      <div class="px-6 lg:px-12 mx-auto max-w-6xl">
+      <div class="px-6 lg:px-12 mx-auto max-w-7xl">
         <div class="grid lg:grid-cols-4 gap-8">
           <!-- Sidebar Filters -->
           <aside class="lg:col-span-1">
@@ -188,7 +203,7 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
               <div class="flex items-center justify-between mb-6">
                 <h2 class="text-lg font-bold text-primary-900">Filtreler</h2>
                 <button
-                  v-if="selectedBrands.length > 0 || showOnlySponsored"
+                  v-if="selectedCategories.length > 0 || selectedBrands.length > 0 || showOnlySponsored"
                   @click="clearFilters"
                   type="button"
                   class="text-xs text-accent-600 hover:text-accent-700 font-semibold"
@@ -212,6 +227,30 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                 </label>
               </div>
 
+              <!-- Kategoriler Filter -->
+              <div class="mb-6 pb-6 border-b border-ink-100">
+                <h3 class="text-sm font-bold text-primary-900 mb-4 uppercase tracking-wide">
+                  Kategoriler
+                </h3>
+                <div class="space-y-3">
+                  <label
+                    v-for="cat in getUniqueCategories()"
+                    :key="cat.slug"
+                    class="flex items-center gap-3 cursor-pointer group"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="selectedCategories.includes(cat.slug)"
+                      @change="toggleCategory(cat.slug)"
+                      class="w-4 h-4 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
+                    />
+                    <span class="text-sm text-ink-700 group-hover:text-primary-900">
+                      {{ cat.name }}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               <!-- Markalar Filter -->
               <div>
                 <h3 class="text-sm font-bold text-primary-900 mb-4 uppercase tracking-wide">
@@ -219,7 +258,7 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                 </h3>
                 <div class="space-y-3">
                   <label
-                    v-for="brand in getUniqueBrands(getSlug($route.params.slug))"
+                    v-for="brand in getUniqueBrands()"
                     :key="brand"
                     class="flex items-center gap-3 cursor-pointer group"
                   >
@@ -240,9 +279,27 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
 
           <!-- Product Grid -->
           <div class="lg:col-span-3">
-            <div v-if="getFilteredProducts(getSlug($route.params.slug)).length > 0" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Items Per Page Selector -->
+            <div class="flex items-center justify-between mb-6 pb-6 border-b border-ink-100">
+              <div class="flex items-center gap-3">
+                <label class="text-sm font-medium text-primary-900">Sayfa başına:</label>
+                <select
+                  v-model.number="itemsPerPage"
+                  class="px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+                >
+                  <option v-for="opt in itemsPerPageOptions" :key="opt" :value="opt">
+                    {{ opt }} ürün
+                  </option>
+                </select>
+              </div>
+              <p class="text-sm text-ink-600">
+                Toplam: <span class="font-semibold">{{ filteredProducts.length }}</span> ürün
+              </p>
+            </div>
+
+            <div v-if="filteredProducts.length > 0" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <article
-                v-for="product in getFilteredProducts(getSlug($route.params.slug))"
+                v-for="product in paginatedProducts"
                 :key="product.id"
                 class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group"
               >
@@ -278,7 +335,7 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
 
                   <!-- WhatsApp Order Button -->
                   <button
-                    @click="orderViaWhatsApp(product, getSlug($route.params.slug), getCategoryTitle(getSlug($route.params.slug)))"
+                    @click="orderViaWhatsApp(product)"
                     type="button"
                     class="w-full bg-gradient-to-r from-primary-900 to-accent-600 text-white font-bold py-2.5 rounded-lg hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
@@ -287,6 +344,41 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                   </button>
                 </div>
               </article>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="totalPages > 1" class="mt-12 flex items-center justify-center gap-2">
+              <button
+                @click="currentPage = Math.max(1, currentPage - 1)"
+                :disabled="currentPage === 1"
+                class="px-4 py-2 border border-ink-200 rounded-lg text-sm font-medium text-primary-900 hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Önceki
+              </button>
+
+              <div class="flex gap-1">
+                <button
+                  v-for="page in totalPages"
+                  :key="page"
+                  @click="currentPage = page"
+                  :class="[
+                    'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    currentPage === page
+                      ? 'bg-accent-500 text-white'
+                      : 'border border-ink-200 text-primary-900 hover:bg-ink-50'
+                  ]"
+                >
+                  {{ page }}
+                </button>
+              </div>
+
+              <button
+                @click="currentPage = Math.min(totalPages, currentPage + 1)"
+                :disabled="currentPage === totalPages"
+                class="px-4 py-2 border border-ink-200 rounded-lg text-sm font-medium text-primary-900 hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Sonraki →
+              </button>
             </div>
 
             <!-- Empty State -->

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 useHead({
-  title: 'Sadoksan — Banyo & Sıhhi Tesisat Distribütörlüğü',
+  title: 'Sadoksan Insaat',
 })
 </script>
 

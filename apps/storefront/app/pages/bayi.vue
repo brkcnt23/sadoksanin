@@ -60,7 +60,7 @@ const statusColor = (s: string) => {
         <div class="flex flex-wrap items-end justify-between gap-6">
           <div>
             <p class="eyebrow text-accent-400">Bayi Paneli</p>
-            <h1 class="mt-3 font-display text-4xl md:text-5xl font-extrabold tracking-tight">
+            <h1 class="mt-3 font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white">
               Hoşgeldiniz, {{ dealer?.companyName }}
             </h1>
             <p class="mt-3 text-ink-300 max-w-xl">

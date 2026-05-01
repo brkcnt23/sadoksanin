@@ -27,7 +27,7 @@ const benefits = [
         <div class="relative grid lg:grid-cols-2 gap-12 p-10 md:p-14 lg:p-16">
           <div>
             <p class="eyebrow text-accent-400">Bayilik</p>
-            <h2 class="mt-3 font-display text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
+            <h2 class="mt-3 font-display text-3xl md:text-5xl font-extrabold leading-tight tracking-tight text-white">
               Sadoksan ailesine<br />
               <span class="text-accent-500">katılın.</span>
             </h2>

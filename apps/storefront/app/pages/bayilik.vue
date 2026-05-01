@@ -1,45 +1,18 @@
 <script setup lang="ts">
-import type SiteDotLogo from '../components/site/DotLogo.vue'
-
 definePageMeta({
   title: 'Bayi Programı | SADÖKSAN İnşaat',
   description: 'Distribütör ağımıza katılın. Bayi olmak için şartlar ve avantajlar',
 })
-
-const heroRef = ref<HTMLElement>()
-const dotLogoRef = ref<InstanceType<typeof SiteDotLogo>>()
-
-function onMouseMove(e: MouseEvent) {
-  dotLogoRef.value?.setMouse(e.clientX, e.clientY)
-}
-
-function onMouseLeave() {
-  dotLogoRef.value?.clearMouse()
-}
 </script>
 
 <template>
   <div class="min-h-screen bg-gradient-to-b from-primary-50 to-white">
     <!-- Hero Section -->
-    <section
-      ref="heroRef"
-      class="relative overflow-hidden bg-primary-950 text-white py-20 lg:py-28"
-      @mousemove="onMouseMove"
-      @mouseleave="onMouseLeave"
-    >
-      <!-- Background -->
-      <div class="absolute inset-0">
-        <img
-          src="https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=2000&q=85"
-          alt=""
-          class="h-full w-full object-cover opacity-40"
-        />
-        <div class="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/85 to-primary-950/40" />
-      </div>
-
-      <!-- Dot logo -->
-      <div class="absolute inset-0 pointer-events-none block opacity-25 sm:opacity-30 lg:opacity-30">
-        <SiteDotLogo ref="dotLogoRef" :ambient="true" />
+    <section class="relative overflow-hidden bg-gradient-to-r from-primary-900 via-primary-800 to-accent-600 py-20 lg:py-28">
+      <!-- Decorative circles -->
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 -left-40 w-80 h-80 bg-white rounded-full blur-3xl" />
+        <div class="absolute bottom-0 -right-40 w-80 h-80 bg-white rounded-full blur-3xl" />
       </div>
 
       <div class="relative px-6 lg:px-12 mx-auto max-w-5xl text-center">
@@ -47,7 +20,7 @@ function onMouseLeave() {
           Distribütör Ağımıza Katılın
         </h1>
         <p class="text-white/80 text-lg lg:text-xl max-w-2xl mx-auto">
-          Türkiye'nin en güvenilir banyo, sıhhi tesisat ve yapı malzemeleri dağıtıcısı olarak, biz de başarılı bayilerimiz ile büyüyoruz.
+          4.500+ ürünü ile inşaat malzemeleri, banyo, sıhhi tesisat ve çeşitli çözümlerde Türkiye'nin güvenilir distribütörü. Başarılı bayilerimiz ile büyüyoruz.
         </p>
       </div>
     </section>
@@ -258,13 +231,13 @@ function onMouseLeave() {
 
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink
-            to="/bayilik/uye-ol"
+            to="/uye-ol"
             class="px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white font-bold rounded-lg transition-colors text-center"
           >
             Yeni Bayi Olmak İstiyorum
           </NuxtLink>
           <NuxtLink
-            to="/bayilik/giris"
+            to="/giris"
             class="px-8 py-4 bg-white/20 hover:bg-white/30 text-white font-bold rounded-lg transition-colors border border-white/30 text-center"
           >
             Zaten Bayiyim - Giriş Yap
