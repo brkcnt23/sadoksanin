@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useAuth } from '~/composables/useAuth'
 
 definePageMeta({
-  title: 'Bayi Girişi | SADÖKSAN İnşaat',
+  title: 'Bayi Girişi | Sadöksan İnşaat',
   description: 'Bayi hesabınıza giriş yapın.',
 })
+
+const { login } = useAuth()
 
 interface FormData {
   email: string
@@ -75,31 +78,33 @@ const handleSubmit = async () => {
   serverError.value = ''
 
   try {
-    // TODO: Integrate with actual API
-    // const response = await $fetch('/api/dealers/login', {
-    //   method: 'POST',
-    //   body: {
-    //     email: formData.value.email,
-    //     sifre: formData.value.sifre,
-    //   },
-    // })
-    // Handle successful login - set token, redirect to dealer dashboard
+    const result = await login(formData.value.email, formData.value.sifre)
 
-    // Simulated delay for demo
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    if (result.success) {
+      const { getUser } = useAuth()
+      const user = getUser()
 
-    // Placeholder for actual login redirect
-    navigateTo('/bayi-panel')
+      // Only DEALER role can access dealer panel
+      if (user?.role !== 'DEALER') {
+        serverError.value = 'Bu hesap bir bayi hesabı değil. Lütfen bayi hesabınızla giriş yapın.'
+        // Log out since this is not a dealer account
+        const { logout } = useAuth()
+        logout()
+        return
+      }
+
+      navigateTo('/bayi')
+    } else {
+      serverError.value = result.error || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
+    }
   } catch (error: any) {
-    serverError.value =
-      error?.data?.message || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
+    serverError.value = 'Bir hata oluştu. Lütfen tekrar deneyin.'
   } finally {
     loading.value = false
   }
 }
 
 const handleForgotPassword = () => {
-  // TODO: Implement forgot password flow
   navigateTo('/bayilik/sifremi-unuttum')
 }
 </script>
@@ -116,6 +121,13 @@ const handleForgotPassword = () => {
         />
         <h1 class="text-2xl font-bold text-primary-900">Bayi Girişi</h1>
         <p class="text-ink-500 mt-2">Hesabınıza giriş yapın</p>
+      </div>
+
+      <!-- Demo Credentials -->
+      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-xs font-semibold text-blue-900 mb-2">Demo Bayi Kimlik Bilgileri:</p>
+        <p class="text-xs text-blue-800">Email: <code class="font-mono font-bold">bayi@test.com</code></p>
+        <p class="text-xs text-blue-800">Şifre: <code class="font-mono font-bold">asd123</code></p>
       </div>
 
       <!-- Error Message -->
@@ -170,10 +182,7 @@ const handleForgotPassword = () => {
               @click="showPassword = !showPassword"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700 transition"
             >
-              <Icon
-                :name="showPassword ? 'lucide:eye-off' : 'lucide:eye'"
-                class="h-5 w-5"
-              />
+              <Icon :name="showPassword ? 'lucide:eye-off' : 'lucide:eye'" class="h-5 w-5" />
             </button>
           </div>
           <p v-if="errors.sifre" class="text-xs text-red-500 mt-1.5">{{ errors.sifre }}</p>
@@ -181,11 +190,7 @@ const handleForgotPassword = () => {
 
         <!-- Remember Me -->
         <label class="flex items-center gap-3 cursor-pointer">
-          <input
-            v-model="formData.beniBaba"
-            type="checkbox"
-            class="w-4 h-4 accent-accent-500"
-          />
+          <input v-model="formData.beniBaba" type="checkbox" class="w-4 h-4 accent-accent-500" />
           <span class="text-sm text-ink-600">Beni hatırla</span>
         </label>
 
@@ -226,9 +231,7 @@ const handleForgotPassword = () => {
 
       <!-- Registration Link -->
       <div class="bg-primary-50 rounded-xl p-6 text-center">
-        <p class="text-sm text-ink-600 mb-3">
-          Henüz bayi hesabınız yok mu?
-        </p>
+        <p class="text-sm text-ink-600 mb-3">Henüz bayi hesabınız yok mu?</p>
         <NuxtLink
           to="/bayilik/uye-ol"
           class="inline-block w-full px-4 py-3 bg-primary-100 hover:bg-primary-200 text-primary-900 font-semibold rounded-lg transition-colors"
@@ -237,21 +240,26 @@ const handleForgotPassword = () => {
         </NuxtLink>
       </div>
 
-      <!-- Back to Program -->
+      <!-- Back to Home -->
       <div class="text-center mt-6">
         <NuxtLink
-          to="/bayilik"
+          to="/"
           class="text-sm text-accent-600 hover:text-accent-700 font-semibold transition flex items-center justify-center gap-1"
         >
           <Icon name="lucide:arrow-left" class="h-4 w-4" />
-          Bayi Programı
+          Anasayfa
         </NuxtLink>
       </div>
 
       <!-- Help Text -->
       <p class="text-center text-xs text-ink-500 mt-8">
         Giriş yapamıyor musunuz?
-        <a href="https://wa.me/905396541720" target="_blank" rel="noopener" class="text-accent-600 hover:text-accent-700 font-semibold">
+        <a
+          href="https://wa.me/905396541720"
+          target="_blank"
+          rel="noopener"
+          class="text-accent-600 hover:text-accent-700 font-semibold"
+        >
           WhatsApp'tan iletişime geçin
         </a>
       </p>

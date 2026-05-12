@@ -2,19 +2,27 @@
 const { enableDealer, isDealer, dealer } = useDealer()
 const { push: pushToast } = useToast()
 const { featured } = useProducts()
+const { getUser, isAuthenticated } = useAuth()
 
 useHead({ title: 'Bayi Paneli — Sadoksan' })
 
-const featuredItems = featured(8)
+const currentUser = getUser()
 
-// /bayi açıldığında bayi modunu aç ve toast göster.
+// Redirect if not authenticated or not a dealer
+watchEffect(() => {
+  if (!isAuthenticated.value || currentUser?.role !== 'DEALER') {
+    navigateTo('/bayilik/giris')
+  }
+})
+
+// Enable dealer mode from real auth user data
 onMounted(() => {
-  if (!isDealer.value) {
+  if (!isDealer.value && currentUser) {
     enableDealer({
-      id: 'd-2034',
-      code: 'BYI-2034',
-      companyName: 'Yıldız Yapı Market Ltd.',
-      city: 'Erzincan',
+      id: currentUser.id,
+      code: `BYI-${currentUser.id.slice(0, 4).toUpperCase()}`,
+      companyName: currentUser.name || 'Bayi',
+      city: (currentUser as any).city || 'Bilinmiyor',
       logisticsSurcharge: 40,
     })
   }
@@ -22,25 +30,12 @@ onMounted(() => {
   pushToast({
     variant: 'info',
     title: 'Bayi modu aktif',
-    description: `Lokasyon: ${dealer.value?.city ?? 'Erzincan'} — fiyatlara +${dealer.value?.logisticsSurcharge ?? 40} TL lojistik bedeli uygulanacaktır.`,
+    description: `Lokasyon: ${dealer.value?.city ?? 'Bilinmiyor'} — fiyatlara +${dealer.value?.logisticsSurcharge ?? 40} TL lojistik bedeli uygulanacaktır.`,
     duration: 8000,
   })
 })
 
-// Mock cari & sipariş verileri
-const summary = {
-  cariBalance: 124530,
-  pendingOrders: 3,
-  monthlyOrderCount: 18,
-  monthlyOrderTotal: 487200,
-}
-
-const recentOrders = [
-  { id: 'SP-2026-04781', date: '28.04.2026', items: 12, total: 18420, status: 'Onay Bekleniyor' },
-  { id: 'SP-2026-04752', date: '24.04.2026', items: 7,  total: 9650,  status: 'Sevk Edildi' },
-  { id: 'SP-2026-04711', date: '19.04.2026', items: 24, total: 41200, status: 'Tamamlandı' },
-  { id: 'SP-2026-04688', date: '14.04.2026', items: 5,  total: 6890,  status: 'Tamamlandı' },
-]
+const featuredItems = featured(8)
 
 const formatTL = (n: number) =>
   new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n)
@@ -53,7 +48,7 @@ const statusColor = (s: string) => {
 </script>
 
 <template>
-  <div>
+  <div v-if="isAuthenticated && currentUser?.role === 'DEALER'">
     <!-- Welcome -->
     <section class="bg-gradient-to-b from-primary-950 to-primary-900 text-white pt-14 pb-32">
       <div class="container-x">
@@ -61,12 +56,12 @@ const statusColor = (s: string) => {
           <div>
             <p class="eyebrow text-accent-400">Bayi Paneli</p>
             <h1 class="mt-3 font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white">
-              Hoşgeldiniz, {{ dealer?.companyName }}
+              Hoşgeldiniz, {{ currentUser?.name }}
             </h1>
             <p class="mt-3 text-ink-300 max-w-xl">
-              Bayi kodunuz <span class="text-accent-400 font-semibold">{{ dealer?.code }}</span> —
-              {{ dealer?.city }} lokasyonu üzerinden
-              <span class="text-accent-400 font-semibold">+{{ dealer?.logisticsSurcharge }} TL</span>
+              Email: {{ currentUser?.email }} —
+              {{ dealer?.city || (currentUser as any)?.city || 'Bilinmiyor' }} lokasyonu üzerinden
+              <span class="text-accent-400 font-semibold">+{{ dealer?.logisticsSurcharge ?? 40 }} TL</span>
               lojistik bedeli uygulanmaktadır.
             </p>
           </div>
@@ -84,108 +79,33 @@ const statusColor = (s: string) => {
       </div>
     </section>
 
-    <!-- KPI cards -->
-    <section class="-mt-20 pb-12">
-      <div class="container-x grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="rounded-xl bg-white border border-ink-100 p-6 shadow-card">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-500">Cari Bakiye</p>
-            <Icon name="lucide:wallet" class="h-5 w-5 text-accent-500" />
+    <!-- Quick actions -->
+    <section class="py-16 -mt-20">
+      <div class="container-x grid md:grid-cols-3 gap-5">
+        <a
+          v-for="(a, i) in [
+            { icon: 'lucide:file-text', title: 'Cari Ekstresi', desc: 'Geçmiş hesap hareketleri ve bakiye raporu', cta: 'Görüntüle' },
+            { icon: 'lucide:download', title: 'Stok & Fiyat Listesi', desc: 'Tüm ürünleri Excel olarak indirin', cta: 'İndir' },
+            { icon: 'lucide:headset', title: 'Bayi Destek', desc: 'Müşteri temsilciniz ile doğrudan iletişim', cta: 'İletişim' },
+          ]"
+          :key="i"
+          href="#"
+          class="group rounded-xl border border-ink-100 bg-white p-7 hover:border-primary-300 hover:shadow-card transition-all"
+        >
+          <div
+            class="h-11 w-11 grid place-items-center rounded-md bg-primary-50 text-primary-900 group-hover:bg-primary-900 group-hover:text-accent-500 transition-colors"
+          >
+            <Icon :name="a.icon" class="h-5 w-5" />
           </div>
-          <p class="mt-3 font-display text-2xl md:text-3xl font-extrabold text-primary-950">
-            {{ formatTL(summary.cariBalance) }} <span class="text-base text-ink-500 font-medium">TL</span>
-          </p>
-          <p class="mt-1 text-xs text-ink-500">Borç bakiye</p>
-        </div>
-
-        <div class="rounded-xl bg-white border border-ink-100 p-6 shadow-card">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-500">Onay Bekleyen</p>
-            <Icon name="lucide:clock" class="h-5 w-5 text-amber-500" />
-          </div>
-          <p class="mt-3 font-display text-2xl md:text-3xl font-extrabold text-primary-950">
-            {{ summary.pendingOrders }}
-          </p>
-          <p class="mt-1 text-xs text-ink-500">sipariş onayda</p>
-        </div>
-
-        <div class="rounded-xl bg-white border border-ink-100 p-6 shadow-card">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-500">Bu Ay Sipariş</p>
-            <Icon name="lucide:package" class="h-5 w-5 text-primary-700" />
-          </div>
-          <p class="mt-3 font-display text-2xl md:text-3xl font-extrabold text-primary-950">
-            {{ summary.monthlyOrderCount }}
-          </p>
-          <p class="mt-1 text-xs text-ink-500">aktif sipariş</p>
-        </div>
-
-        <div class="rounded-xl bg-white border border-ink-100 p-6 shadow-card">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-500">Aylık Hacim</p>
-            <Icon name="lucide:trending-up" class="h-5 w-5 text-emerald-500" />
-          </div>
-          <p class="mt-3 font-display text-2xl md:text-3xl font-extrabold text-primary-950">
-            {{ formatTL(summary.monthlyOrderTotal) }} <span class="text-base text-ink-500 font-medium">TL</span>
-          </p>
-          <p class="mt-1 text-xs text-emerald-600 font-medium">+12% geçen aya göre</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Recent orders -->
-    <section class="pb-16">
-      <div class="container-x">
-        <div class="flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <p class="eyebrow">Sipariş Geçmişi</p>
-            <h2 class="mt-3 heading-md">Son siparişleriniz</h2>
-          </div>
-          <NuxtLink to="/bayi/siparisler" class="btn-ghost text-primary-900">
-            Tüm Siparişler
-            <Icon name="lucide:arrow-right" class="h-4 w-4" />
-          </NuxtLink>
-        </div>
-
-        <div class="mt-8 overflow-hidden rounded-xl border border-ink-100 bg-white">
-          <table class="w-full text-sm">
-            <thead class="bg-ink-50 text-left text-xs uppercase tracking-wider text-ink-600">
-              <tr>
-                <th class="px-6 py-4 font-semibold">Sipariş No</th>
-                <th class="px-6 py-4 font-semibold">Tarih</th>
-                <th class="px-6 py-4 font-semibold text-center">Kalem</th>
-                <th class="px-6 py-4 font-semibold text-right">Tutar</th>
-                <th class="px-6 py-4 font-semibold">Durum</th>
-                <th class="px-6 py-4"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-ink-100">
-              <tr v-for="o in recentOrders" :key="o.id" class="hover:bg-ink-50/60">
-                <td class="px-6 py-4 font-mono text-xs font-semibold text-primary-900">
-                  {{ o.id }}
-                </td>
-                <td class="px-6 py-4 text-ink-600">{{ o.date }}</td>
-                <td class="px-6 py-4 text-center text-ink-700">{{ o.items }}</td>
-                <td class="px-6 py-4 text-right font-semibold text-ink-900">
-                  {{ formatTL(o.total) }} TL
-                </td>
-                <td class="px-6 py-4">
-                  <span
-                    class="inline-flex px-2.5 py-1 rounded-md border text-xs font-semibold"
-                    :class="statusColor(o.status)"
-                  >
-                    {{ o.status }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <button class="text-ink-500 hover:text-primary-900">
-                    <Icon name="lucide:chevron-right" class="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <h3 class="mt-5 font-display text-lg font-bold text-ink-900">{{ a.title }}</h3>
+          <p class="mt-2 text-sm text-ink-600 leading-relaxed">{{ a.desc }}</p>
+          <span
+            class="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary-900"
+          >
+            {{ a.cta }}
+            <Icon name="lucide:arrow-right" class="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </span>
+        </a>
       </div>
     </section>
 
@@ -197,8 +117,8 @@ const statusColor = (s: string) => {
             <p class="eyebrow">Bayi Fiyatlandırması</p>
             <h2 class="mt-3 heading-lg">Lokasyonunuza özel fiyatlar</h2>
             <p class="mt-4 lead">
-              Aşağıdaki fiyatlar {{ dealer?.city }} lokasyonu için
-              <span class="font-semibold text-accent-700">+{{ dealer?.logisticsSurcharge }} TL lojistik bedeli</span>
+              Aşağıdaki fiyatlar {{ dealer?.city || (currentUser as any)?.city || 'bulunduğunuz' }} lokasyonu için
+              <span class="font-semibold text-accent-700">+{{ dealer?.logisticsSurcharge ?? 40 }} TL lojistik bedeli</span>
               eklenmiş haldedir.
             </p>
           </div>
@@ -210,34 +130,6 @@ const statusColor = (s: string) => {
 
         <div class="mt-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           <ProductCard v-for="p in featuredItems" :key="p.id" :product="p" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Quick actions -->
-    <section class="py-16">
-      <div class="container-x">
-        <div class="grid md:grid-cols-3 gap-5">
-          <a
-            v-for="(a, i) in [
-              { icon: 'lucide:file-text', title: 'Cari Ekstresi', desc: 'Geçmiş hesap hareketleri ve bakiye raporu', cta: 'Görüntüle' },
-              { icon: 'lucide:download', title: 'Stok & Fiyat Listesi', desc: 'Tüm ürünleri Excel olarak indirin', cta: 'İndir' },
-              { icon: 'lucide:headset', title: 'Bayi Destek', desc: 'Müşteri temsilciniz ile doğrudan iletişim', cta: 'İletişim' },
-            ]"
-            :key="i"
-            href="#"
-            class="group rounded-xl border border-ink-100 bg-white p-7 hover:border-primary-300 hover:shadow-card transition-all"
-          >
-            <div class="h-11 w-11 grid place-items-center rounded-md bg-primary-50 text-primary-900 group-hover:bg-primary-900 group-hover:text-accent-500 transition-colors">
-              <Icon :name="a.icon" class="h-5 w-5" />
-            </div>
-            <h3 class="mt-5 font-display text-lg font-bold text-ink-900">{{ a.title }}</h3>
-            <p class="mt-2 text-sm text-ink-600 leading-relaxed">{{ a.desc }}</p>
-            <span class="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary-900">
-              {{ a.cta }}
-              <Icon name="lucide:arrow-right" class="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </a>
         </div>
       </div>
     </section>

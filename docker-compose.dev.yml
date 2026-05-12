@@ -13,6 +13,16 @@ x-node-base: &node-base
   networks:
     - sadoksan-network
   restart: unless-stopped
+  # WSL2/Docker default ulimits are too tight for Nuxt 4 + Tailwind v3 +
+  # 4000-product fixtures. fast-glob walks 10k+ files per PostCSS pass and
+  # blows past 1024 fds, surfacing as
+  #   ENOMEM: not enough memory, scandir
+  # (kernel vfs error, NOT actual RAM). Bumping nofile and nproc clears it.
+  ulimits:
+    nofile:
+      soft: 65536
+      hard: 65536
+    nproc: 4096
 
 services:
   postgres:
@@ -62,44 +72,80 @@ services:
       API_PORT: 3001
       API_HOST: 0.0.0.0
       JWT_SECRET: dev-secret-change-in-production
+      IN_DOCKER: "true"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # API ayağa kalkmadan admin/storefront fetch atınca ERR_CONNECTION_REFUSED.
+    # Bu healthcheck, downstream servislerin condition: service_healthy ile beklemesini sağlıyor.
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/auth/me', r => process.exit(r.statusCode === 401 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
     volumes:
       # bind-mount workspace manifests so dependency volumes track the host lockfile
       - ./package.json:/app/package.json:ro
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
+      # pnpm-lock.yaml NOT bind-mounted: container generates its own when missing
+      # (Dockerfile.dev runs pnpm install --no-frozen-lockfile)
       # bind-mount source for HMR
       - ./apps/api:/app/apps/api
       - ./packages:/app/packages
       # anonymous volumes preserve in-container node_modules
       - /app/node_modules
       - /app/apps/api/node_modules
-      - /app/apps/api/dist
       - /app/packages/shared/node_modules
       - /app/packages/ui/node_modules
-    command: ["pnpm", "-F", "@sadoksan/api", "dev"]
+    # Sıralama: prisma generate → migrate deploy → seed → nest dev
+    # Seed idempotent (upsert), migrate deploy zaten apply edilmiş migration'ı tekrarlamaz.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        cd /app/apps/api
+        echo "▶ prisma generate"
+        pnpm exec prisma generate
+        echo "▶ prisma migrate deploy"
+        pnpm exec prisma migrate deploy || pnpm exec prisma db push --accept-data-loss
+        echo "▶ db seed"
+        pnpm exec ts-node prisma/seed.ts || true
+        echo "▶ nest dev"
+        cd /app
+        exec pnpm -F @sadoksan/api dev
 
   storefront:
     <<: *node-base
     container_name: sadoksan-storefront
     ports:
       - "3000:3000"
+      - "24678:24678"   # Vite HMR websocket
     environment:
       NODE_ENV: development
       NUXT_PUBLIC_API_BASE: http://localhost:3001
-      # Container-friendly file watcher (Docker on Windows/macOS has no inotify)
+      # Vite uses its own watcher; these env vars are kept for any chokidar consumers
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
+      # Give Vite SSR child enough heap; default 512MB OOMs on cold SSR with 4000-product fixtures
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      # Nuxt 4.3 dev IPC stability: keep cache on a tmpfs path inside the container
+      NITRO_PRESET: node-server
+      IN_DOCKER: "true"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    # Hard-cap memory so OOM is observable rather than silent SIGKILL
+    mem_limit: 2560m
+    mem_reservation: 1024m
     volumes:
       - ./package.json:/app/package.json:ro
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
+      # pnpm-lock.yaml NOT bind-mounted: container generates its own when missing
+      # (Dockerfile.dev runs pnpm install --no-frozen-lockfile)
       - ./apps/storefront:/app/apps/storefront
       - ./packages:/app/packages
       - /app/node_modules
@@ -115,17 +161,24 @@ services:
     container_name: sadoksan-admin
     ports:
       - "3002:3002"
+      - "24679:24679"   # Vite HMR websocket
     environment:
       NODE_ENV: development
       ADMIN_API_BASE: http://localhost:3001
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      IN_DOCKER: "true"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    mem_limit: 2560m
+    mem_reservation: 1024m
     volumes:
       - ./package.json:/app/package.json:ro
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
+      # pnpm-lock.yaml NOT bind-mounted: container generates its own when missing
+      # (Dockerfile.dev runs pnpm install --no-frozen-lockfile)
       - ./apps/admin:/app/apps/admin
       - ./packages:/app/packages
       - /app/node_modules
@@ -135,6 +188,37 @@ services:
       - /app/packages/shared/node_modules
       - /app/packages/ui/node_modules
     command: ["pnpm", "-F", "@sadoksan/admin", "dev"]
+
+  # ============================================================================
+  # PYTHON SERVICE (Proforma PDF Generator)
+  # Development with hot-reload for Python code changes
+  # ============================================================================
+  python-service:
+    build:
+      context: ./python-service
+      dockerfile: Dockerfile
+    container_name: sadoksan-python
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: development
+      LOG_LEVEL: DEBUG
+      FLASK_APP: app.py
+    volumes:
+      # bind-mount source for hot-reload
+      - ./python-service:/app
+      # except __pycache__ and .pyc files
+      - /app/__pycache__
+    command: flask run --host=0.0.0.0 --port=5000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sadoksan-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -1,62 +1,49 @@
 <script setup lang="ts">
-interface OrderItem {
-  id: string
-  name: string
-  quantity: number
-  price: number
-}
+import { useCart } from '~/composables/useCart'
+import { useAuth } from '~/composables/useAuth'
+import type { Order } from '~/composables/useCart'
 
-interface Order {
-  id: string
-  date: string
-  items: OrderItem[]
-  total: number
-  status: 'Beklemede' | 'Hazırlanıyor' | 'Sevk Edildi' | 'Tamamlandı'
-}
+definePageMeta({
+  title: 'Siparişlerim | SADÖKSAN',
+})
 
-const orders = ref<Order[]>([
-  {
-    id: 'SİP-2026-01',
-    date: '2026-04-25',
-    items: [
-      { id: '1', name: '60x120 Seramik - Beyaz Mat', quantity: 5, price: 450 },
-      { id: '2', name: 'Standart Klozet - Beyaz', quantity: 2, price: 890 },
-    ],
-    total: 4330,
-    status: 'Sevk Edildi',
-  },
-  {
-    id: 'SİP-2026-02',
-    date: '2026-04-20',
-    items: [
-      { id: '3', name: 'Asma Klozet - Modern', quantity: 1, price: 1200 },
-    ],
-    total: 1200,
-    status: 'Tamamlandı',
-  },
-  {
-    id: 'SİP-2026-03',
-    date: '2026-04-15',
-    items: [
-      { id: '4', name: '30x60 Seramik - Krem', quantity: 10, price: 380 },
-      { id: '5', name: 'Lavabo - Standart', quantity: 3, price: 550 },
-    ],
-    total: 5250,
-    status: 'Tamamlandı',
-  },
-])
+const { getUserOrders, loadOrders } = useCart()
+const { getUser } = useAuth()
+
+const currentUser = getUser()
+
+if (!currentUser) {
+  navigateTo('/giris')
+}
 
 const selectedOrder = ref<Order | null>(null)
+const orders = computed(() => {
+  const userOrders = getUserOrders()
+  return userOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+})
 
-const statusColor = (status: string) => {
-  if (status === 'Beklemede') return 'bg-amber-50 text-amber-800 border-amber-200'
-  if (status === 'Hazırlanıyor') return 'bg-blue-50 text-blue-800 border-blue-200'
-  if (status === 'Sevk Edildi') return 'bg-sky-50 text-sky-800 border-sky-200'
-  return 'bg-emerald-50 text-emerald-800 border-emerald-200'
+const statusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    'completed': 'Tamamlandı',
+    'pending-approval': 'Onay Beklemede',
+  }
+  return labels[status] || status
 }
 
+const statusColor = (status: string) => {
+  const colors: Record<string, string> = {
+    completed: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    'pending-approval': 'bg-amber-50 text-amber-800 border-amber-200',
+  }
+  return colors[status] || 'bg-ink-50 text-ink-700 border-ink-200'
+}
+
+onMounted(() => {
+  loadOrders()
+})
+
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(price)
+  return `₺${price.toLocaleString('tr-TR')}`
 }
 </script>
 
@@ -116,7 +103,7 @@ const formatPrice = (price: number) => {
                 <div>
                   <h3 class="font-semibold text-primary-900">{{ order.id }}</h3>
                   <p class="text-sm text-ink-500 mt-1">
-                    {{ new Date(order.date).toLocaleDateString('tr-TR') }}
+                    {{ new Date(order.createdAt).toLocaleDateString('tr-TR') }}
                   </p>
                 </div>
                 <span
@@ -125,7 +112,7 @@ const formatPrice = (price: number) => {
                     statusColor(order.status),
                   ]"
                 >
-                  {{ order.status }}
+                  {{ statusLabel(order.status) }}
                 </span>
               </div>
 
@@ -180,7 +167,7 @@ const formatPrice = (price: number) => {
               <div>
                 <p class="text-sm text-ink-600 mb-1">Sipariş Tarihi</p>
                 <p class="font-semibold text-primary-900">
-                  {{ new Date(selectedOrder.date).toLocaleDateString('tr-TR') }}
+                  {{ new Date(selectedOrder.createdAt).toLocaleDateString('tr-TR') }}
                 </p>
               </div>
               <div>
@@ -202,15 +189,15 @@ const formatPrice = (price: number) => {
               <div class="space-y-3">
                 <div
                   v-for="item in selectedOrder.items"
-                  :key="item.id"
+                  :key="item.productId"
                   class="flex items-center justify-between pb-3 border-b border-ink-100"
                 >
                   <div>
-                    <p class="font-medium text-primary-900">{{ item.name }}</p>
+                    <p class="font-medium text-primary-900">{{ item.product.name }}</p>
                     <p class="text-sm text-ink-600">Adet: {{ item.quantity }}</p>
                   </div>
                   <p class="font-semibold text-primary-900">
-                    {{ formatPrice(item.price) }}
+                    {{ formatPrice(item.product.price * item.quantity) }}
                   </p>
                 </div>
               </div>

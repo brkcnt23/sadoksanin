@@ -1,0 +1,133 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
+import { OrdersService } from './orders.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+@Controller('orders')
+@UseGuards(JwtAuthGuard)
+export class OrdersController {
+  constructor(private ordersService: OrdersService) {}
+
+  /**
+   * Create a new order
+   * B2C: immediate approval
+   * B2B: pending admin approval
+   */
+  @Post()
+  async createOrder(@Body() createOrderDto: CreateOrderDto, @Request() req: any) {
+    return this.ordersService.createOrder(createOrderDto, req.user.id);
+  }
+
+  /**
+   * Admin: Get all B2B pending approval orders
+   */
+  @Get('admin/pending')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async getPendingOrders(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.ordersService.getOrders(
+      undefined,
+      'PENDING_APPROVAL',
+      'B2B',
+      parseInt(limit || '50'),
+      parseInt(offset || '0'),
+    );
+  }
+
+  /**
+   * Get available stock for a product
+   */
+  @Get('stock/:productId')
+  async getAvailableStock(@Param('productId') productId: string) {
+    const available = await this.ordersService.getAvailableStock(productId);
+    return { productId, available };
+  }
+
+  /**
+   * Get user's own orders (paginated)
+   */
+  @Get()
+  async getUserOrders(
+    @Request() req: any,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.ordersService.getOrders(
+      req.user.id,
+      status,
+      undefined,
+      parseInt(limit || '50'),
+      parseInt(offset || '0'),
+    );
+  }
+
+  /**
+   * Get order details by ID
+   */
+  @Get(':orderId')
+  async getOrder(@Param('orderId') orderId: string) {
+    return this.ordersService.getOrderById(orderId);
+  }
+
+  /**
+   * Admin: Approve a pending B2B order
+   */
+  @Post(':orderId/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async approveOrder(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.approveOrder(orderId, req.user.id);
+  }
+
+  /**
+   * Admin: Reject a pending B2B order
+   */
+  @Post(':orderId/reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async rejectOrder(
+    @Param('orderId') orderId: string,
+    @Body() body: { reason: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.rejectOrder(orderId, req.user.id, body.reason);
+  }
+
+  /**
+   * Admin: Mark order as shipped (releases stock reservation)
+   */
+  @Post(':orderId/ship')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async shipOrder(@Param('orderId') orderId: string) {
+    return this.ordersService.completeOrder(orderId);
+  }
+
+  /**
+   * Admin: Cancel an order
+   */
+  @Post(':orderId/cancel')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async cancelOrder(
+    @Param('orderId') orderId: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.ordersService.cancelOrder(orderId, body.reason);
+  }
+}

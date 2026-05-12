@@ -29,7 +29,9 @@ sadoksan/ (monorepo root)
 ├── packages/
 │   ├── shared/              # Common types, Prisma schema, utilities
 │   └── ui/                  # Shared Vue components
-└── docker-compose.yml       # Dev environment orchestration
+├── docker-compose.yml       # Production environment
+├── docker-compose.dev.yml   # Development environment (HOT RELOAD, debugging)
+└── docker-compose.prod.yml  # Alternative prod config
 
 **Critical principle:** Nuxt is presentation-layer only. All stateful, integrative, compliance-heavy work lives in NestJS backend.
 
@@ -124,11 +126,41 @@ sadoksan/ (monorepo root)
 - Health checks on all services
 - Named volumes for PostgreSQL persistence
 
-### Environment Management
-- `docker-compose.yml`: Development (live reload, debugging, seed data)
-- `docker-compose.prod.yml`: Production (no hot-reload, fixed versions, logging)
-- `.env.dev`, `.env.prod` for configuration
-- Secrets injected at runtime (never in Dockerfile)
+### Docker Compose: Development vs Production
+
+**WHY TWO FILES?** 
+- **Dev** = rapid iteration (hot reload, debugging, loose resource limits)
+- **Prod** = stability & performance (optimized images, fixed deps, secure logging)
+- Single `docker-compose.yml` = copy-paste hell, hard to diff, prod mistakes leak into dev
+
+**NEVER run `docker compose up` alone.** Always specify `-f`:
+
+```bash
+# DEVELOPMENT (hot reload, Vite polling, seed data)
+docker compose -f docker-compose.dev.yml up
+
+# PRODUCTION (optimized, no hot-reload)
+docker compose -f docker-compose.prod.yml up
+```
+
+**File breakdown:**
+- `docker-compose.dev.yml` 
+  - Nuxt 4.4.4 (HMR enabled, vite polling optimized)
+  - Bind-mount source code (live reload)
+  - Relaxed resource limits for debugging
+  - Seed scripts auto-run on startup
+  - Verbose logging
+  
+- `docker-compose.prod.yml`
+  - Multi-stage builds (dist/ only, no source)
+  - Strict resource limits
+  - Health checks on all services
+  - Log aggregation ready
+  - Fixed versions (no auto-updates)
+
+**Environment configuration:**
+- `.env.dev`: development values (localhost, debug logging)
+- `.env.prod`: production secrets (injected at runtime, never in Dockerfile)
 
 ### Services in docker-compose
 - `postgres`: PostgreSQL 15
@@ -213,11 +245,30 @@ packages/shared/
 
 ## Development Workflow
 
-1. **Local:** `docker-compose up` → all services running
-2. **Hot reload:** Nuxt instances watch files, HMR enabled
-3. **Database:** Prisma migrations auto-run on compose startup
-4. **Seeding:** Seed script populates test dealers, products, orders
-5. **Testing:** Vitest for unit, Playwright for e2e (headless)
+### Starting the Stack (ALWAYS use docker-compose.dev.yml)
+
+```bash
+# 1. Ensure pnpm installed locally (host machine)
+npm install -g pnpm@8.15.0
+
+# 2. Clean full rebuild (when deps are corrupted or IPC errors occur)
+docker compose -f docker-compose.dev.yml down -v  # -v = destroy volumes
+rm -rf apps/storefront/dist apps/admin/dist apps/api/dist  # CRITICAL: delete dist folders
+pnpm install --frozen-lockfile  # regenerate pnpm-lock.yaml
+docker compose -f docker-compose.dev.yml build --no-cache
+docker compose -f docker-compose.dev.yml up
+
+# 3. Normal startup (after first build)
+docker compose -f docker-compose.dev.yml up
+```
+
+### Development Behavior
+- **Hot reload:** Source files watched, Nuxt HMR auto-reloads browser
+- **Database:** Prisma migrations auto-run on startup
+- **Seeding:** Test data (dealers, products) auto-populated
+- **Vite polling:** Enabled to handle WSL2 inotify limits
+- **IPC:** Nuxt 4.4.4 includes fix for IPC connection errors
+- **Testing:** Vitest for unit, Playwright for e2e (headless)
 
 ## Known Unknowns (To Spec Before Coding)
 

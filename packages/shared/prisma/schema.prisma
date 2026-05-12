@@ -1,0 +1,588 @@
+// This file is shared between apps/api and admin types mirror
+// Schema Version: 2026-05-02
+// Status: Foundation design ready for NestJS implementation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION & USERS
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hash
+  firstName String?
+  lastName  String?
+  role      UserRole @default(viewer)
+
+  // For B2C customers
+  phone     String?
+  address   String?
+  city      String?
+
+  // Relationships
+  favorites    Favorite[]
+  notifyRequests NotifyRequest[]
+  auditLogs    AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+enum UserRole {
+  admin      // Full access
+  manager    // Approve orders, manage dealers
+  finance    // View pricing, reports, cari balances
+  viewer     // Read-only dashboard
+}
+
+// ============================================================================
+// DEALERS (B2B)
+// ============================================================================
+
+model Dealer {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  password              String   // bcrypt hash
+  companyName           String
+  contactName           String?
+  phone                 String?
+
+  // Netsis integration
+  netsisCariNo          String   @unique // cari hesap numarası
+  netsisValidatedAt     DateTime?
+
+  // Status workflow
+  status                DealerStatus @default(pending_approval)
+  approvedBy            String?  // User ID of approver
+  approvedAt            DateTime?
+  rejectionReason       String?
+
+  // Location & pricing
+  city                  String   // Determines logistics surcharge region
+  dealerLocationId      String?
+  dealerLocation        DealerLocation? @relation(fields: [dealerLocationId], references: [id])
+
+  // Credit & balance (fetched from Netsis)
+  creditLimit           Decimal  @default(0) @db.Decimal(12, 2)
+  currentBalance        Decimal  @default(0) @db.Decimal(12, 2)
+  lastCariSyncAt        DateTime?
+
+  // Relationships
+  orders                Order[]
+  pricingOverrides      DealerPricingOverride[]
+  favorites             Favorite[]
+  notifyRequests        NotifyRequest[]
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  deletedAt             DateTime?
+
+  @@index([status])
+  @@index([netsisCariNo])
+  @@index([city])
+  @@index([deletedAt])
+}
+
+enum DealerStatus {
+  pending_approval
+  active
+  inactive
+  rejected
+}
+
+// ============================================================================
+// PRODUCTS (from Netsis, site metadata overlay)
+// ============================================================================
+
+model Product {
+  id              String   @id @default(cuid())
+  sku             String   @unique // From Netsis
+  name            String
+  description     String?  @db.Text
+
+  // Netsis master data (refreshed hourly)
+  netsisStockTotal    Decimal  @default(0) @db.Decimal(10, 2)
+  netsisPriceBase     Decimal  @default(0) @db.Decimal(10, 2)
+  netsisCategory      String?
+  netsisLastSyncedAt  DateTime?
+
+  // Site-specific metadata
+  isVisible           Boolean  @default(true)  // Admin can hide products
+  isPurchasable       Boolean  @default(true)  // Can be visible but not buyable
+
+  // Computed display stock (derived from ReservedStock)
+  displayStock        Decimal  @default(0) @db.Decimal(10, 2)
+  displayStockUpdatedAt DateTime?
+
+  // Images (ideaSoft migration)
+  primaryImageUrl     String?
+  imageUrls           String[] // JSON array of image URLs
+
+  // Relationships
+  variations          ProductVariation[]
+  orderLines          OrderLine[]
+  reservedStocks      ReservedStock[]
+  favorites           Favorite[]
+  notifyRequests      NotifyRequest[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([sku])
+  @@index([isVisible])
+  @@index([isPurchasable])
+  @@index([netsisCategory])
+}
+
+model ProductVariation {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // TBD: Source from Netsis or site-defined?
+  // For now: allow both, prefer Netsis
+  netsisVariationId String?  // If from Netsis
+  name            String   // e.g., "Color: Red", "Size: XL"
+  value           String   // e.g., "Red", "XL"
+
+  // Stock & pricing override (per-variation)
+  stockMultiplier Decimal  @default(1.0) @db.Decimal(4, 2)
+  priceMultiplier Decimal  @default(1.0) @db.Decimal(4, 2)
+
+  // Relationships
+  orderLines      OrderLine[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([productId, netsisVariationId])
+  @@index([productId])
+}
+
+// ============================================================================
+// ORDERS (B2C immediate, B2B approval-pending)
+// ============================================================================
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique // Human-readable: ORD-2026-00001
+
+  // Customer/Dealer
+  userId          String?  // B2C customer (nullable for guest)
+  user            User?    @relation(fields: [userId], references: [id])
+  dealerId        String?  // B2B dealer
+  dealer          Dealer?  @relation(fields: [dealerId], references: [id])
+
+  // Order type & status
+  orderType       OrderType @default(b2c_immediate)
+  status          OrderStatus @default(pending_confirmation)
+
+  // B2B approval tracking
+  submittedAt     DateTime @default(now())
+  approvedAt      DateTime?
+  approvedBy      String?  // User ID of approver (admin/manager)
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectionReason String?
+
+  // Fulfillment
+  fulfilledAt     DateTime?
+  cancelledAt     DateTime?
+
+  // Pricing snapshot (at order time)
+  subtotal        Decimal  @default(0) @db.Decimal(12, 2)
+  logisticsCharge Decimal  @default(0) @db.Decimal(12, 2)
+  tax             Decimal  @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal  @default(0) @db.Decimal(12, 2)
+
+  // E-document integration
+  alNeoInvoiceId  String?  // From Alneo after fulfillment
+  alNeoIrsaliyeId String?  // E-irsaliye document ID
+
+  // Relationships
+  lines           OrderLine[]
+  reservations    ReservedStock[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([userId])
+  @@index([dealerId])
+  @@index([status])
+  @@index([orderType])
+  @@index([createdAt])
+}
+
+enum OrderType {
+  b2c_immediate      // B2C: immediate checkout
+  b2b_approval_pending // B2B: awaiting admin approval
+}
+
+enum OrderStatus {
+  pending_confirmation  // Awaiting B2B approval or B2C payment
+  confirmed             // Approved (B2B) or paid (B2C)
+  pending_fulfillment   // Ready to ship
+  fulfilled             // Shipped
+  cancelled             // Cancelled by admin or customer
+  rejected              // B2B order rejected by admin
+}
+
+model OrderLine {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+
+  variationId     String?  // Optional if product has variations
+  variation       ProductVariation? @relation(fields: [variationId], references: [id])
+
+  // Quantity & pricing snapshot
+  quantity        Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice       Decimal  @default(0) @db.Decimal(10, 2)
+  lineTotal       Decimal  @default(0) @db.Decimal(12, 2)
+
+  createdAt       DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variationId])
+}
+
+// ============================================================================
+// STOCK MANAGEMENT (Display formula: total - reserved)
+// ============================================================================
+
+model ReservedStock {
+  id              String   @id @default(cuid())
+
+  // Reservation source
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Quantity reserved
+  quantity        Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Status lifecycle
+  status          ReservationStatus @default(reserved)
+  reservedAt      DateTime @default(now())
+  releaseReason   String?  // If status = released
+  releasedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+  @@index([orderId])
+  @@index([status])
+}
+
+enum ReservationStatus {
+  reserved      // Active reservation
+  released      // Order cancelled/rejected
+  fulfilled     // Order shipped
+}
+
+// Snapshot table for hourly reconciliation
+model NetsisStockSnapshot {
+  id              String   @id @default(cuid())
+  productId       String
+
+  netsisTotal     Decimal  @db.Decimal(10, 2)  // From Netsis
+  reservedOnSite  Decimal  @db.Decimal(10, 2)  // SUM(ReservedStock.quantity WHERE status=reserved)
+  displayStock    Decimal  @db.Decimal(10, 2)  // Computed: netsisTotal - reservedOnSite
+
+  snapshotAt      DateTime @default(now())
+
+  @@index([productId])
+  @@index([snapshotAt])
+}
+
+// ============================================================================
+// PRICING & LOGISTICS
+// ============================================================================
+
+model LogisticsRule {
+  id              String   @id @default(cuid())
+
+  region          String   // Türkiye şehir (e.g., "Istanbul", "Ankara")
+  basePrice       Decimal  @default(0) @db.Decimal(10, 2)
+  surchargePercent Decimal  @default(0) @db.Decimal(5, 2)  // e.g., 10.5 for 10.5%
+  freeShippingAbove Decimal? @db.Decimal(12, 2)  // Nullable if no threshold
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([region])
+  @@index([isActive])
+}
+
+model DealerPricingOverride {
+  id              String   @id @default(cuid())
+  dealerId        String
+  dealer          Dealer   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+
+  productId       String
+
+  // Override price (replaces base + surcharge calculation)
+  overridePrice   Decimal  @db.Decimal(10, 2)
+
+  reason          String?  // e.g., "volume discount", "contract rate"
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([dealerId, productId])
+  @@index([dealerId])
+  @@index([productId])
+}
+
+model DealerLocation {
+  id              String   @id @default(cuid())
+  city            String   @unique // Türkiye şehir
+  region          String   // Region code for logistics
+
+  dealers         Dealer[]
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================================================
+// MARKETING & NOTIFICATIONS
+// ============================================================================
+
+model Popup {
+  id              String   @id @default(cuid())
+  title           String
+  content         String   @db.Text
+  imageUrl        String?
+  actionUrl       String?
+  actionText      String?  @default("Learn More")
+
+  // Targeting
+  audience        PopupAudience @default(all_users)  // all, B2C, B2B, specific dealer
+  dealerIds       String[]  // If audience = specific_dealer
+
+  // Engagement tracking
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  ctr             Decimal  @default(0) @db.Decimal(5, 3)  // Click-through rate
+
+  // Lifecycle
+  isActive        Boolean  @default(true)
+  startDate       DateTime
+  endDate         DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([audience])
+  @@index([isActive])
+  @@index([startDate])
+}
+
+enum PopupAudience {
+  all_users
+  b2c_only
+  b2b_only
+  specific_dealer
+}
+
+model NotifyRequest {
+  id              String   @id @default(cuid())
+
+  // Subscriber
+  userId          String?  // B2C customer
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealerId        String?  // B2B dealer
+  dealer          Dealer?  @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+
+  // What to notify about
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Notification channel
+  channel         NotificationChannel @default(email)
+  email           String?  // If channel = email
+  phoneNumber     String?  // If channel = whatsapp
+
+  // Status
+  isActive        Boolean  @default(true)
+  notifiedAt      DateTime?
+  cancelledAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+  @@index([dealerId])
+  @@index([isActive])
+  @@index([channel])
+}
+
+enum NotificationChannel {
+  email
+  whatsapp
+}
+
+// ============================================================================
+// AUDIT & COMPLIANCE
+// ============================================================================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+
+  // Who & When
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+
+  // What
+  action          AuditAction
+  entityType      String   // e.g., "Order", "Dealer", "Product"
+  entityId        String   // ID of affected entity
+
+  // Details
+  changes         Json?    // {before: {...}, after: {...}} for diffs
+  description     String?  // Human-readable summary
+
+  // Immutable: never updated or deleted
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  created
+  updated
+  deleted
+  approved
+  rejected
+  exported
+  synced
+}
+
+// ============================================================================
+// CART (Temporary, session-bound)
+// ============================================================================
+
+model CartItem {
+  id              String   @id @default(cuid())
+  sessionId       String   // From Nuxt cookie
+
+  productId       String
+  variationId     String?
+
+  quantity        Decimal  @default(1) @db.Decimal(10, 2)
+
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime // Auto-purge after 7 days
+
+  @@unique([sessionId, productId, variationId])
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// FAVORITES (B2C & B2B wishlist)
+// ============================================================================
+
+model Favorite {
+  id              String   @id @default(cuid())
+
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dealerId        String?
+  dealer          Dealer?  @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@unique([dealerId, productId])
+  @@index([userId])
+  @@index([dealerId])
+  @@index([productId])
+}
+
+// ============================================================================
+// NETSIS SYNC TRACKING
+// ============================================================================
+
+model NetsisProductSync {
+  id              String   @id @default(cuid())
+
+  lastFetchedAt   DateTime
+  lastDeltaAt     DateTime?
+  totalProductsSync Int
+  errorMessage    String?
+
+  // Singleton: one record per app
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model NetsisCariSync {
+  id              String   @id @default(cuid())
+
+  netsisAccountId String   @unique
+  dealerId        String?  // Link to our Dealer (nullable until matched)
+
+  accountName     String
+  creditLimit     Decimal  @db.Decimal(12, 2)
+  currentBalance  Decimal  @db.Decimal(12, 2)
+  region          String?
+
+  lastSyncedAt    DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([dealerId])
+  @@index([netsisAccountId])
+  @@index([lastSyncedAt])
+}
+
+// ============================================================================
+// SETTINGS (Key-value store for admin configuration)
+// ============================================================================
+
+model Setting {
+  id              String   @id @default(cuid())
+  key             String   @unique  // e.g., "maintenance_mode", "netsis_sync_interval_minutes"
+  value           String   @db.Text // JSON-serialized
+
+  updatedBy       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([key])
+}

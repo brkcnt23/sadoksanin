@@ -3,8 +3,8 @@ import { ref, computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 
 definePageMeta({
-  title: 'Bayi Girişi | SADÖKSAN İnşaat',
-  description: 'Bayi hesabınıza giriş yapın.',
+  title: 'Üye Girişi | Sadöksan İnşaat',
+  description: 'Hesabınıza giriş yapın.',
 })
 
 const { login } = useAuth()
@@ -81,8 +81,6 @@ const handleSubmit = async () => {
     const result = await login(formData.value.email, formData.value.sifre)
 
     if (result.success) {
-      // Simulated delay for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000))
       navigateTo('/hesabim')
     } else {
       serverError.value = result.error || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
@@ -110,7 +108,7 @@ const handleForgotPassword = () => {
           alt="Sadöksan İnşaat"
           class="h-12 w-auto object-contain brightness-0 invert mx-auto mb-4"
         />
-        <h1 class="text-2xl font-bold text-primary-900">Bayi Girişi</h1>
+        <h1 class="text-2xl font-bold text-primary-900">Üye Girişi</h1>
         <p class="text-ink-500 mt-2">Hesabınıza giriş yapın</p>
       </div>
 

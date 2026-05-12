@@ -1,0 +1,285 @@
+<script setup lang="ts">
+import type { Product } from '~/types'
+
+interface Props {
+  open: boolean
+  product: Product | null // null = create
+}
+const props = defineProps<Props>()
+const emit = defineEmits<{ close: []; saved: [product: Product] }>()
+
+const products = useProductsStore()
+
+const empty = (): Product => ({
+  id: '',
+  netsisCode: '',
+  sku: '',
+  name: '',
+  brand: 'AKGÜN',
+  category: '',
+  description: '',
+  images: [],
+  basePrice: 0,
+  taxRate: 0.2,
+  unit: 'm²',
+  visible: true,
+  purchasable: true,
+  netsisStock: 0,
+  reservedStock: 0,
+  displayStock: 0,
+  lastNetsisSync: new Date().toISOString(),
+  syncStatus: 'never',
+  variations: [],
+  minimumStock: 0,
+  middleStock: undefined,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+})
+
+const form = ref<Product>(empty())
+
+watch(
+  () => [props.open, props.product],
+  () => {
+    if (props.open) {
+      form.value = props.product ? { ...props.product } : empty()
+    }
+  },
+  { immediate: true },
+)
+
+const saving = ref(false)
+const error = ref<string | null>(null)
+
+const save = async () => {
+  if (!form.value.name.trim() || !form.value.sku.trim()) {
+    error.value = 'Ürün adı ve SKU zorunludur'
+    return
+  }
+  // minimumStock is required
+  if (form.value.minimumStock === undefined || form.value.minimumStock === null) {
+    error.value = 'Minimum stok seviyesi zorunludur!'
+    return
+  }
+
+  saving.value = true
+  error.value = null
+
+  try {
+    if (props.product) {
+      // Update existing product
+      await products.updateStockThresholds(
+        props.product.id,
+        form.value.minimumStock,
+        form.value.middleStock,
+      )
+      emit('saved', form.value)
+    } else {
+      // Create new product - not yet implemented on API
+      error.value = 'Yeni ürün oluşturma API tarafından henüz desteklenmiyor'
+      return
+    }
+    emit('close')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Bir hata oluştu'
+    console.error('Save failed:', err)
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <Modal :open="open" :title="product ? 'Ürünü Düzenle' : 'Yeni Ürün'" size="lg" @close="emit('close')">
+    <div class="p-6 space-y-5">
+      <!-- Error Message -->
+      <div v-if="error" class="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+        {{ error }}
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Ürün Adı *</label>
+          <input
+            v-model="form.name"
+            type="text"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">SKU *</label>
+          <input
+            v-model="form.sku"
+            type="text"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Netsis Kodu</label>
+          <input
+            v-model="form.netsisCode"
+            type="text"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Marka</label>
+          <input
+            v-model="form.brand"
+            type="text"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Kategori</label>
+          <input
+            v-model="form.category"
+            type="text"
+            list="cat-list"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <datalist id="cat-list">
+            <option v-for="c in products.categories" :key="c" :value="c" />
+          </datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Birim</label>
+          <select
+            v-model="form.unit"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option>m²</option>
+            <option>adet</option>
+            <option>kg</option>
+            <option>m³</option>
+            <option>kutu</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Birim Fiyat (KDV Hariç)</label>
+          <input
+            v-model.number="form.basePrice"
+            type="number"
+            step="0.01"
+            min="0"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">KDV Oranı</label>
+          <select
+            v-model.number="form.taxRate"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option :value="0">%0</option>
+            <option :value="0.01">%1</option>
+            <option :value="0.1">%10</option>
+            <option :value="0.2">%20</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Netsis Stok</label>
+          <input
+            v-model.number="form.netsisStock"
+            type="number"
+            min="0"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Rezerve (Bekleyen Sipariş)</label>
+          <input
+            :value="form.reservedStock"
+            type="number"
+            disabled
+            class="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-md text-sm text-slate-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Minimum Stok Seviyesi * <span class="text-red-600">(Zorunlu)</span></label>
+          <input
+            v-model.number="form.minimumStock"
+            type="number"
+            min="0"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            placeholder="Kırmızı uyarı (kritik) için eşik..."
+          />
+          <p class="text-xs text-slate-500 mt-1">Bu seviye altında kırmızı uyarı görülür</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Orta Stok Seviyesi <span class="text-slate-400">(İsteğe Bağlı)</span></label>
+          <input
+            v-model.number="form.middleStock"
+            type="number"
+            min="0"
+            class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            placeholder="Turuncu uyarı (orta) için eşik..."
+          />
+          <p class="text-xs text-slate-500 mt-1">Bu seviye ve minimum arasında turuncu uyarı görülür. Boş bırakılırsa sadece kırmızı/yeşil olur</p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">Açıklama</label>
+        <textarea
+          v-model="form.description"
+          rows="2"
+          class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
+        <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+          <input v-model="form.visible" type="checkbox" class="w-4 h-4 rounded text-blue-600" />
+          <div class="flex-1">
+            <p class="text-sm font-medium text-slate-900">Katalogda Görünsün</p>
+            <p class="text-xs text-slate-500">Storefront'ta listelensin mi?</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+          <input v-model="form.purchasable" type="checkbox" class="w-4 h-4 rounded text-blue-600" />
+          <div class="flex-1">
+            <p class="text-sm font-medium text-slate-900">Sepete Eklenebilir</p>
+            <p class="text-xs text-slate-500">Müşteri satın alabilsin mi?</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Image Upload -->
+      <div class="pt-4 border-t border-slate-200">
+        <UiImageUploadZone
+          :model-value="form.images"
+          label="Ürün Görselleri"
+          @update:model-value="(images) => (form.images = images)"
+        />
+      </div>
+
+      <!-- Variations Editor -->
+      <div class="pt-4 border-t border-slate-200">
+        <ProductsProductVariationEditor
+          :variations="form.variations"
+          @update="(vars) => (form.variations = vars)"
+        />
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="flex items-center justify-end gap-2">
+        <button
+          @click="emit('close')"
+          :disabled="saving"
+          class="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md disabled:opacity-50"
+        >
+          İptal
+        </button>
+        <button
+          @click="save"
+          :disabled="saving"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+        >
+          <span v-if="saving" class="inline-block mr-2">⏳</span>
+          {{ saving ? 'Kaydediliyor...' : 'Kaydet' }}
+        </button>
+      </div>
+    </template>
+  </Modal>
+</template>

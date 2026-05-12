@@ -1,33 +1,50 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
 
-const { logout, getUser } = useAuth()
-const currentUser = getUser()
+definePageMeta({
+  title: 'Hesabım | Sadöksan İnşaat',
+  description: 'Hesap bilgilerinizi yönetin.',
+})
 
-if (!currentUser) {
+const { logout, getUser, isAuthenticated } = useAuth()
+
+// Redirect if not authenticated (after hydration attempt)
+watchEffect(() => {
+  if (!isAuthenticated.value) {
+    navigateTo('/giris')
+  }
+})
+
+const navItems = [
+  { icon: 'lucide:user', label: 'Profil Bilgileri', to: '/hesabim', active: true },
+  { icon: 'lucide:package', label: 'Siparişlerim', to: '/siparislerim', active: false },
+  { icon: 'lucide:heart', label: 'Favori Ürünler', to: '/favori-urunler', active: false },
+  { icon: 'lucide:log-out', label: 'Çıkış Yap', action: 'logout', active: false },
+]
+
+const handleLogout = () => {
+  logout()
   navigateTo('/giris')
 }
 
-const user = ref(currentUser || {
-  ad: 'Ahmet',
-  soyad: 'Yılmaz',
-  email: 'ahmet.yilmaz@example.com',
-  telefon: '0539 654 17 20',
-  sehir: 'İstanbul',
-  adres: 'Test Caddesi No: 5',
-  createdAt: '2024-06-15',
-})
-
 const isEditing = ref(false)
-const editForm = ref({ ...user.value })
+const editForm = ref<Record<string, string>>({})
 
 const startEdit = () => {
+  const u = getUser()
+  if (!u) return
+  editForm.value = {
+    name: u.name || '',
+    email: u.email || '',
+    phone: (u as any).phone || '',
+    city: (u as any).city || '',
+    address: (u as any).address || '',
+  }
   isEditing.value = true
-  editForm.value = { ...user.value }
 }
 
 const saveChanges = () => {
-  user.value = { ...editForm.value }
+  // TODO: API call to update profile — PATCH /auth/me
   isEditing.value = false
 }
 
@@ -35,23 +52,21 @@ const cancelEdit = () => {
   isEditing.value = false
 }
 
-const handleLogout = () => {
-  logout()
-  navigateTo('/giris')
-}
-
-const navItems = [
-  { icon: 'lucide:user', label: 'Profil Bilgileri', to: '/hesabim', active: true },
-  { icon: 'lucide:package', label: 'Siparişlerim', to: '/siparislerim', active: false },
-  { icon: 'lucide:heart', label: 'Favori Ürünler', to: '/favori-urunler', active: false },
-  { icon: 'lucide:log-out', label: 'Çıkış Yap', action: handleLogout, active: false },
-]
+const initials = computed(() => {
+  const u = getUser()
+  if (!u?.name) return '?'
+  return u.name
+    .split(' ')
+    .map((n) => n.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+})
 </script>
 
 <template>
   <div class="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 lg:py-16">
     <div class="px-6 lg:px-12 mx-auto max-w-7xl">
-      <!-- Page Header -->
       <div class="mb-12">
         <h1 class="text-4xl font-bold text-primary-900 mb-2">Hesap Yönetimi</h1>
         <p class="text-ink-600">Profil bilgilerinizi düzenleyin ve siparişlerinizi takip edin</p>
@@ -61,19 +76,16 @@ const navItems = [
         <!-- Sidebar Navigation -->
         <aside class="lg:col-span-1">
           <div class="bg-white rounded-xl shadow-md overflow-hidden sticky top-24">
-            <!-- User Card -->
             <div class="bg-gradient-to-r from-primary-900 to-accent-600 text-white p-6 text-center">
-              <div class="h-20 w-20 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold mx-auto mb-4">
-                {{ user.ad.charAt(0) }}{{ user.soyad.charAt(0) }}
+              <div
+                class="h-20 w-20 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold mx-auto mb-4"
+              >
+                {{ initials }}
               </div>
-              <h3 class="font-bold text-lg">{{ user.ad }} {{ user.soyad }}</h3>
-              <p class="text-white/80 text-sm mt-1">{{ user.email }}</p>
-              <p class="text-white/60 text-xs mt-3">
-                Üye: {{ new Date(user.createdAt).toLocaleDateString('tr-TR') }}
-              </p>
+              <h3 class="font-bold text-lg">{{ getUser()?.name || 'Kullanıcı' }}</h3>
+              <p class="text-white/80 text-sm mt-1">{{ getUser()?.email }}</p>
             </div>
 
-            <!-- Navigation Menu -->
             <nav class="p-4 space-y-2">
               <NuxtLink
                 v-for="(item, idx) in navItems.slice(0, 3)"
@@ -90,7 +102,6 @@ const navItems = [
                 <span>{{ item.label }}</span>
               </NuxtLink>
 
-              <!-- Logout Button -->
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-primary-900 hover:bg-red-50 border border-transparent transition-all"
@@ -104,10 +115,10 @@ const navItems = [
 
         <!-- Main Content -->
         <div class="lg:col-span-3">
-          <!-- Profile Card -->
           <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <!-- Header Section -->
-            <div class="bg-gradient-to-r from-primary-50 to-accent-50 p-6 border-b border-ink-100 flex items-center justify-between">
+            <div
+              class="bg-gradient-to-r from-primary-50 to-accent-50 p-6 border-b border-ink-100 flex items-center justify-between"
+            >
               <div>
                 <h2 class="text-2xl font-bold text-primary-900">Profil Bilgileri</h2>
                 <p class="text-ink-600 text-sm mt-1">Kişisel bilgilerinizi güncelleyin</p>
@@ -117,53 +128,65 @@ const navItems = [
               </div>
             </div>
 
-            <!-- Content -->
             <div class="p-8">
               <!-- View Mode -->
-              <form v-if="!isEditing" class="space-y-8">
-                <!-- Name Section -->
-                <div class="grid sm:grid-cols-2 gap-8">
-                  <div class="pb-6 border-b border-ink-100">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Adı</p>
-                    <p class="text-lg font-semibold text-primary-900">{{ user.ad }}</p>
-                  </div>
-                  <div class="pb-6 border-b border-ink-100">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Soyadı</p>
-                    <p class="text-lg font-semibold text-primary-900">{{ user.soyad }}</p>
-                  </div>
+              <div v-if="!isEditing" class="space-y-8">
+                <div class="pb-6 border-b border-ink-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Ad Soyad</p>
+                  <p class="text-lg font-semibold text-primary-900">{{ getUser()?.name || '-' }}</p>
                 </div>
 
-                <!-- Contact Section -->
                 <div class="border-t border-ink-100 pt-8">
-                  <h3 class="text-sm font-bold text-primary-900 uppercase tracking-wider mb-6">İletişim Bilgileri</h3>
+                  <h3 class="text-sm font-bold text-primary-900 uppercase tracking-wider mb-6">
+                    İletişim Bilgileri
+                  </h3>
                   <div class="grid sm:grid-cols-2 gap-8">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Email</p>
-                      <p class="text-lg font-semibold text-primary-900">{{ user.email }}</p>
+                      <p class="text-lg font-semibold text-primary-900">{{ getUser()?.email || '-' }}</p>
                     </div>
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Telefon</p>
-                      <p class="text-lg font-semibold text-primary-900">{{ user.telefon }}</p>
+                      <p class="text-lg font-semibold text-primary-900">
+                        {{ (getUser() as any)?.phone || '-' }}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Address Section -->
                 <div class="border-t border-ink-100 pt-8">
                   <h3 class="text-sm font-bold text-primary-900 uppercase tracking-wider mb-6">Adres Bilgileri</h3>
                   <div class="grid sm:grid-cols-2 gap-8">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Şehir</p>
-                      <p class="text-lg font-semibold text-primary-900">{{ user.sehir }}</p>
+                      <p class="text-lg font-semibold text-primary-900">
+                        {{ (getUser() as any)?.city || '-' }}
+                      </p>
                     </div>
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-2">Adres</p>
-                      <p class="text-lg font-semibold text-primary-900">{{ user.adres }}</p>
+                      <p class="text-lg font-semibold text-primary-900">
+                        {{ (getUser() as any)?.address || '-' }}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Action Button -->
+                <div class="border-t border-ink-100 pt-8">
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="inline-flex px-2.5 py-1 rounded-md border text-xs font-semibold"
+                      :class="
+                        getUser()?.role === 'DEALER'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      "
+                    >
+                      {{ getUser()?.role === 'DEALER' ? 'Bayi' : 'Müşteri' }}
+                    </span>
+                  </div>
+                </div>
+
                 <div class="border-t border-ink-100 pt-8">
                   <button
                     @click="startEdit"
@@ -174,27 +197,17 @@ const navItems = [
                     Düzenle
                   </button>
                 </div>
-              </form>
+              </div>
 
               <!-- Edit Mode -->
               <form v-else @submit.prevent="saveChanges" class="space-y-6">
-                <div class="grid sm:grid-cols-2 gap-6">
-                  <div>
-                    <label class="block text-sm font-semibold text-primary-900 mb-2">Adı</label>
-                    <input
-                      v-model="editForm.ad"
-                      type="text"
-                      class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-semibold text-primary-900 mb-2">Soyadı</label>
-                    <input
-                      v-model="editForm.soyad"
-                      type="text"
-                      class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
-                    />
-                  </div>
+                <div>
+                  <label class="block text-sm font-semibold text-primary-900 mb-2">Ad Soyad</label>
+                  <input
+                    v-model="editForm.name"
+                    type="text"
+                    class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                  />
                 </div>
 
                 <div>
@@ -209,7 +222,7 @@ const navItems = [
                 <div>
                   <label class="block text-sm font-semibold text-primary-900 mb-2">Telefon</label>
                   <input
-                    v-model="editForm.telefon"
+                    v-model="editForm.phone"
                     type="tel"
                     class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
                   />
@@ -219,7 +232,7 @@ const navItems = [
                   <div>
                     <label class="block text-sm font-semibold text-primary-900 mb-2">Şehir</label>
                     <input
-                      v-model="editForm.sehir"
+                      v-model="editForm.city"
                       type="text"
                       class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
                     />
@@ -227,7 +240,7 @@ const navItems = [
                   <div>
                     <label class="block text-sm font-semibold text-primary-900 mb-2">Adres</label>
                     <input
-                      v-model="editForm.adres"
+                      v-model="editForm.address"
                       type="text"
                       class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
                     />
@@ -236,8 +249,7 @@ const navItems = [
 
                 <div class="flex gap-4 pt-6 border-t border-ink-100">
                   <button
-                    @click="saveChanges"
-                    type="button"
+                    type="submit"
                     class="px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
                   >
                     <Icon name="lucide:check" class="h-4 w-4" />

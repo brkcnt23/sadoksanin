@@ -41,4 +41,23 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
   },
+  // HMR + watch sadece Docker'da explicit; lokal dev'de Vite default'una bırak.
+  // Aksi halde lokal `pnpm dev`'de ws://localhost:24678 hiçbir yere bind değil →
+  // "WebSocket closed without opened" hatası.
+  vite: {
+    server: {
+      watch: process.env.IN_DOCKER === 'true'
+        ? { usePolling: true, interval: 1000 }
+        : undefined,
+      hmr: process.env.IN_DOCKER === 'true'
+        ? { protocol: 'ws', host: 'localhost', port: 24678, clientPort: 24678 }
+        : undefined,
+      fs: {
+        strict: false,
+      },
+    },
+    optimizeDeps: {
+      include: ['axios', '@vueuse/core'],
+    },
+  },
 })

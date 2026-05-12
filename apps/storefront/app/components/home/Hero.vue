@@ -17,6 +17,8 @@ const stats = [
 
     <!-- Content -->
     <div class="relative px-6 lg:px-12 mx-auto max-w-5xl">
+
+
       <!-- Eyebrow -->
       <p class="text-accent-400 text-sm font-semibold uppercase tracking-wide mb-4">
         İnşaat Malzemeleri Distribütörü

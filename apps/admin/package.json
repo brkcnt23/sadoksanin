@@ -10,15 +10,20 @@
     "type-check": "nuxt typecheck"
   },
   "dependencies": {
-    "nuxt": "^4.4.0",
-    "vue": "^3.4.0",
-    "@nuxtjs/tailwindcss": "^6.11.0",
-    "axios": "^1.6.2"
+    "@iconify-json/lucide": "1.2.105",
+    "@nuxt/icon": "2.2.1",
+    "@nuxtjs/tailwindcss": "6.14.0",
+    "@pinia/nuxt": "0.11.3",
+    "axios": "1.16.0",
+    "nuxt": "4.3.1",
+    "pinia": "3.0.4",
+    "vue": "3.5.33",
+    "xlsx": "0.18.5"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "typescript": "^5.3.3",
-    "vue-tsc": "^2.1.0",
-    "eslint": "^8.55.0"
+    "@types/node": "25.6.0",
+    "eslint": "10.3.0",
+    "typescript": "6.0.3",
+    "vue-tsc": "3.2.6"
   }
 }

@@ -1,0 +1,435 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7+: connection URL is no longer declared here.
+// Migrate URL lives in `prisma.config.ts`; runtime URL is passed via the
+// driver adapter (PrismaPg) in `src/common/prisma.service.ts`.
+datasource db {
+  provider = "postgresql"
+}
+
+// ───── Auth & Users ──────────────────────────────────────────────────────────
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String // bcrypted
+  name      String
+  role      UserRole   @default(CUSTOMER)
+
+  // B2C customer data
+  phone     String?
+  address   String?
+  city      String?
+
+  // Relationships
+  dealer    Dealer?
+  orders    Order[]
+  favorites Favorite[]
+
+  // Audit
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  CUSTOMER  // B2C customer
+  DEALER    // B2B dealer/reseller
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ───── Dealers (B2B Accounts) ────────────────────────────────────────────────
+model Dealer {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Business info
+  name              String
+  company           String
+  taxNo             String      @unique
+  taxOffice         String
+
+  // Netsis link
+  cariNo            String      @unique // Customer account number in Netsis
+  cariValidated     Boolean     @default(false)
+
+  // Contact
+  contactPerson     String
+  phone             String
+
+  // Delivery
+  city              String
+  region            String      @default("Marmara") // Logistics region
+  address           String
+
+  // Account state
+  status            DealerStatus @default(PENDING)
+  cariBalance       Float       @default(0) // From Netsis (negative = owes us)
+  creditLimit       Float       @default(0)
+
+  // Stats
+  totalOrders       Int         @default(0)
+  totalRevenue      Float       @default(0)
+  lastOrderAt       DateTime?
+
+  // Admin notes
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectionReason   String?
+
+  // Relationships
+  orders            Order[]
+
+  // Audit
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([cariNo])
+  @@index([status])
+}
+
+enum DealerStatus {
+  PENDING   // Awaiting approval
+  ACTIVE
+  INACTIVE
+  REJECTED
+}
+
+// ───── Products (from Netsis) ────────────────────────────────────────────────
+model Product {
+  id                String       @id @default(cuid())
+  netsisCode        String       @unique // Master ID from Netsis
+  sku               String       @unique
+  name              String
+  brand             String
+  category          String
+  description       String?
+
+  // Pricing & Tax
+  basePrice         Float
+  taxRate           Float        @default(0.2) // 0.20 = 20% VAT
+
+  // Physical
+  unit              String       // m², adet, kg, etc
+  weight            Float?
+  dimensions        String?
+
+  // Stock (from Netsis, updated hourly)
+  netsisStock       Int          @default(0)
+  reservedStock     Int          @default(0) // Sum of pending orders
+  displayStock      Int          @default(0) // calculated: netsis - reserved
+  lastNetsisSync    DateTime     @default(now())
+
+  // Stock thresholds
+  minimumStock      Int          @default(0) // Red alert threshold
+  middleStock       Int?                      // Orange alert (optional)
+
+  // Visibility/Purchasability
+  visible           Boolean      @default(true)
+  purchasable       Boolean      @default(true)
+
+  // Sync status
+  syncStatus        SyncStatus   @default(NEVER)
+
+  // Relationships
+  variations        ProductVariation[]
+  orderLines        OrderLine[]
+  favorites         Favorite[]
+  stockReservations StockReservation[]
+
+  // Audit
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([netsisCode])
+  @@index([sku])
+  @@index([category])
+  @@index([syncStatus])
+}
+
+enum SyncStatus {
+  SYNCED
+  PENDING
+  ERROR
+  NEVER
+}
+
+model ProductVariation {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku         String
+  label       String    // "60x120cm Beige"
+  attributes  String    // JSON: { "size": "60x120", "color": "Beige" }
+  price       Float?    // null = inherit parent
+  stock       Int       @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, sku])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// ───── Orders ────────────────────────────────────────────────────────────────
+model Order {
+  id                String      @id @default(cuid())
+  orderNo           String      @unique // SDK-2026-0001
+
+  // Customer info
+  customerId        String
+  customer          User        @relation(fields: [customerId], references: [id])
+  customerType      CustomerType
+  dealerId          String?     // If B2B
+  dealer            Dealer?     @relation(fields: [dealerId], references: [id])
+
+  // Shipping
+  shippingCity      String
+  shippingAddress   String
+
+  // Order content
+  lines             OrderLine[]
+  subtotal          Float
+  tax               Float
+  logisticsSurcharge Float @default(0)
+  total             Float
+
+  // Status — application code always sets this explicitly on creation
+  // (B2B → PENDING_APPROVAL, B2C → APPROVED). The default is a defensive
+  // fallback for raw inserts; PENDING_APPROVAL is the conservative choice
+  // since it requires explicit admin action to progress.
+  status            OrderStatus @default(PENDING_APPROVAL)
+
+  // B2B approval
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectionReason   String?
+
+  // E-document tracking
+  eInvoiceNo        String?
+  eInvoiceStatus    EInvoiceStatus?
+  eIrsaliyeNo       String?
+
+  // Notes
+  notes             String?
+
+  // Stock reservation
+  stockReservations StockReservation[]
+
+  // Audit
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([customerId])
+  @@index([dealerId])
+  @@index([status])
+  @@index([orderNo])
+}
+
+enum CustomerType {
+  B2C
+  B2B
+}
+
+enum OrderStatus {
+  PENDING_APPROVAL // B2B awaiting admin approval
+  APPROVED
+  PREPARING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum EInvoiceStatus {
+  PENDING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+model OrderLine {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+
+  variationId   String?
+  quantity      Int
+  unitPrice     Float
+  taxRate       Float
+  total         Float // qty * unitPrice * (1 + taxRate)
+
+  createdAt     DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// ───── Stock Management ──────────────────────────────────────────────────────
+model StockReservation {
+  id            String              @id @default(cuid())
+  orderId       String
+  order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId     String
+  product       Product             @relation(fields: [productId], references: [id])
+
+  quantity      Int
+  status        StockReservationStatus @default(ACTIVE)
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([status])
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  RELEASED   // Order cancelled
+  FULFILLED  // Order shipped
+}
+
+// ───── Sync tracking ────────────────────────────────────────────────────────
+model NetsisSync {
+  id                String    @id @default(cuid())
+  syncType          String    // "products", "stock", "cari"
+
+  lastSyncAt        DateTime?
+  lastSyncDuration  Int       @default(0) // milliseconds
+  itemsSynced       Int       @default(0)
+  errors            Int       @default(0)
+  status            String    @default("idle") // idle, running, success, error
+  nextScheduledAt   DateTime?
+
+  errorMessage      String?
+
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([syncType])
+}
+
+// ───── Pricing & Logistics (from Admin) ──────────────────────────────────────
+model RegionalPricingSurcharge {
+  id            String    @id @default(cuid())
+  regionKey     String    @unique // Marmara, Ege, IcAnadolu, etc
+  surcharge     Float
+  description   String
+  active        Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ProvincePricingSurcharge {
+  id            String    @id @default(cuid())
+  province      String    @unique // İstanbul, Ankara, etc
+  surcharge     Float
+  description   String
+  active        Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model LogisticsRule {
+  id                    String    @id @default(cuid())
+  region                String
+  cities                String[]  // JSON array
+  baseSurcharge         Float     @default(0)
+  perKgSurcharge        Float     @default(0)
+  perM2Surcharge        Float     @default(0)
+  freeShippingThreshold Float?
+  active                Boolean   @default(true)
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// ───── Forex ────────────────────────────────────────────────────────────────
+model ExchangeRate {
+  id              String    @id @default(cuid())
+  currency        String    @unique // USD, EUR, GBP, CHF, AED
+
+  rate            Float     // Base rate (TRY per currency)
+  liveRate        Float?    // From TCMB/API
+  manualOverride  Float?    // User-set rate (takes precedence)
+
+  source          String    @default("manual")
+  lastUpdated     DateTime  @default(now())
+
+  updatedAt       DateTime  @updatedAt
+}
+
+model ProductCurrencyPrice {
+  id          String    @id @default(cuid())
+  productId   String
+  currency    String    // USD, EUR, etc
+  price       Float     // Price in foreign currency
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, currency])
+  @@index([productId])
+}
+
+// ───── Settings ──────────────────────────────────────────────────────────────
+model SiteSettings {
+  id                    String    @id @default("main") // Single record
+
+  maintenanceMode       Boolean   @default(false)
+  maintenanceMessage    String?
+  maintenanceAllowAdmins Boolean  @default(true)
+
+  updatedAt             DateTime  @updatedAt
+}
+
+// ───── Audit ─────────────────────────────────────────────────────────────────
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?   // Who did it
+  email       String?   // Email at time
+
+  action      String    // product.update, order.approve, etc
+  entity      String    // Product, Order, Dealer
+  entityId    String    // ID of the entity
+
+  oldValue    String?   // JSON
+  newValue    String?   // JSON
+
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([action])
+}

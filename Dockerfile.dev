@@ -14,18 +14,31 @@ RUN apk add --no-cache libc6-compat bash \
 WORKDIR /app
 
 # ----------------------------------------------------------------------------
-# Layer 1: workspace manifests only (maximizes Docker layer cache)
-# Re-install only triggers when a package.json or the lockfile changes
+# Layer 1: workspace manifests + prisma schemas (for postinstall hooks)
+# Re-install only triggers when a package.json, lockfile, or prisma schema changes
 # ----------------------------------------------------------------------------
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* .env* ./
 COPY apps/api/package.json        ./apps/api/
 COPY apps/storefront/package.json ./apps/storefront/
 COPY apps/admin/package.json      ./apps/admin/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json     ./packages/ui/
 
+# Copy Prisma schemas (needed for postinstall hooks)
+COPY apps/api/prisma              ./apps/api/prisma/
+COPY packages/shared/prisma       ./packages/shared/prisma/
+COPY prisma                       ./prisma/
+
 # Install full workspace deps (dev included). Dev mode: flexibility over strict lockfile.
 RUN pnpm install --no-frozen-lockfile
+
+# Layer 2a: API source + initial build (so dist/ exists for watch mode)
+COPY apps/api/src                 ./apps/api/src/
+COPY apps/api/tsconfig.json       ./apps/api/
+COPY apps/api/nest-cli.json       ./apps/api/
+
+# Build API once so nest start --watch has dist/ to work with
+RUN pnpm -F @sadoksan/api build
 
 # ----------------------------------------------------------------------------
 # Layer 2: source code
