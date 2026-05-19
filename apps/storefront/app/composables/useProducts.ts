@@ -436,6 +436,7 @@ interface ApiProduct {
   description?: string | null
   displayStock?: number
   visible?: boolean
+  imageUrl?: string | null
 }
 
 const slugify = (s: string): string =>
@@ -457,7 +458,7 @@ const mapApiProduct = (p: ApiProduct): Product => ({
   brand: p.brand,
   category: p.category,
   price: p.basePrice,
-  image: '', // TODO: wire product image once asset migration lands
+  image: p.imageUrl || '',
   inStock: (p.displayStock ?? 0) > 0,
   stockCount: p.displayStock ?? 0,
   sku: p.sku,

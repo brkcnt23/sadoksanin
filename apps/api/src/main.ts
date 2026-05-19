@@ -1,10 +1,17 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Lift body-parser limits so proforma submissions with embedded base64
+  // product images (data:image/...) don't trip the default 100kb ceiling.
+  // 15 MB matches our 2 MB per-image client cap * ~5 items + JSON overhead.
+  app.use(json({ limit: '15mb' }));
+  app.use(urlencoded({ limit: '15mb', extended: true }));
 
   app.useGlobalPipes(
     new ValidationPipe({

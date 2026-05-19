@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 interface Props {
   open: boolean
   title?: string
@@ -33,7 +33,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKey))
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-900/50 backdrop-blur-sm"
         @click.self="emit('close')"
       >
         <div
@@ -41,12 +41,12 @@ onUnmounted(() => window.removeEventListener('keydown', handleKey))
         >
           <header
             v-if="title"
-            class="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0"
+            class="px-6 py-4 border-b border-ink-200 flex items-center justify-between shrink-0"
           >
-            <h3 class="font-semibold text-slate-900">{{ title }}</h3>
+            <h3 class="font-semibold text-ink-900">{{ title }}</h3>
             <button
               @click="emit('close')"
-              class="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+              class="p-1.5 hover:bg-ink-100 rounded-md text-ink-500 transition-colors"
             >
               <Icon name="lucide:x" class="w-4 h-4" />
             </button>
@@ -54,7 +54,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKey))
           <div class="flex-1 overflow-auto">
             <slot />
           </div>
-          <footer v-if="$slots.footer" class="px-6 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+          <footer v-if="$slots.footer" class="px-6 py-4 border-t border-ink-200 bg-ink-50 shrink-0">
             <slot name="footer" />
           </footer>
         </div>

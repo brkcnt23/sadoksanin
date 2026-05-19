@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { formatPrice } from '~/utils/storage'
 import { applyCurrencyFormatting } from '~/utils/excel-format'
@@ -164,31 +164,31 @@ const exportProductCurrencyPrices = async () => {
     />
 
     <!-- Live Rate Refresh Toolbar -->
-    <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="bg-white rounded-xl border border-ink-200 p-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p class="text-sm font-medium text-slate-900">Canlı Döviz Kurları</p>
-          <p class="text-xs text-slate-500 mt-1">Türkiye Merkez Bankası (TCMB) verilerine dayalı</p>
+          <p class="text-sm font-medium text-ink-900">Canlı Döviz Kurları</p>
+          <p class="text-xs text-ink-500 mt-1">Türkiye Merkez Bankası (TCMB) verilerine dayalı</p>
         </div>
         <div class="flex gap-2 flex-wrap">
           <button
             @click="refreshLiveRates"
             :disabled="isRefreshing"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
           >
             <Icon name="lucide:refresh-cw" :class="['w-4 h-4', { 'animate-spin': isRefreshing }]" />
             {{ isRefreshing ? 'Yükleniyor...' : 'Kurları Yenile' }}
           </button>
           <button
             @click="exportExchangeRates"
-            class="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700 flex items-center gap-2"
+            class="px-4 py-2 bg-ink-600 text-white text-sm font-medium rounded-lg hover:bg-ink-700 flex items-center gap-2"
           >
             <Icon name="lucide:download" class="w-4 h-4" />
             Kurları İndir
           </button>
           <button
             @click="exportProductCurrencyPrices"
-            class="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700 flex items-center gap-2"
+            class="px-4 py-2 bg-ink-600 text-white text-sm font-medium rounded-lg hover:bg-ink-700 flex items-center gap-2"
           >
             <Icon name="lucide:download" class="w-4 h-4" />
             Ürün Fiyatlarını İndir
@@ -198,36 +198,36 @@ const exportProductCurrencyPrices = async () => {
     </div>
 
     <!-- Exchange Rates Management -->
-    <div class="bg-white rounded-xl border border-slate-200">
-      <div class="px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-transparent">
-        <h3 class="font-semibold text-slate-900 flex items-center gap-2">
-          <Icon name="lucide:trending-up" class="w-4 h-4 text-blue-600" />
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200 bg-gradient-to-r from-primary-50 to-transparent">
+        <h3 class="font-semibold text-ink-900 flex items-center gap-2">
+          <Icon name="lucide:trending-up" class="w-4 h-4 text-primary-600" />
           Döviz Kurları (TRY Karşılığı)
         </h3>
-        <p class="text-xs text-slate-500 mt-1">
+        <p class="text-xs text-ink-500 mt-1">
           Canlı kurlar otomatik güncellenebilir. Manuel kur belirlediğinizde, o kur kullanılır.
         </p>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200">
+          <thead class="bg-ink-50 border-b border-ink-200">
             <tr>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Döviz</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Canlı Kur</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Manuel Kur</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Mevcut Kur</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Son Güncelleme</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">İşlemler</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Döviz</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Canlı Kur</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Manuel Kur</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Mevcut Kur</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Son Güncelleme</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">İşlemler</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="rate in forex.exchangeRates" :key="rate.id" class="hover:bg-slate-50">
-              <td class="px-5 py-3 text-sm font-semibold text-slate-900">{{ rate.currency }}</td>
-              <td class="px-5 py-3 text-sm text-slate-700">
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="rate in forex.exchangeRates" :key="rate.id" class="hover:bg-ink-50">
+              <td class="px-5 py-3 text-sm font-semibold text-ink-900">{{ rate.currency }}</td>
+              <td class="px-5 py-3 text-sm text-ink-700">
                 {{ rate.liveRate ? `₺${rate.liveRate.toFixed(2)}` : '—' }}
               </td>
-              <td class="px-5 py-3 text-sm font-medium" :class="rate.manualOverride ? 'text-emerald-700' : 'text-slate-500'">
+              <td class="px-5 py-3 text-sm font-medium" :class="rate.manualOverride ? 'text-emerald-700' : 'text-ink-500'">
                 {{ rate.manualOverride ? `₺${rate.manualOverride.toFixed(2)}` : '—' }}
               </td>
               <td v-if="editingCurrencyId === rate.id" class="px-5 py-3">
@@ -236,13 +236,13 @@ const exportProductCurrencyPrices = async () => {
                   type="number"
                   step="0.01"
                   min="0"
-                  class="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                  class="w-full px-2 py-1 border border-ink-300 rounded text-sm"
                 />
               </td>
-              <td v-else class="px-5 py-3 text-sm font-bold text-slate-900">
+              <td v-else class="px-5 py-3 text-sm font-bold text-ink-900">
                 ₺{{ (rate.manualOverride ?? rate.liveRate ?? rate.rate).toFixed(2) }}
               </td>
-              <td class="px-5 py-3 text-xs text-slate-500">
+              <td class="px-5 py-3 text-xs text-ink-500">
                 {{ new Date(rate.lastUpdated).toLocaleString('tr-TR') }}
               </td>
               <td class="px-5 py-3 flex gap-1">
@@ -256,14 +256,14 @@ const exportProductCurrencyPrices = async () => {
                 <button
                   v-else
                   @click="startEditRate(rate)"
-                  class="px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded"
+                  class="px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-200 rounded"
                 >
                   Düzenle
                 </button>
                 <button
                   v-if="editingCurrencyId === rate.id"
                   @click="cancelEditRate"
-                  class="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded"
+                  class="px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200 rounded"
                 >
                   İptal
                 </button>
@@ -278,7 +278,7 @@ const exportProductCurrencyPrices = async () => {
                 <button
                   v-if="editingCurrencyId !== rate.id"
                   @click="openApplyModal(rate.currency)"
-                  class="px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded"
+                  class="px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded"
                   title="Bu kurı tüm ürünlere uygula"
                 >
                   Tümüne Uygula
@@ -291,37 +291,37 @@ const exportProductCurrencyPrices = async () => {
     </div>
 
     <!-- Products with Currency Pricing -->
-    <div class="bg-white rounded-xl border border-slate-200">
-      <div class="px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-transparent">
-        <h3 class="font-semibold text-slate-900 flex items-center gap-2">
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200 bg-gradient-to-r from-emerald-50 to-transparent">
+        <h3 class="font-semibold text-ink-900 flex items-center gap-2">
           <Icon name="lucide:package" class="w-4 h-4 text-emerald-600" />
           Ürün Döviz Fiyatlandırması
         </h3>
-        <p class="text-xs text-slate-500 mt-1">Belirli ürünlere döviz cinsinden fiyat atayın. Sistem otomatik TRY'ye çevirir.</p>
+        <p class="text-xs text-ink-500 mt-1">Belirli ürünlere döviz cinsinden fiyat atayın. Sistem otomatik TRY'ye çevirir.</p>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200">
+          <thead class="bg-ink-50 border-b border-ink-200">
             <tr>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Ürün</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Temel Fiyat (TRY)</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">Döviz Fiyatları</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 text-left uppercase">İşlemler</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Ürün</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Temel Fiyat (TRY)</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">Döviz Fiyatları</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 text-left uppercase">İşlemler</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="product in products.items" :key="product.id" class="hover:bg-slate-50">
-              <td class="px-5 py-3 text-sm font-medium text-slate-900">{{ product.name }}</td>
-              <td class="px-5 py-3 text-sm text-slate-700">{{ formatPrice(product.basePrice) }}</td>
-              <td class="px-5 py-3 text-xs text-slate-600">
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="product in products.items" :key="product.id" class="hover:bg-ink-50">
+              <td class="px-5 py-3 text-sm font-medium text-ink-900">{{ product.name }}</td>
+              <td class="px-5 py-3 text-sm text-ink-700">{{ formatPrice(product.basePrice) }}</td>
+              <td class="px-5 py-3 text-xs text-ink-600">
                 <span
                   v-for="(currency, idx) in forex.supportedCurrencies"
                   :key="currency"
                   class="inline-block mr-2"
                 >
                   {{ currency }}: {{ forex.getProductCurrencyPrice(product.id, currency) ? forex.getProductCurrencyPrice(product.id, currency) : '—' }}
-                  <span v-if="forex.getProductCurrencyPrice(product.id, currency)" class="text-slate-400">
+                  <span v-if="forex.getProductCurrencyPrice(product.id, currency)" class="text-ink-400">
                     (≈ {{ formatPrice(forex.convertToTRY(forex.getProductCurrencyPrice(product.id, currency)!, currency) || 0) }})
                   </span>
                 </span>
@@ -329,7 +329,7 @@ const exportProductCurrencyPrices = async () => {
               <td class="px-5 py-3">
                 <button
                   @click="openCurrencyPricingModal(product.id)"
-                  class="px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded"
+                  class="px-2.5 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded"
                 >
                   Fiyat Ekle/Düzenle
                 </button>
@@ -344,10 +344,10 @@ const exportProductCurrencyPrices = async () => {
     <!-- Apply Rate Modal -->
     <div v-if="showApplyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-slate-900 mb-4">
+        <h3 class="text-lg font-semibold text-ink-900 mb-4">
           {{ applyModalData.currency }} Kurunu Tüm Ürünlere Uygula
         </h3>
-        <p class="text-sm text-slate-600 mb-4">
+        <p class="text-sm text-ink-600 mb-4">
           Bu döviz kurunu (₺{{ applyModalData.rate.toFixed(2) }}) tüm {{ applyModalData.currency }} cinsinden ürün fiyatlarına
           uygulayacaksınız.
         </p>
@@ -358,18 +358,18 @@ const exportProductCurrencyPrices = async () => {
             step="0.01"
             min="0"
             label="Kur (TRY)"
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm"
           />
           <div class="flex gap-2">
             <button
               @click="applyRateToAll"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+              class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"
             >
               Uygula
             </button>
             <button
               @click="showApplyModal = false"
-              class="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium text-sm"
+              class="flex-1 px-4 py-2 bg-ink-200 text-ink-700 rounded-lg hover:bg-ink-300 font-medium text-sm"
             >
               İptal
             </button>
@@ -381,37 +381,37 @@ const exportProductCurrencyPrices = async () => {
     <!-- Currency Pricing Modal -->
     <div v-if="showCurrencyPricingModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-slate-900 mb-4">Döviz Fiyat Ekle/Düzenle</h3>
+        <h3 class="text-lg font-semibold text-ink-900 mb-4">Döviz Fiyat Ekle/Düzenle</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Ürün</label>
-            <select v-model="selectedProduct" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <label class="block text-sm font-medium text-ink-700 mb-1">Ürün</label>
+            <select v-model="selectedProduct" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
               <option value="">Seçiniz</option>
               <option v-for="p in products.items" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Döviz Tipi</label>
-            <select v-model="selectedCurrency" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <label class="block text-sm font-medium text-ink-700 mb-1">Döviz Tipi</label>
+            <select v-model="selectedCurrency" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
               <option v-for="curr in forex.supportedCurrencies" :key="curr" :value="curr">{{ curr }}</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Fiyat ({{ selectedCurrency }})</label>
+            <label class="block text-sm font-medium text-ink-700 mb-1">Fiyat ({{ selectedCurrency }})</label>
             <input
               v-model.number="currencyPrice"
               type="number"
               step="0.01"
               min="0"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm"
             />
           </div>
 
-          <div v-if="convertedPrice !== null" class="p-3 bg-slate-50 rounded-lg">
-            <p class="text-xs text-slate-600">TRY Karşılığı</p>
-            <p class="text-lg font-bold text-slate-900">{{ formatPrice(convertedPrice) }}</p>
+          <div v-if="convertedPrice !== null" class="p-3 bg-ink-50 rounded-lg">
+            <p class="text-xs text-ink-600">TRY Karşılığı</p>
+            <p class="text-lg font-bold text-ink-900">{{ formatPrice(convertedPrice) }}</p>
           </div>
 
           <div class="flex gap-2">
@@ -423,7 +423,7 @@ const exportProductCurrencyPrices = async () => {
             </button>
             <button
               @click="showCurrencyPricingModal = false"
-              class="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium text-sm"
+              class="flex-1 px-4 py-2 bg-ink-200 text-ink-700 rounded-lg hover:bg-ink-300 font-medium text-sm"
             >
               İptal
             </button>

@@ -20,7 +20,7 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: '23 yılı aşkın deneyimle banyo, sıhhi tesisat ve yapı malzemeleri distribütörlüğü. Roca, NSK, Selen, Fleko, Monza yetkili bayisi.' },
-        { name: 'theme-color', content: '#0B1E3F' },
+        { name: 'theme-color', content: '#005275' },
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

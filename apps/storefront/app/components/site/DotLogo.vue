@@ -50,9 +50,9 @@ function drawLogoMask(ctx: CanvasRenderingContext2D, width: number, height: numb
   const cy = height / 2 - (textGap + textSize * 0.97) / 2
 
   const circleGradient = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius)
-  circleGradient.addColorStop(0, '#00577a')
-  circleGradient.addColorStop(0.52, '#007fad')
-  circleGradient.addColorStop(1, '#00a8e0')
+  circleGradient.addColorStop(0, '#005275')
+  circleGradient.addColorStop(0.52, '#006A9D')
+  circleGradient.addColorStop(1, '#0092D7')
 
   ctx.save()
   ctx.beginPath()
@@ -67,7 +67,7 @@ function drawLogoMask(ctx: CanvasRenderingContext2D, width: number, height: numb
   ctx.clip()
 
   const mountainBase = cy + radius * 0.04
-  ctx.fillStyle = '#f6fbff'
+  ctx.fillStyle = '#FFFFFF'
   ctx.beginPath()
   ctx.moveTo(cx - radius * 0.95, mountainBase + radius * 0.08)
   ctx.lineTo(cx - radius * 0.72, mountainBase - radius * 0.07)
@@ -86,7 +86,7 @@ function drawLogoMask(ctx: CanvasRenderingContext2D, width: number, height: numb
   ctx.closePath()
   ctx.fill()
 
-  ctx.strokeStyle = '#00577a'
+  ctx.strokeStyle = '#005275'
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.lineWidth = Math.max(1.4, radius * 0.035)
@@ -112,7 +112,7 @@ function drawLogoMask(ctx: CanvasRenderingContext2D, width: number, height: numb
   ctx.restore()
 
   ctx.save()
-  ctx.strokeStyle = '#003f5c'
+  ctx.strokeStyle = '#003152'
   ctx.lineWidth = Math.max(2, radius * 0.055)
   ctx.lineCap = 'round'
   ctx.beginPath()
@@ -166,17 +166,17 @@ function drawLogoMask(ctx: CanvasRenderingContext2D, width: number, height: numb
   const textX = cx - totalWidth / 2
   const textY = cy + radius + textGap + textSize * 0.78
 
-  ctx.strokeStyle = '#00577a'
+  ctx.strokeStyle = '#005275'
   ctx.lineWidth = Math.max(2, textSize * 0.16)
   ctx.strokeText(firstWord, textX, textY)
-  ctx.fillStyle = '#f8fdff'
+  ctx.fillStyle = '#FFFFFF'
   ctx.fillText(firstWord, textX, textY)
 
   const secondX = textX + firstWidth + wordGap
-  ctx.strokeStyle = '#f8fdff'
+  ctx.strokeStyle = '#FFFFFF'
   ctx.lineWidth = Math.max(1.5, textSize * 0.12)
   ctx.strokeText(secondWord, secondX, textY)
-  ctx.fillStyle = '#00aeea'
+  ctx.fillStyle = '#0092D7'
   ctx.fillText(secondWord, secondX, textY)
   ctx.restore()
 }

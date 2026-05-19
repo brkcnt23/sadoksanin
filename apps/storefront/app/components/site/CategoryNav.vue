@@ -6,7 +6,7 @@ const categories = [
     label: 'Seramik',
     to: '/kategori/seramik',
     children: [
-      { label: '60 x 120 Seramikler', to: '/kategori/seramik/60x120' },
+      { label: '60 x 120 Seramikler', to: '/kategori/seramik' },
       { label: '40 x 120 Seramikler', to: '/kategori/seramik/40x120' },
       { label: '30 x 90 Seramikler', to: '/kategori/seramik/30x90' },
       { label: '30 x 60 Seramikler', to: '/kategori/seramik/30x60' },

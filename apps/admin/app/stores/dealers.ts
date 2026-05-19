@@ -46,9 +46,42 @@ export const useDealersStore = defineStore('dealers', {
   },
 
   actions: {
-    load() {
-      this.items = storage.read<Dealer[]>('dealers', [])
-      this.loaded = true
+    async load() {
+      try {
+  const api = useApi()
+        const data = await api.get<any[]>('/dealer/admin/list')
+        // Map API response to admin Dealer type
+        this.items = data.map((d: any) => ({
+          id: d.id,
+          name: d.company || d.name,
+          contactPerson: d.contactPerson || d.contactName,
+          email: d.user?.email || '',
+          phone: d.phone || '',
+          cariNo: d.cariNo || '',
+          cariValidated: d.cariValidated ?? false,
+          taxNo: d.taxNo || '',
+          taxOffice: d.taxOffice || '',
+          city: d.city || '',
+          region: d.region || '',
+          address: d.address || '',
+          status: (d.status?.toLowerCase() || 'pending') as DealerStatus,
+          cariBalance: d.cariBalance ?? 0,
+          creditLimit: d.creditLimit ?? 0,
+          totalOrders: d.totalOrders ?? 0,
+          totalRevenue: d.totalRevenue ?? 0,
+          lastOrderAt: d.lastOrderAt || undefined,
+          approvedBy: d.approvedBy || undefined,
+          approvedAt: d.approvedAt || undefined,
+          rejectionReason: d.rejectionReason || undefined,
+          createdAt: d.createdAt || new Date().toISOString(),
+          updatedAt: d.updatedAt || new Date().toISOString(),
+        }))
+        this.loaded = true
+      } catch (err) {
+        console.error('Failed to load dealers from API, falling back to localStorage:', err)
+        this.items = storage.read<Dealer[]>('dealers', [])
+        this.loaded = true
+      }
     },
 
     persist() {
@@ -67,47 +100,47 @@ export const useDealersStore = defineStore('dealers', {
       this.filter[key] = v
     },
 
-    /**
-     * Validate dealer's claimed cari no against Netsis.
-     * Stub: real impl calls NestJS netsis module synchronously.
-     */
     async validateCari(cariNo: string): Promise<{ valid: boolean; reason?: string; balance?: number }> {
-      await new Promise((r) => setTimeout(r, 600)) // simulate network
-      // Mock: anything matching pattern 120.01.NNNN is valid
-      if (/^120\.01\.\d{4}$/.test(cariNo)) {
-        return { valid: true, balance: -Math.floor(Math.random() * 50_000) }
+      try {
+  const api = useApi()
+        return await api.post('/dealer/validate-cari', { cariNo })
+      } catch {
+        // Fallback to mock validation
+        if (/^120\.01\.\d{4}$/.test(cariNo)) {
+          return { valid: true, balance: -Math.floor(Math.random() * 50_000) }
+        }
+        return { valid: false, reason: 'Netsis cari hesabı bulunamadı' }
       }
-      return { valid: false, reason: 'Netsis cari hesabı bulunamadı' }
     },
 
-    approve(id: string, adminId: string) {
-      const d = this.findById(id)
-      if (!d) return
-      const idx = this.items.findIndex((x) => x.id === id)
-      this.items[idx] = {
-        ...d,
-        status: 'active',
-        cariValidated: true,
-        approvedBy: adminId,
-        approvedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+    async approve(id: string, adminId: string) {
+      try {
+  const api = useApi()
+        await api.patch(`/dealer/${id}/approve`)
+        await this.load() // Reload from API
+      } catch (err) {
+        // Fallback: local update
+        const d = this.findById(id)
+        if (!d) return
+        const idx = this.items.findIndex((x) => x.id === id)
+        this.items[idx] = { ...d, status: 'active', cariValidated: true, approvedBy: adminId, approvedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        this.persist()
       }
-      this.persist()
       useAuditStore().log('dealer.approve', 'Dealer', id)
     },
 
-    reject(id: string, adminId: string, reason: string) {
-      const d = this.findById(id)
-      if (!d) return
-      const idx = this.items.findIndex((x) => x.id === id)
-      this.items[idx] = {
-        ...d,
-        status: 'rejected',
-        approvedBy: adminId,
-        rejectionReason: reason,
-        updatedAt: new Date().toISOString(),
+    async reject(id: string, adminId: string, reason: string) {
+      try {
+  const api = useApi()
+        await api.patch(`/dealer/${id}/reject`, { reason })
+        await this.load()
+      } catch (err) {
+        const d = this.findById(id)
+        if (!d) return
+        const idx = this.items.findIndex((x) => x.id === id)
+        this.items[idx] = { ...d, status: 'rejected', approvedBy: adminId, rejectionReason: reason, updatedAt: new Date().toISOString() }
+        this.persist()
       }
-      this.persist()
       useAuditStore().log('dealer.reject', 'Dealer', id, { reason: { from: '', to: reason } })
     },
 

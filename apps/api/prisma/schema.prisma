@@ -113,6 +113,10 @@ model Product {
   category          String
   description       String?
 
+  // Visual asset (used in proforma PDF, product cards, etc.)
+  // Accepts: https URL, /uploads/... path, or data:image/...;base64 URI
+  imageUrl          String?
+
   // Pricing & Tax
   basePrice         Float
   taxRate           Float        @default(0.2) // 0.20 = 20% VAT
@@ -230,6 +234,10 @@ model Order {
   eInvoiceNo        String?
   eInvoiceStatus    EInvoiceStatus?
   eIrsaliyeNo       String?
+
+  // Promo
+  promoCode         String?
+  discountAmount    Float     @default(0)
 
   // Notes
   notes             String?
@@ -408,6 +416,105 @@ model SiteSettings {
   maintenanceAllowAdmins Boolean  @default(true)
 
   updatedAt             DateTime  @updatedAt
+}
+
+// ───── Proforma Invoices ────────────────────────────────────────────────────
+model Proforma {
+  id                           String   @id @default(cuid())
+  proformaNumber               String   @unique
+  dealerId                     String?
+  customerId                   String?
+  customerName                 String
+  customerAddress              String
+  customerCity                 String
+  customerPhone                String?
+  customerEmail                String?
+
+  status                       String   @default("draft")
+  templateType                 String   @default("LOCAL")
+
+  companyName                  String
+  companyAddress               String
+  companyPhone                 String
+  companyEmail                 String
+  companyBank                  String?
+  companyBankAccount           String?
+
+  // International export fields
+  internationalInvoiceNumber   String?
+  internationalInvoiceDate     DateTime?
+  exporterRef                  String?
+  countryOrigin                String?
+  countryDestination           String?
+  preCarriage                  String?
+  portLoading                  String?
+  portDischarge                String?
+  vessel                       String?
+
+  subtotal                     Decimal  @db.Decimal(12, 2) @default(0)
+  shipping                     Decimal  @db.Decimal(12, 2) @default(0)
+  tax                          Decimal  @db.Decimal(12, 2) @default(0)
+  totalAmount                  Decimal  @db.Decimal(12, 2) @default(0)
+
+  pdfUrl                       String?
+  pdfGeneratedAt               DateTime?
+
+  generatedBy                  String?
+  generatedAt                  DateTime @default(now())
+  viewedAt                     DateTime?
+  downloadedAt                 DateTime?
+
+  items                        ProformaItem[]
+
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@index([dealerId])
+  @@index([customerId])
+  @@index([templateType])
+  @@index([generatedAt])
+}
+
+model ProformaItem {
+  id           String   @id @default(cuid())
+  proformaId   String
+  proforma     Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+
+  sku          String
+  productName  String
+  description  String
+  brand        String?
+
+  quantity     Decimal  @db.Decimal(10, 2)
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  lineTotal    Decimal  @db.Decimal(12, 2)
+
+  imageUrl     String?
+
+  createdAt    DateTime @default(now())
+
+  @@index([proformaId])
+  @@index([sku])
+}
+
+// ───── Promo Codes ─────────────────────────────────────────────────────────
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  discountType    String    @default("PERCENTAGE") // PERCENTAGE | FIXED_AMOUNT
+  discountValue   Decimal   @default(0) @db.Decimal(10,2)
+  minOrderAmount  Decimal?  @db.Decimal(12,2)
+  usageLimit      Int       @default(0)
+  usedCount       Int       @default(0)
+  dealerOnly      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  validFrom       DateTime  @default(now())
+  validUntil      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
 }
 
 // ───── Audit ─────────────────────────────────────────────────────────────────

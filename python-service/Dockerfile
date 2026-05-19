@@ -14,9 +14,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-# Install system dependencies
+# Install system dependencies (including fonts for Turkish character support)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for better caching)

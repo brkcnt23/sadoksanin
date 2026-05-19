@@ -234,7 +234,11 @@ export const useProductsStore = defineStore('products', {
           const response = await api.get<{ products: Product[]; total: number }>('/products/admin/all', {
             limit: 10000, // Load all for admin panel filtering
           })
-          this.items = response.products
+          // Map API `imageUrl` (singular) to admin `images` (array)
+          this.items = (response.products || []).map((p: any) => ({
+            ...p,
+            images: p.imageUrl ? [p.imageUrl] : (p.images || []),
+          }))
         } catch (apiErr) {
           // Fallback to mock data during development
           console.warn('API unavailable, using fallback products:', apiErr)
@@ -360,9 +364,60 @@ export const useProductsStore = defineStore('products', {
       }
     },
 
+    async create(data: Record<string, unknown>) {
+      const api = useApi()
+      const created = await api.post<Product>('/products', data)
+      this.items.unshift(created)
+      return created
+    },
+
+    async update(id: string, data: Record<string, unknown>) {
+      const api = useApi()
+      const updated = await api.patch<Product>(`/products/${id}`, data)
+      const idx = this.items.findIndex((x) => x.id === id)
+      if (idx !== -1) this.items[idx] = updated
+      return updated
+    },
+
     async remove(id: string) {
-      // Future: implement delete endpoint
+      const api = useApi()
+      await api.delete(`/products/${id}`)
       this.items = this.items.filter((p) => p.id !== id)
+    },
+
+    async importProducts(file: File): Promise<{ created: number; updated: number; errors: string[] }> {
+      const api = useApi()
+      const formData = new FormData()
+      formData.append('file', file)
+      // Use raw fetch for multipart upload
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('admin-token') : null
+      const config = useRuntimeConfig()
+      const res = await fetch(`${config.public.apiBase}/products/admin/import`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Import failed')
+      const result = await res.json()
+      // Reload products after import
+      await this.load()
+      return result
+    },
+
+    async exportProducts(): Promise<void> {
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('admin-token') : null
+      const config = useRuntimeConfig()
+      const res = await fetch(`${config.public.apiBase}/products/admin/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'urunler.csv'
+      a.click()
+      URL.revokeObjectURL(url)
     },
   },
 })

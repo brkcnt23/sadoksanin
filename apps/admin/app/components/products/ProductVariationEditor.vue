@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref } from 'vue'
 import type { ProductVariation } from '~/types'
 
@@ -94,31 +94,31 @@ const formatPrice = (price?: number) => {
 
 <template>
   <div class="space-y-4">
-    <h4 class="text-sm font-medium text-slate-900">Varyasyonlar</h4>
+    <h4 class="text-sm font-medium text-ink-900">Varyasyonlar</h4>
 
     <!-- Existing Variations Table -->
-    <div v-if="variations.length > 0" class="overflow-x-auto border border-slate-200 rounded-lg">
+    <div v-if="variations.length > 0" class="overflow-x-auto border border-ink-200 rounded-lg">
       <table class="w-full text-sm">
-        <thead class="bg-slate-50 border-b border-slate-200">
+        <thead class="bg-ink-50 border-b border-ink-200">
           <tr>
-            <th class="px-4 py-2 text-xs font-semibold text-slate-700 text-left uppercase">Adı</th>
-            <th class="px-4 py-2 text-xs font-semibold text-slate-700 text-left uppercase">Değeri</th>
-            <th class="px-4 py-2 text-xs font-semibold text-slate-700 text-left uppercase">SKU</th>
-            <th class="px-4 py-2 text-xs font-semibold text-slate-700 text-left uppercase">Fiyat Override</th>
-            <th class="px-4 py-2 text-xs font-semibold text-slate-700 text-left uppercase">İşlemler</th>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Adı</th>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Değeri</th>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">SKU</th>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Fiyat Override</th>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">İşlemler</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="(v, i) in variations" :key="v.id" class="hover:bg-slate-50">
+        <tbody class="divide-y divide-ink-100">
+          <tr v-for="(v, i) in variations" :key="v.id" class="hover:bg-ink-50">
             <td v-if="editingId === v.id" class="px-4 py-3">
               <input
                 v-model="editForm.label"
                 type="text"
                 placeholder="Renk"
-                class="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
               />
             </td>
-            <td v-else class="px-4 py-3 text-sm font-medium text-slate-900">
+            <td v-else class="px-4 py-3 text-sm font-medium text-ink-900">
               {{ Object.keys(v.attributes)[0] || 'Custom' }}
             </td>
 
@@ -127,12 +127,12 @@ const formatPrice = (price?: number) => {
                 v-model="editForm.label"
                 type="text"
                 placeholder="Kırmızı"
-                class="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
               />
             </td>
-            <td v-else class="px-4 py-3 text-sm text-slate-700">{{ v.label }}</td>
+            <td v-else class="px-4 py-3 text-sm text-ink-700">{{ v.label }}</td>
 
-            <td class="px-4 py-3 text-xs text-slate-500 font-mono">{{ v.sku }}</td>
+            <td class="px-4 py-3 text-xs text-ink-500 font-mono">{{ v.sku }}</td>
 
             <td v-if="editingId === v.id" class="px-4 py-3">
               <input
@@ -141,10 +141,10 @@ const formatPrice = (price?: number) => {
                 step="0.01"
                 min="0"
                 placeholder="—"
-                class="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
               />
             </td>
-            <td v-else class="px-4 py-3 text-sm text-slate-700">{{ formatPrice(v.price) }}</td>
+            <td v-else class="px-4 py-3 text-sm text-ink-700">{{ formatPrice(v.price) }}</td>
 
             <td class="px-4 py-3 flex gap-1">
               <button
@@ -157,7 +157,7 @@ const formatPrice = (price?: number) => {
               <button
                 v-else
                 @click="startEdit(v)"
-                class="px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded"
+                class="px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-200 rounded"
               >
                 Düzenle
               </button>
@@ -165,7 +165,7 @@ const formatPrice = (price?: number) => {
               <button
                 v-if="editingId === v.id"
                 @click="cancelEdit"
-                class="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded"
+                class="px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200 rounded"
               >
                 İptal
               </button>
@@ -183,8 +183,8 @@ const formatPrice = (price?: number) => {
     </div>
 
     <!-- Add New Variation -->
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-      <p class="text-xs font-medium text-slate-700">Yeni Varyasyon Ekle</p>
+    <div class="bg-ink-50 border border-ink-200 rounded-lg p-4 space-y-3">
+      <p class="text-xs font-medium text-ink-700">Yeni Varyasyon Ekle</p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div>
@@ -192,7 +192,7 @@ const formatPrice = (price?: number) => {
             v-model="newVar.name"
             type="text"
             placeholder="Varyasyon Adı (örn. Renk)"
-            class="w-full px-3 py-2 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-ink-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p v-if="errors.name" class="text-xs text-red-600 mt-0.5">{{ errors.name }}</p>
         </div>
@@ -202,7 +202,7 @@ const formatPrice = (price?: number) => {
             v-model="newVar.label"
             type="text"
             placeholder="Değer (örn. Kırmızı)"
-            class="w-full px-3 py-2 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-ink-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p v-if="errors.label" class="text-xs text-red-600 mt-0.5">{{ errors.label }}</p>
         </div>
@@ -214,13 +214,13 @@ const formatPrice = (price?: number) => {
             step="0.01"
             min="0"
             placeholder="Fiyat Override (İsteğe Bağlı)"
-            class="w-full px-3 py-2 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-ink-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
         <button
           @click="addVariation"
-          class="px-3 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded"
+          class="px-3 py-2 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded"
         >
           Ekle
         </button>
@@ -229,8 +229,8 @@ const formatPrice = (price?: number) => {
 
     <!-- Empty State -->
     <div v-if="variations.length === 0 && !Object.values(newVar).some((v) => v)" class="text-center py-4">
-      <Icon name="lucide:layers" class="w-6 h-6 text-slate-300 mx-auto mb-2" />
-      <p class="text-xs text-slate-500">Varyasyon yok (örn. renk, beden)</p>
+      <Icon name="lucide:layers" class="w-6 h-6 text-ink-300 mx-auto mb-2" />
+      <p class="text-xs text-ink-500">Varyasyon yok (örn. renk, beden)</p>
     </div>
   </div>
 </template>

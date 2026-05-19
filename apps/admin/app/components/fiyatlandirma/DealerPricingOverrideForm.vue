@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { formatPrice } from '~/utils/storage'
 import type { DealerPricingOverride } from '~/types'
@@ -112,10 +112,10 @@ const getDealerName = (dealerId: string) => {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-4 border-b border-slate-200">
-      <h3 class="font-semibold text-slate-900 flex items-center gap-2">
-        <Icon name="lucide:user-cog" class="w-4 h-4 text-blue-600" />
+  <div class="bg-white rounded-xl border border-ink-200 overflow-hidden">
+    <div class="px-5 py-4 border-b border-ink-200">
+      <h3 class="font-semibold text-ink-900 flex items-center gap-2">
+        <Icon name="lucide:user-cog" class="w-4 h-4 text-primary-600" />
         Bayi Bazlı Fiyat İstisnaları
       </h3>
     </div>
@@ -123,24 +123,24 @@ const getDealerName = (dealerId: string) => {
     <div class="p-5 space-y-6">
       <!-- Existing Overrides Table -->
       <div v-if="activeOverrides.length > 0">
-        <h4 class="text-sm font-medium text-slate-900 mb-3">Mevcut İstisnalar</h4>
+        <h4 class="text-sm font-medium text-ink-900 mb-3">Mevcut İstisnalar</h4>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-200 text-left">
+            <thead class="bg-ink-50 border-b border-ink-200 text-left">
               <tr>
-                <th class="px-4 py-2 font-semibold text-xs text-slate-700 uppercase">Bayi</th>
-                <th class="px-4 py-2 font-semibold text-xs text-slate-700 uppercase">Ürün</th>
-                <th class="px-4 py-2 font-semibold text-xs text-slate-700 uppercase">Özel Fiyat</th>
-                <th class="px-4 py-2 font-semibold text-xs text-slate-700 uppercase">Neden</th>
-                <th class="px-4 py-2 font-semibold text-xs text-slate-700 uppercase">İşlemler</th>
+                <th class="px-4 py-2 font-semibold text-xs text-ink-700 uppercase">Bayi</th>
+                <th class="px-4 py-2 font-semibold text-xs text-ink-700 uppercase">Ürün</th>
+                <th class="px-4 py-2 font-semibold text-xs text-ink-700 uppercase">Özel Fiyat</th>
+                <th class="px-4 py-2 font-semibold text-xs text-ink-700 uppercase">Neden</th>
+                <th class="px-4 py-2 font-semibold text-xs text-ink-700 uppercase">İşlemler</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr v-for="override in activeOverrides" :key="override.id" class="hover:bg-slate-50">
-                <td class="px-4 py-2 text-sm font-medium text-slate-900">{{ getDealerName(override.dealerId) }}</td>
-                <td class="px-4 py-2 text-sm text-slate-700">{{ getProductName(override.productId) }}</td>
-                <td class="px-4 py-2 text-sm font-semibold text-slate-900">{{ formatPrice(override.customPrice) }}</td>
-                <td class="px-4 py-2 text-xs text-slate-600">{{ override.reason || '—' }}</td>
+            <tbody class="divide-y divide-ink-100">
+              <tr v-for="override in activeOverrides" :key="override.id" class="hover:bg-ink-50">
+                <td class="px-4 py-2 text-sm font-medium text-ink-900">{{ getDealerName(override.dealerId) }}</td>
+                <td class="px-4 py-2 text-sm text-ink-700">{{ getProductName(override.productId) }}</td>
+                <td class="px-4 py-2 text-sm font-semibold text-ink-900">{{ formatPrice(override.customPrice) }}</td>
+                <td class="px-4 py-2 text-xs text-ink-600">{{ override.reason || '—' }}</td>
                 <td class="px-4 py-2">
                   <button
                     @click="handleRemove(override.id)"
@@ -154,19 +154,19 @@ const getDealerName = (dealerId: string) => {
           </table>
         </div>
 
-        <div class="mt-6 pt-6 border-t border-slate-200" />
+        <div class="mt-6 pt-6 border-t border-ink-200" />
       </div>
 
       <!-- Add New Override Form -->
       <div>
-        <h4 class="text-sm font-medium text-slate-900 mb-4">Yeni İstisna Ekle</h4>
+        <h4 class="text-sm font-medium text-ink-900 mb-4">Yeni İstisna Ekle</h4>
         <div class="space-y-4">
           <!-- Dealer Selection -->
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1.5">Bayi *</label>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Bayi *</label>
             <select
               v-model="form.dealerId"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             >
               <option value="">Bayi seçiniz</option>
               <option v-for="d in dealers.items" :key="d.id" :value="d.id">{{ d.name }} ({{ d.city }})</option>
@@ -176,10 +176,10 @@ const getDealerName = (dealerId: string) => {
 
           <!-- Product Selection -->
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1.5">Ürün *</label>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Ürün *</label>
             <select
               v-model="form.productId"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             >
               <option value="">Ürün seçiniz</option>
               <option v-for="p in products.items" :key="p.id" :value="p.id">
@@ -192,26 +192,26 @@ const getDealerName = (dealerId: string) => {
           <!-- Custom Price -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Özel Fiyat (₺) *</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Özel Fiyat (₺) *</label>
               <input
                 v-model="form.customPrice"
                 type="number"
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <p v-if="errors.customPrice" class="text-xs text-red-600 mt-1">{{ errors.customPrice }}</p>
             </div>
 
             <!-- Reason -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Neden (İsteğe Bağlı)</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Neden (İsteğe Bağlı)</label>
               <input
                 v-model="form.reason"
                 type="text"
                 placeholder="örn. Toplu sipariş indirimi"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -221,7 +221,7 @@ const getDealerName = (dealerId: string) => {
             <button
               @click="handleAdd"
               :disabled="loading"
-              class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {{ loading ? 'Ekleniyor...' : 'İstisna Ekle' }}
             </button>
@@ -231,8 +231,8 @@ const getDealerName = (dealerId: string) => {
 
       <!-- Empty State -->
       <div v-if="activeOverrides.length === 0" class="text-center py-8">
-        <Icon name="lucide:user-cog" class="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <p class="text-sm text-slate-500">Henüz aktif fiyat istisnası yok</p>
+        <Icon name="lucide:user-cog" class="w-12 h-12 text-ink-300 mx-auto mb-3" />
+        <p class="text-sm text-ink-500">Henüz aktif fiyat istisnası yok</p>
       </div>
     </div>
   </div>

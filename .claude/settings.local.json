@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:aurora.themewagon.com)",
+      "WebSearch",
+      "WebFetch(domain:www.sadoksaninsaat.com.tr)"
+    ]
+  }
+}

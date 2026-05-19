@@ -2,15 +2,25 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
   Body,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -133,5 +143,64 @@ export class ProductsController {
       body.minimumStock,
       body.middleStock,
     );
+  }
+
+  /**
+   * Admin: Create a new product
+   */
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async createProduct(@Body() dto: CreateProductDto) {
+    return this.productsService.createProduct(dto);
+  }
+
+  /**
+   * Admin: Update an existing product
+   */
+  @Patch(':productId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateProduct(
+    @Param('productId') productId: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.productsService.updateProduct(productId, dto);
+  }
+
+  /**
+   * Admin: Delete a product
+   */
+  @Delete(':productId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async deleteProduct(@Param('productId') productId: string) {
+    await this.productsService.deleteProduct(productId);
+    return { success: true };
+  }
+
+  /**
+   * Admin: Export all products as Excel
+   */
+  @Get('admin/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async exportProducts(@Res() res: Response) {
+    const buffer = await this.productsService.exportProducts();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="urunler.csv"');
+    res.send(buffer);
+  }
+
+  /**
+   * Admin: Import products from Excel
+   */
+  @Post('admin/import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @UseInterceptors(FileInterceptor('file'))
+  async importProducts(@UploadedFile() file: any) {
+    if (!file) throw new BadRequestException('Excel dosyası gerekli');
+    return this.productsService.importProducts(file.buffer);
   }
 }

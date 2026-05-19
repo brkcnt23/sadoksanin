@@ -102,6 +102,16 @@ const initials = computed(() => {
                 <span>{{ item.label }}</span>
               </NuxtLink>
 
+              <!-- Dealer Dashboard Button (Only for DEALER users) -->
+              <NuxtLink
+                v-if="getUser()?.role === 'DEALER'"
+                to="/dealer"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-primary-900 hover:bg-blue-50 border border-transparent hover:border-blue-200 bg-blue-50/50"
+              >
+                <Icon name="lucide:chart-line" class="h-5 w-5 text-blue-600" />
+                <span class="text-blue-700">Dashboard</span>
+              </NuxtLink>
+
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-primary-900 hover:bg-red-50 border border-transparent transition-all"

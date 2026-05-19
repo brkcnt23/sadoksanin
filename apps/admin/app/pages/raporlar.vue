@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { formatPrice, formatDate } from '~/utils/storage'
 import { applyCurrencyFormatting } from '~/utils/excel-format'
 
@@ -179,7 +179,7 @@ const exportStockSnapshot = async () => {
       <template #actions>
         <select
           v-model="range"
-          class="px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
+          class="px-3 py-2 border border-ink-300 rounded-md text-sm bg-white"
         >
           <option value="7d">Son 7 Gün</option>
           <option value="30d">Son 30 Gün</option>
@@ -206,72 +206,72 @@ const exportStockSnapshot = async () => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <button
         @click="exportSales"
-        class="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm hover:border-blue-300 transition text-left group"
+        class="bg-white rounded-xl border border-ink-200 p-5 hover:shadow-sm hover:border-primary-300 transition text-left group"
       >
         <div class="flex items-center justify-between mb-3">
-          <div class="p-2.5 rounded-lg bg-blue-50 group-hover:bg-blue-100">
-            <Icon name="lucide:trending-up" class="w-5 h-5 text-blue-600" />
+          <div class="p-2.5 rounded-lg bg-primary-50 group-hover:bg-primary-100">
+            <Icon name="lucide:trending-up" class="w-5 h-5 text-primary-600" />
           </div>
-          <Icon name="lucide:download" class="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+          <Icon name="lucide:download" class="w-4 h-4 text-ink-400 group-hover:text-primary-600" />
         </div>
-        <h3 class="font-semibold text-slate-900">Satış Raporu</h3>
-        <p class="text-sm text-slate-500 mt-1">
+        <h3 class="font-semibold text-ink-900">Satış Raporu</h3>
+        <p class="text-sm text-ink-500 mt-1">
           Tarih aralığında satışlar, günlük döküm, tüm sipariş detayları.
         </p>
       </button>
 
       <button
         @click="exportDealerPerf"
-        class="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm hover:border-blue-300 transition text-left group"
+        class="bg-white rounded-xl border border-ink-200 p-5 hover:shadow-sm hover:border-primary-300 transition text-left group"
       >
         <div class="flex items-center justify-between mb-3">
           <div class="p-2.5 rounded-lg bg-violet-50 group-hover:bg-violet-100">
             <Icon name="lucide:users" class="w-5 h-5 text-violet-600" />
           </div>
-          <Icon name="lucide:download" class="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+          <Icon name="lucide:download" class="w-4 h-4 text-ink-400 group-hover:text-primary-600" />
         </div>
-        <h3 class="font-semibold text-slate-900">Bayi Performansı</h3>
-        <p class="text-sm text-slate-500 mt-1">
+        <h3 class="font-semibold text-ink-900">Bayi Performansı</h3>
+        <p class="text-sm text-ink-500 mt-1">
           Bayi bazında ciro, sipariş sayısı, ortalama sepet, cari durum.
         </p>
       </button>
 
       <button
         @click="exportStockSnapshot"
-        class="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm hover:border-blue-300 transition text-left group"
+        class="bg-white rounded-xl border border-ink-200 p-5 hover:shadow-sm hover:border-primary-300 transition text-left group"
       >
         <div class="flex items-center justify-between mb-3">
           <div class="p-2.5 rounded-lg bg-emerald-50 group-hover:bg-emerald-100">
             <Icon name="lucide:warehouse" class="w-5 h-5 text-emerald-600" />
           </div>
-          <Icon name="lucide:download" class="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+          <Icon name="lucide:download" class="w-4 h-4 text-ink-400 group-hover:text-primary-600" />
         </div>
-        <h3 class="font-semibold text-slate-900">Stok / Fiyat Snapshot</h3>
-        <p class="text-sm text-slate-500 mt-1">
+        <h3 class="font-semibold text-ink-900">Stok / Fiyat Snapshot</h3>
+        <p class="text-sm text-ink-500 mt-1">
           Tüm ürünlerin anlık stok ve fiyat bilgisi (bayi paylaşımına uygun).
         </p>
       </button>
     </div>
 
     <!-- Daily sales -->
-    <div class="bg-white rounded-xl border border-slate-200">
-      <div class="px-5 py-4 border-b border-slate-200">
-        <h3 class="font-semibold text-slate-900">Günlük Satışlar</h3>
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200">
+        <h3 class="font-semibold text-ink-900">Günlük Satışlar</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200 text-left">
+          <thead class="bg-ink-50 border-b border-ink-200 text-left">
             <tr>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Tarih</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Sipariş</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Ciro</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Tarih</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Sipariş</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Ciro</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="d in dailySales" :key="d.date" class="hover:bg-slate-50">
-              <td class="px-5 py-2.5 text-sm text-slate-700">{{ formatDate(d.date, { hour: undefined, minute: undefined }) }}</td>
-              <td class="px-5 py-2.5 text-sm font-medium text-slate-900 text-right">{{ d.orderCount }}</td>
-              <td class="px-5 py-2.5 text-sm font-semibold text-slate-900 text-right">{{ formatPrice(d.revenue) }}</td>
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="d in dailySales" :key="d.date" class="hover:bg-ink-50">
+              <td class="px-5 py-2.5 text-sm text-ink-700">{{ formatDate(d.date, { hour: undefined, minute: undefined }) }}</td>
+              <td class="px-5 py-2.5 text-sm font-medium text-ink-900 text-right">{{ d.orderCount }}</td>
+              <td class="px-5 py-2.5 text-sm font-semibold text-ink-900 text-right">{{ formatPrice(d.revenue) }}</td>
             </tr>
           </tbody>
         </table>
@@ -280,30 +280,30 @@ const exportStockSnapshot = async () => {
     </div>
 
     <!-- Dealer performance -->
-    <div class="bg-white rounded-xl border border-slate-200">
-      <div class="px-5 py-4 border-b border-slate-200">
-        <h3 class="font-semibold text-slate-900">Bayi Performansı</h3>
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200">
+        <h3 class="font-semibold text-ink-900">Bayi Performansı</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200 text-left">
+          <thead class="bg-ink-50 border-b border-ink-200 text-left">
             <tr>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Bayi</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Sipariş</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Ciro</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Ort. Sepet</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Bakiye</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Bayi</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Sipariş</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Ciro</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Ort. Sepet</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase text-right">Bakiye</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="d in dealerPerformance" :key="d.id" class="hover:bg-slate-50">
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="d in dealerPerformance" :key="d.id" class="hover:bg-ink-50">
               <td class="px-5 py-2.5">
-                <p class="text-sm font-medium text-slate-900">{{ d.name }}</p>
-                <p class="text-xs text-slate-500">{{ d.city }}</p>
+                <p class="text-sm font-medium text-ink-900">{{ d.name }}</p>
+                <p class="text-xs text-ink-500">{{ d.city }}</p>
               </td>
-              <td class="px-5 py-2.5 text-sm text-slate-900 text-right">{{ d.totalOrders }}</td>
-              <td class="px-5 py-2.5 text-sm font-semibold text-slate-900 text-right">{{ formatPrice(d.totalRevenue) }}</td>
-              <td class="px-5 py-2.5 text-sm text-slate-700 text-right">{{ formatPrice(d.avgOrderValue) }}</td>
+              <td class="px-5 py-2.5 text-sm text-ink-900 text-right">{{ d.totalOrders }}</td>
+              <td class="px-5 py-2.5 text-sm font-semibold text-ink-900 text-right">{{ formatPrice(d.totalRevenue) }}</td>
+              <td class="px-5 py-2.5 text-sm text-ink-700 text-right">{{ formatPrice(d.avgOrderValue) }}</td>
               <td class="px-5 py-2.5 text-sm text-right" :class="d.cariBalance < 0 ? 'text-red-600' : 'text-emerald-600'">
                 {{ formatPrice(d.cariBalance) }}
               </td>

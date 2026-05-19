@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref } from 'vue'
 
 interface Props {
@@ -144,7 +144,7 @@ const openBrowse = () => {
 
 <template>
   <div class="space-y-4">
-    <label class="block text-sm font-medium text-slate-700">{{ label }}</label>
+    <label class="block text-sm font-medium text-ink-700">{{ label }}</label>
 
     <!-- Drag-drop zone -->
     <div
@@ -153,7 +153,7 @@ const openBrowse = () => {
       @drop="handleDrop"
       :class="[
         'relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer',
-        isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400',
+        isDragging ? 'border-primary-500 bg-primary-50' : 'border-ink-300 bg-ink-50 hover:border-ink-400',
       ]"
     >
       <input
@@ -166,9 +166,9 @@ const openBrowse = () => {
       />
 
       <div @click="openBrowse" class="cursor-pointer">
-        <Icon name="lucide:upload-cloud" class="w-8 h-8 text-slate-400 mx-auto mb-2" />
-        <p class="text-sm font-medium text-slate-900">Görselleri buraya sürükle veya tıkla</p>
-        <p class="text-xs text-slate-500 mt-1">JPG, PNG, WebP — en fazla 5MB</p>
+        <Icon name="lucide:upload-cloud" class="w-8 h-8 text-ink-400 mx-auto mb-2" />
+        <p class="text-sm font-medium text-ink-900">Görselleri buraya sürükle veya tıkla</p>
+        <p class="text-xs text-ink-500 mt-1">JPG, PNG, WebP — en fazla 5MB</p>
       </div>
     </div>
 
@@ -180,18 +180,18 @@ const openBrowse = () => {
     <!-- Image previews -->
     <div v-if="imageUrls.length > 0" class="space-y-3">
       <div class="flex items-center justify-between">
-        <p class="text-xs font-medium text-slate-700">{{ imageUrls.length }} Görsel</p>
+        <p class="text-xs font-medium text-ink-700">{{ imageUrls.length }} Görsel</p>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div v-for="(url, i) in imageUrls" :key="i" class="relative group">
-          <div class="relative w-full aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+          <div class="relative w-full aspect-square rounded-lg overflow-hidden border border-ink-200 bg-ink-100">
             <img :src="url" :alt="`Image ${i + 1}`" class="w-full h-full object-cover" />
 
             <!-- Primary badge -->
             <div
               v-if="i === 0"
-              class="absolute top-1 left-1 px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded"
+              class="absolute top-1 left-1 px-2 py-1 bg-primary-600 text-white text-xs font-semibold rounded"
             >
               Ana
             </div>
@@ -201,7 +201,7 @@ const openBrowse = () => {
               <button
                 v-if="i > 0"
                 @click="setPrimary(i)"
-                class="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
+                class="p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700"
                 title="Ana görsel yap"
               >
                 <Icon name="lucide:star" class="w-4 h-4" />
@@ -220,8 +220,8 @@ const openBrowse = () => {
     </div>
 
     <!-- Loading state -->
-    <div v-if="isLoading" class="flex items-center gap-2 text-sm text-slate-600">
-      <div class="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+    <div v-if="isLoading" class="flex items-center gap-2 text-sm text-ink-600">
+      <div class="w-4 h-4 rounded-full border-2 border-primary-600 border-t-transparent animate-spin" />
       Görsel yükleniyor...
     </div>
   </div>

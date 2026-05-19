@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useAdminAuth } from '~/composables/useAdminAuth'
 
 definePageMeta({
@@ -44,7 +44,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+  <div class="min-h-screen bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center p-4">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-10">
       <div class="absolute top-0 -left-40 w-80 h-80 bg-white rounded-full blur-3xl" />
@@ -78,7 +78,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
               type="email"
               placeholder="admin@admin.com"
               required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-colors"
               @keypress="handleKeyPress"
               :disabled="isLoading"
             />
@@ -95,7 +95,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
               type="password"
               placeholder="••••••••"
               required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-colors"
               @keypress="handleKeyPress"
               :disabled="isLoading"
             />
@@ -106,7 +106,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
             <input
               id="remember"
               type="checkbox"
-              class="w-4 h-4 border border-gray-300 rounded focus:ring-blue-600"
+              class="w-4 h-4 border border-gray-300 rounded focus:ring-primary-600"
               :disabled="isLoading"
             />
             <label for="remember" class="ml-2 text-sm text-gray-600">
@@ -118,7 +118,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
           <button
             type="submit"
             :disabled="isLoading"
-            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-3 rounded-lg hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3 rounded-lg hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap' }}
           </button>
@@ -127,10 +127,10 @@ const handleKeyPress = (e: KeyboardEvent) => {
         <!-- Spacer -->
 
         <!-- Dev Info -->
-        <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p class="text-xs text-blue-700 font-medium mb-2">Geliştirme Hesabı:</p>
-          <p class="text-xs text-blue-600 font-mono">admin@admin.com</p>
-          <p class="text-xs text-blue-600 font-mono">asd123</p>
+        <div class="mt-8 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+          <p class="text-xs text-primary-700 font-medium mb-2">Geliştirme Hesabı:</p>
+          <p class="text-xs text-primary-600 font-mono">admin@admin.com</p>
+          <p class="text-xs text-primary-600 font-mono">asd123</p>
         </div>
 
         <!-- Footer -->

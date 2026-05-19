@@ -10,12 +10,16 @@ const { computePrice } = useDealer()
 const { addItem } = useCart()
 const { getStockStatus, getStockLabel, getStockColor, getAvailableStock, loadOrders } = useStock()
 
+const route = useRoute()
 const cartNotification = ref('')
 
 onMounted(async () => {
-  // Fetch products from API
+  // Pre-select category from URL query param
+  const qKategori = route.query.kategori
+  if (qKategori && typeof qKategori === 'string') {
+    selectedCategories.value = [qKategori.toLowerCase()]
+  }
   await load()
-  // Load orders for stock status check
   loadOrders()
 })
 

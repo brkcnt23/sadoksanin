@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { Popup } from '~/types'
 
@@ -152,11 +152,11 @@ const handleClose = () => {
       <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <!-- Header -->
-          <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">
+          <div class="sticky top-0 bg-white border-b border-ink-200 px-6 py-4 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-ink-900">
               {{ popup ? 'Popup Düzenle' : 'Yeni Popup' }}
             </h2>
-            <button @click="handleClose" class="text-slate-400 hover:text-slate-600">
+            <button @click="handleClose" class="text-ink-400 hover:text-ink-600">
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>
           </div>
@@ -165,11 +165,11 @@ const handleClose = () => {
           <div class="p-6 space-y-5">
             <!-- Title -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Başlık *</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Başlık *</label>
               <input
                 v-model="form.title"
                 type="text"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="e.g. Yaz Kampanyası"
               />
               <p v-if="errors.title" class="text-xs text-red-600 mt-1">{{ errors.title }}</p>
@@ -177,11 +177,11 @@ const handleClose = () => {
 
             <!-- Body (Rich Text) -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">İçerik (HTML) *</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">İçerik (HTML) *</label>
               <textarea
                 v-model="form.body"
                 rows="4"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="<p>Kampanya açıklaması...</p>"
               />
               <p v-if="errors.body" class="text-xs text-red-600 mt-1">{{ errors.body }}</p>
@@ -189,11 +189,11 @@ const handleClose = () => {
 
             <!-- Image URL -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Görsel URL</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Görsel URL</label>
               <input
                 v-model="form.imageUrl"
                 type="url"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="https://..."
               />
             </div>
@@ -201,20 +201,20 @@ const handleClose = () => {
             <!-- CTA -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Düğme Metni</label>
+                <label class="block text-sm font-medium text-ink-700 mb-1.5">Düğme Metni</label>
                 <input
                   v-model="form.ctaLabel"
                   type="text"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Daha Fazla"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Düğme Linki</label>
+                <label class="block text-sm font-medium text-ink-700 mb-1.5">Düğme Linki</label>
                 <input
                   v-model="form.ctaUrl"
                   type="url"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
               </div>
@@ -222,10 +222,10 @@ const handleClose = () => {
 
             <!-- Audience -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hedef Kitle *</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Hedef Kitle *</label>
               <select
                 v-model="form.audience"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="all">Tüm Kullanıcılar</option>
                 <option value="b2c">Sadece B2C (Perakende)</option>
@@ -236,14 +236,14 @@ const handleClose = () => {
 
             <!-- Dealer Selection (conditional) -->
             <div v-if="form.audience === 'dealer-specific'">
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Bayiler *</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Bayiler *</label>
               <div class="space-y-2">
                 <div class="relative">
-                  <div class="flex flex-wrap gap-2 p-2 border border-slate-300 rounded-lg bg-slate-50 min-h-10">
+                  <div class="flex flex-wrap gap-2 p-2 border border-ink-300 rounded-lg bg-ink-50 min-h-10">
                     <span
                       v-for="dealerId in form.dealerIds"
                       :key="dealerId"
-                      class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs font-medium"
                     >
                       {{ dealers.items.find((d) => d.id === dealerId)?.name || dealerId }}
                       <button type="button" @click="form.dealerIds = form.dealerIds.filter((id) => id !== dealerId)">
@@ -254,14 +254,14 @@ const handleClose = () => {
                 </div>
 
                 <!-- Dealer dropdown -->
-                <div class="border border-slate-300 rounded-lg max-h-40 overflow-y-auto">
+                <div class="border border-ink-300 rounded-lg max-h-40 overflow-y-auto">
                   <button
                     v-for="dealer in dealers.items"
                     :key="dealer.id"
                     type="button"
                     :class="[
-                      'w-full text-left px-3 py-2 text-sm hover:bg-slate-100 border-b border-slate-100 last:border-b-0',
-                      form.dealerIds.includes(dealer.id) ? 'bg-blue-50' : '',
+                      'w-full text-left px-3 py-2 text-sm hover:bg-ink-100 border-b border-ink-100 last:border-b-0',
+                      form.dealerIds.includes(dealer.id) ? 'bg-primary-50' : '',
                     ]"
                     @click="
                       form.dealerIds.includes(dealer.id)
@@ -273,10 +273,10 @@ const handleClose = () => {
                       <input
                         type="checkbox"
                         :checked="form.dealerIds.includes(dealer.id)"
-                        class="w-4 h-4 rounded border-slate-300"
+                        class="w-4 h-4 rounded border-ink-300"
                       />
                       <span class="font-medium">{{ dealer.name }}</span>
-                      <span class="text-xs text-slate-500">{{ dealer.city }}</span>
+                      <span class="text-xs text-ink-500">{{ dealer.city }}</span>
                     </div>
                   </button>
                 </div>
@@ -287,20 +287,20 @@ const handleClose = () => {
             <!-- Dates -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Başlangıç Tarihi *</label>
+                <label class="block text-sm font-medium text-ink-700 mb-1.5">Başlangıç Tarihi *</label>
                 <input
                   v-model="form.startsAt"
                   type="date"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <p v-if="errors.startsAt" class="text-xs text-red-600 mt-1">{{ errors.startsAt }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Bitiş Tarihi *</label>
+                <label class="block text-sm font-medium text-ink-700 mb-1.5">Bitiş Tarihi *</label>
                 <input
                   v-model="form.endsAt"
                   type="date"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <p v-if="errors.endsAt" class="text-xs text-red-600 mt-1">{{ errors.endsAt }}</p>
               </div>
@@ -308,19 +308,19 @@ const handleClose = () => {
 
             <!-- Active toggle -->
             <div class="flex items-center justify-between">
-              <label class="text-sm font-medium text-slate-700">Aktif Yayında</label>
+              <label class="text-sm font-medium text-ink-700">Aktif Yayında</label>
               <button
                 type="button"
                 @click="form.active = !form.active"
                 :class="[
                   'relative inline-flex h-5 w-9 rounded-full transition-colors',
-                  form.active ? 'bg-blue-600' : 'bg-slate-300',
+                  form.active ? 'bg-primary-600' : 'bg-ink-300',
                 ]"
               >
                 <span
                   :class="[
                     'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                    form.active ? 'translate-x-4' : 'translate-x-0.5',
+                    form.active ? 'tranink-x-4' : 'tranink-x-0.5',
                   ]"
                 />
               </button>
@@ -328,17 +328,17 @@ const handleClose = () => {
           </div>
 
           <!-- Footer -->
-          <div class="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-end gap-3">
+          <div class="sticky bottom-0 bg-ink-50 border-t border-ink-200 px-6 py-4 flex items-center justify-end gap-3">
             <button
               @click="handleClose"
-              class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+              class="px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-300 rounded-lg hover:bg-ink-50"
             >
               İptal
             </button>
             <button
               @click="handleSave"
               :disabled="loading"
-              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {{ loading ? 'Kaydediliyor...' : 'Kaydet' }}
             </button>

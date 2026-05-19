@@ -42,4 +42,8 @@ export class CreateOrderDto {
   @Min(0)
   @IsOptional()
   logisticsSurcharge?: number;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }

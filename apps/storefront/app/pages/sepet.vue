@@ -2,6 +2,7 @@
 import { useCart } from '~/composables/useCart'
 import { useDealer } from '~/composables/useDealer'
 import { useAuth } from '~/composables/useAuth'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   title: 'Sepetim | SADÖKSAN',
@@ -16,6 +17,23 @@ const checkoutStep = ref<'cart' | 'review' | 'complete'>('cart')
 const lastOrder = ref<any>(null)
 const paymentMethod = ref<'bank-transfer' | 'credit-card' | 'installment'>('bank-transfer')
 const checkoutError = ref<string | null>(null)
+const shippingCity = ref('')
+const shippingAddress = ref('')
+const promoCodeInput = ref('')
+const promoApplied = ref(false)
+const promoDiscount = ref(0)
+const promoError = ref<string | null>(null)
+
+const turkishProvinces = [
+  'Adana','Adıyaman','Afyonkarahisar','Ağrı','Amasya','Ankara','Antalya','Artvin','Aydın','Balıkesir',
+  'Bilecik','Bingöl','Bitlis','Bolu','Burdur','Bursa','Çanakkale','Çankırı','Çorum','Denizli',
+  'Diyarbakır','Edirne','Elazığ','Erzincan','Erzurum','Eskişehir','Gaziantep','Giresun','Gümüşhane','Hakkari',
+  'Hatay','Isparta','Mersin','İstanbul','İzmir','Kars','Kastamonu','Kayseri','Kırklareli','Kırşehir',
+  'Kocaeli','Konya','Kütahya','Malatya','Manisa','Kahramanmaraş','Mardin','Muğla','Muş','Nevşehir',
+  'Niğde','Ordu','Rize','Sakarya','Samsun','Siirt','Sinop','Sivas','Tekirdağ','Tokat',
+  'Trabzon','Tunceli','Şanlıurfa','Uşak','Van','Yozgat','Zonguldak','Aksaray','Bayburt','Karaman',
+  'Kırıkkale','Batman','Şırnak','Bartın','Ardahan','Iğdır','Yalova','Karabük','Kilis','Osmaniye','Düzce',
+]
 
 onMounted(() => {
   loadCart()
@@ -41,13 +59,52 @@ const handleCheckout = async () => {
   checkoutStep.value = 'review'
 }
 
+const applyPromoCode = async () => {
+  promoError.value = null
+  if (!promoCodeInput.value.trim()) return
+
+  try {
+    const api = useApi()
+    const result = await api.post<{ valid: boolean; discountAmount: number; finalTotal: number; message?: string }>('/promo/validate', {
+      code: promoCodeInput.value.trim().toUpperCase(),
+      orderTotal: totals.value.subtotal,
+      isDealer: isDealer.value,
+    })
+    if (result.valid) {
+      promoApplied.value = true
+      promoDiscount.value = result.discountAmount
+    } else {
+      promoError.value = result.message || 'Geçersiz promosyon kodu'
+    }
+  } catch (err) {
+    promoError.value = 'Promosyon kodu kontrol edilemedi'
+  }
+}
+
+const removePromoCode = () => {
+  promoApplied.value = false
+  promoDiscount.value = 0
+  promoCodeInput.value = ''
+  promoError.value = null
+}
+
 const handlePlaceOrder = async () => {
+  if (!shippingCity.value || !shippingAddress.value) {
+    checkoutError.value = 'Lütfen şehir ve adres bilgilerini girin'
+    return
+  }
+
   isLoading.value = true
   checkoutError.value = null
 
   try {
-    const surcharge = isDealer.value && dealer.value ? dealer.value.logisticsSurcharge : 0
-    const order = await placeOrder(isDealer.value, surcharge, paymentMethod.value)
+    const order = await placeOrder({
+      customerType: isDealer.value ? 'B2B' : 'B2C',
+      shippingCity: shippingCity.value,
+      shippingAddress: shippingAddress.value,
+      dealerId: isDealer.value && dealer.value ? dealer.value.id : undefined,
+      promoCode: promoApplied.value ? promoCodeInput.value : undefined,
+    })
 
     if (order) {
       lastOrder.value = order
@@ -255,6 +312,57 @@ const handleClearCart = () => {
 
         <div class="bg-white rounded-xl shadow-md p-8">
           <h2 class="text-2xl font-bold text-primary-900 mb-6">Siparişi Onayla</h2>
+
+          <!-- Shipping Info -->
+          <div class="mb-8 pb-8 border-b border-ink-100">
+            <h3 class="font-semibold text-primary-900 mb-4">Teslimat Bilgileri</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-ink-700 mb-1">Şehir *</label>
+                <select v-model="shippingCity" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                  <option value="">Şehir Seçiniz</option>
+                  <option v-for="province in turkishProvinces" :key="province" :value="province">{{ province }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink-700 mb-1">Adres *</label>
+                <textarea v-model="shippingAddress" rows="2" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" placeholder="Teslimat adresinizi yazın"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Promo Code -->
+          <div class="mb-8 pb-8 border-b border-ink-100">
+            <h3 class="font-semibold text-primary-900 mb-4">Promosyon Kodu</h3>
+            <div class="flex gap-2 max-w-md">
+              <input
+                v-model="promoCodeInput"
+                type="text"
+                placeholder="Kodu girin"
+                class="flex-1 px-3 py-2 border border-ink-200 rounded-lg text-sm uppercase focus:ring-2 focus:ring-primary-500"
+                :disabled="promoApplied"
+                @keydown.enter.prevent
+              />
+              <button
+                v-if="!promoApplied"
+                @click="applyPromoCode"
+                class="px-4 py-2 bg-accent-600 text-white rounded-lg text-sm font-medium hover:bg-accent-700"
+              >
+                Uygula
+              </button>
+              <button
+                v-else
+                @click="removePromoCode"
+                class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600"
+              >
+                Kaldır
+              </button>
+            </div>
+            <p v-if="promoError" class="text-red-600 text-sm mt-2">{{ promoError }}</p>
+            <p v-if="promoApplied" class="text-green-600 text-sm mt-2">
+              {{ promoCodeInput }} kodu uygulandı — {{ promoDiscount }} TL indirim
+            </p>
+          </div>
 
           <!-- Payment Method -->
           <div class="mb-8 pb-8 border-b border-ink-100">

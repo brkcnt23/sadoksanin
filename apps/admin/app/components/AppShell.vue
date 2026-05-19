@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 const route = useRoute()
 const { logout, getUser } = useAdminAuth()
 const settings = useSettingsStore()
@@ -42,6 +42,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Yönetim',
     items: [
+      { label: 'Proforma', icon: 'lucide:file-text', to: '/proforma' },
       { label: 'Raporlar', icon: 'lucide:bar-chart-3', to: '/raporlar' },
       { label: 'Denetim Kaydı', icon: 'lucide:scroll-text', to: '/denetim' },
       { label: 'Ayarlar', icon: 'lucide:settings', to: '/ayarlar' },
@@ -69,17 +70,17 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex">
+  <div class="min-h-screen bg-ink-50 flex">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-slate-200 sticky top-0 h-screen flex flex-col shrink-0">
-      <div class="px-6 py-5 border-b border-slate-100">
-        <h1 class="text-lg font-bold text-slate-900">{{ settings.data.siteName }}</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Yönetim Paneli</p>
+    <aside class="w-64 bg-white border-r border-ink-200 sticky top-0 h-screen flex flex-col shrink-0">
+      <div class="px-6 py-5 border-b border-ink-100">
+        <h1 class="text-lg font-bold text-ink-900">{{ settings.data.siteName }}</h1>
+        <p class="text-xs text-ink-500 mt-0.5">Yönetim Paneli</p>
       </div>
 
       <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         <div v-for="group in navGroups" :key="group.title">
-          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ group.title }}</p>
+          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-400">{{ group.title }}</p>
           <div class="space-y-1">
             <NuxtLink
               v-for="item in group.items"
@@ -88,8 +89,8 @@ const handleLogout = () => {
               :class="[
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 isActive(item.to)
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-700 hover:bg-slate-50',
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-ink-700 hover:bg-ink-50',
               ]"
             >
               <Icon :name="item.icon" class="w-4 h-4 shrink-0" />
@@ -105,10 +106,10 @@ const handleLogout = () => {
         </div>
       </nav>
 
-      <div class="p-3 border-t border-slate-100 space-y-2">
-        <div class="px-3 py-2 rounded-lg bg-slate-50">
-          <p class="text-xs font-medium text-slate-700 truncate">{{ currentUser?.name }}</p>
-          <p class="text-[11px] text-slate-500 truncate">{{ currentUser?.email }}</p>
+      <div class="p-3 border-t border-ink-100 space-y-2">
+        <div class="px-3 py-2 rounded-lg bg-ink-50">
+          <p class="text-xs font-medium text-ink-700 truncate">{{ currentUser?.name }}</p>
+          <p class="text-[11px] text-ink-500 truncate">{{ currentUser?.email }}</p>
         </div>
         <button
           @click="handleLogout"
@@ -122,9 +123,9 @@ const handleLogout = () => {
 
     <!-- Main -->
     <main class="flex-1 flex flex-col min-w-0">
-      <header class="bg-white border-b border-slate-200 px-8 py-3.5 sticky top-0 z-10">
+      <header class="bg-white border-b border-ink-200 px-8 py-3.5 sticky top-0 z-10">
         <div class="flex items-center justify-between gap-4">
-          <h2 class="text-lg font-semibold text-slate-900 truncate">{{ activeLabel }}</h2>
+          <h2 class="text-lg font-semibold text-ink-900 truncate">{{ activeLabel }}</h2>
 
           <div class="flex items-center gap-2">
             <div
@@ -136,9 +137,9 @@ const handleLogout = () => {
             </div>
             <NuxtLink
               to="/bildirimler"
-              class="relative p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              class="relative p-2 hover:bg-ink-100 rounded-lg transition-colors"
             >
-              <Icon name="lucide:bell" class="w-5 h-5 text-slate-600" />
+              <Icon name="lucide:bell" class="w-5 h-5 text-ink-600" />
               <span
                 v-if="notifications.pendingCount > 0"
                 class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"

@@ -109,40 +109,42 @@ export const useCart = () => {
     }
   }
 
-  // Place order — sends to API
-  const placeOrder = async (isDealer: boolean, dealerSurcharge = 0, paymentMethod = 'bank-transfer') => {
+  // Place order — sends to API (matches CreateOrderDto)
+  const placeOrder = async (payload: {
+    customerType: 'B2C' | 'B2B'
+    shippingCity: string
+    shippingAddress: string
+    dealerId?: string
+    promoCode?: string
+  }) => {
     if (items.value.length === 0) {
       return null
     }
 
     try {
       const api = useApi()
-      const totals = calculateTotals(dealerSurcharge)
 
-      // Prepare order payload
       const orderData = {
-        orderLines: items.value.map(item => ({
+        items: items.value.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
-          price: item.product.price,
+          unitPrice: item.product.price,
+          taxRate: 0.2,
         })),
-        subtotal: totals.subtotal,
-        dealerSurcharge: totals.dealerSurcharge,
-        total: totals.total,
-        paymentMethod,
-        notes: '',
+        customerType: payload.customerType,
+        shippingCity: payload.shippingCity,
+        shippingAddress: payload.shippingAddress,
+        dealerId: payload.dealerId,
+        promoCode: payload.promoCode,
       }
 
-      // Send to API
       const response = await api.post<Order>('/orders', orderData)
 
-      // Update orders list and persist
       orders.value.push(response)
       if (process.client) {
         localStorage.setItem('cart.orders', JSON.stringify(orders.value))
       }
 
-      // Clear cart after successful order
       clear()
 
       return response

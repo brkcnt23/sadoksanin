@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { formatPrice, formatDate, formatRelative } from '~/utils/storage'
 
 definePageMeta({
@@ -102,7 +102,7 @@ const orderStatusBadge = (s: string) => {
     <!-- Sync banner -->
     <div
       v-if="stock.syncStatus.lastSyncAt"
-      class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between"
+      class="bg-white rounded-xl border border-ink-200 p-4 flex items-center justify-between"
     >
       <div class="flex items-center gap-3">
         <div
@@ -116,10 +116,10 @@ const orderStatusBadge = (s: string) => {
           ]"
         />
         <div>
-          <p class="text-sm font-medium text-slate-900">
+          <p class="text-sm font-medium text-ink-900">
             Netsis Senkronizasyon — Son: {{ formatRelative(stock.syncStatus.lastSyncAt) }}
           </p>
-          <p class="text-xs text-slate-500">
+          <p class="text-xs text-ink-500">
             {{ stock.syncStatus.productsSynced }} ürün ·
             {{ stock.syncStatus.errors }} hata ·
             {{ (stock.syncStatus.lastSyncDuration / 1000).toFixed(1) }}s ·
@@ -130,7 +130,7 @@ const orderStatusBadge = (s: string) => {
       <button
         @click="stock.triggerSync()"
         :disabled="stock.syncStatus.status === 'running'"
-        class="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-md flex items-center gap-1.5 disabled:opacity-50"
+        class="px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-md flex items-center gap-1.5 disabled:opacity-50"
       >
         <Icon
           :name="stock.syncStatus.status === 'running' ? 'lucide:loader-2' : 'lucide:refresh-cw'"
@@ -143,33 +143,33 @@ const orderStatusBadge = (s: string) => {
     <!-- Main content grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Pending approvals -->
-      <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200">
-        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 class="font-semibold text-slate-900 flex items-center gap-2">
+      <div class="lg:col-span-2 bg-white rounded-xl border border-ink-200">
+        <div class="px-5 py-4 border-b border-ink-200 flex items-center justify-between">
+          <h3 class="font-semibold text-ink-900 flex items-center gap-2">
             <Icon name="lucide:clock" class="w-4 h-4 text-amber-600" />
             Onay Bekleyen Siparişler
           </h3>
-          <NuxtLink to="/siparisler" class="text-xs font-medium text-blue-600 hover:text-blue-700">Tümü →</NuxtLink>
+          <NuxtLink to="/siparisler" class="text-xs font-medium text-primary-600 hover:text-primary-700">Tümü →</NuxtLink>
         </div>
 
-        <div v-if="pendingOrders.length > 0" class="divide-y divide-slate-100">
-          <div v-for="order in pendingOrders" :key="order.id" class="p-4 hover:bg-slate-50 flex items-center gap-4">
+        <div v-if="pendingOrders.length > 0" class="divide-y divide-ink-100">
+          <div v-for="order in pendingOrders" :key="order.id" class="p-4 hover:bg-ink-50 flex items-center gap-4">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <p class="font-mono text-sm font-semibold text-slate-900">{{ order.orderNo }}</p>
+                <p class="font-mono text-sm font-semibold text-ink-900">{{ order.orderNo }}</p>
                 <StatusBadge variant="purple" :label="order.customerType" />
               </div>
-              <p class="text-sm text-slate-700 mt-0.5 truncate">{{ order.customerName }}</p>
-              <p class="text-xs text-slate-500 mt-0.5">
+              <p class="text-sm text-ink-700 mt-0.5 truncate">{{ order.customerName }}</p>
+              <p class="text-xs text-ink-500 mt-0.5">
                 {{ order.lines.length }} ürün · {{ formatRelative(order.createdAt) }}
               </p>
             </div>
             <div class="text-right shrink-0">
-              <p class="font-bold text-slate-900">{{ formatPrice(order.total) }}</p>
+              <p class="font-bold text-ink-900">{{ formatPrice(order.total) }}</p>
               <div class="flex gap-1 mt-1.5">
                 <NuxtLink
                   :to="`/siparisler/${order.id}`"
-                  class="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded"
+                  class="px-2.5 py-1 text-xs font-medium text-ink-700 bg-ink-100 hover:bg-ink-200 rounded"
                 >
                   Detay
                 </NuxtLink>
@@ -194,36 +194,36 @@ const orderStatusBadge = (s: string) => {
 
       <!-- Side widgets -->
       <div class="space-y-4">
-        <div class="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 class="font-semibold text-slate-900 mb-4 text-sm">Sipariş Türü</h3>
+        <div class="bg-white rounded-xl border border-ink-200 p-5">
+          <h3 class="font-semibold text-ink-900 mb-4 text-sm">Sipariş Türü</h3>
           <div class="space-y-3">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-slate-600">B2C (Bireysel)</span>
-              <span class="font-semibold text-slate-900">
+              <span class="text-ink-600">B2C (Bireysel)</span>
+              <span class="font-semibold text-ink-900">
                 {{ orders.items.filter((o) => o.customerType === 'B2C').length }}
               </span>
             </div>
             <div class="flex items-center justify-between text-sm">
-              <span class="text-slate-600">B2B (Bayi)</span>
-              <span class="font-semibold text-slate-900">
+              <span class="text-ink-600">B2B (Bayi)</span>
+              <span class="font-semibold text-ink-900">
                 {{ orders.items.filter((o) => o.customerType === 'B2B').length }}
               </span>
             </div>
-            <div class="pt-3 border-t border-slate-100 space-y-2">
+            <div class="pt-3 border-t border-ink-100 space-y-2">
               <div class="flex items-center justify-between text-xs">
-                <span class="text-slate-500">B2C Ciro</span>
-                <span class="font-medium text-slate-700">{{ formatPrice(orders.revenueByType.b2c) }}</span>
+                <span class="text-ink-500">B2C Ciro</span>
+                <span class="font-medium text-ink-700">{{ formatPrice(orders.revenueByType.b2c) }}</span>
               </div>
               <div class="flex items-center justify-between text-xs">
-                <span class="text-slate-500">B2B Ciro</span>
-                <span class="font-medium text-slate-700">{{ formatPrice(orders.revenueByType.b2b) }}</span>
+                <span class="text-ink-500">B2B Ciro</span>
+                <span class="font-medium text-ink-700">{{ formatPrice(orders.revenueByType.b2b) }}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 class="font-semibold text-slate-900 mb-4 text-sm">Kritik Uyarılar</h3>
+        <div class="bg-white rounded-xl border border-ink-200 p-5">
+          <h3 class="font-semibold text-ink-900 mb-4 text-sm">Kritik Uyarılar</h3>
           <div class="space-y-2">
             <NuxtLink
               v-if="dealers.pendingCount > 0"
@@ -263,7 +263,7 @@ const orderStatusBadge = (s: string) => {
             </NuxtLink>
             <p
               v-if="dealers.pendingCount === 0 && products.outOfStockCount === 0 && products.lowStockCount === 0 && !settings.data.maintenanceMode"
-              class="text-sm text-slate-500 text-center py-3"
+              class="text-sm text-ink-500 text-center py-3"
             >
               Aktif uyarı yok
             </p>
@@ -273,44 +273,44 @@ const orderStatusBadge = (s: string) => {
     </div>
 
     <!-- Recent orders -->
-    <div class="bg-white rounded-xl border border-slate-200">
-      <div class="px-5 py-4 border-b border-slate-200">
-        <h3 class="font-semibold text-slate-900 flex items-center gap-2">
-          <Icon name="lucide:history" class="w-4 h-4 text-blue-600" />
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200">
+        <h3 class="font-semibold text-ink-900 flex items-center gap-2">
+          <Icon name="lucide:history" class="w-4 h-4 text-primary-600" />
           Son Siparişler
         </h3>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200 text-left">
+          <thead class="bg-ink-50 border-b border-ink-200 text-left">
             <tr>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Sipariş No</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Müşteri</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Tür</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Tutar</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Durum</th>
-              <th class="px-5 py-3 text-xs font-semibold text-slate-700 uppercase">Tarih</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Sipariş No</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Müşteri</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Tür</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Tutar</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Durum</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Tarih</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="o in recentOrders" :key="o.id" class="hover:bg-slate-50">
-              <td class="px-5 py-3 font-mono text-sm font-medium text-slate-900">{{ o.orderNo }}</td>
-              <td class="px-5 py-3 text-sm text-slate-700 truncate max-w-xs">{{ o.customerName }}</td>
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="o in recentOrders" :key="o.id" class="hover:bg-ink-50">
+              <td class="px-5 py-3 font-mono text-sm font-medium text-ink-900">{{ o.orderNo }}</td>
+              <td class="px-5 py-3 text-sm text-ink-700 truncate max-w-xs">{{ o.customerName }}</td>
               <td class="px-5 py-3">
                 <StatusBadge :variant="o.customerType === 'B2C' ? 'info' : 'purple'" :label="o.customerType" />
               </td>
-              <td class="px-5 py-3 text-sm font-semibold text-slate-900">{{ formatPrice(o.total) }}</td>
+              <td class="px-5 py-3 text-sm font-semibold text-ink-900">{{ formatPrice(o.total) }}</td>
               <td class="px-5 py-3"><StatusBadge v-bind="orderStatusBadge(o.status)" /></td>
-              <td class="px-5 py-3 text-xs text-slate-500">{{ formatRelative(o.createdAt) }}</td>
+              <td class="px-5 py-3 text-xs text-ink-500">{{ formatRelative(o.createdAt) }}</td>
             </tr>
           </tbody>
         </table>
         <EmptyState v-if="recentOrders.length === 0" icon="lucide:inbox" title="Henüz sipariş yok" />
       </div>
 
-      <div class="px-5 py-3 border-t border-slate-200 text-center">
-        <NuxtLink to="/siparisler" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+      <div class="px-5 py-3 border-t border-ink-200 text-center">
+        <NuxtLink to="/siparisler" class="text-primary-600 hover:text-primary-700 font-medium text-sm">
           Tüm Siparişleri Görüntüle →
         </NuxtLink>
       </div>

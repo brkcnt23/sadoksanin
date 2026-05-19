@@ -1,12 +1,18 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { PromoService } from '../promo/promo.service';
+import { ProformaService } from '../proforma/proforma.service';
 
 @Injectable()
 export class OrdersService {
   private logger = new Logger(OrdersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private promoService: PromoService,
+    private proformaService: ProformaService,
+  ) {}
 
   /**
    * Create a new order and reserve stock
@@ -14,7 +20,7 @@ export class OrdersService {
    * B2B: status PENDING_APPROVAL for admin approval
    */
   async createOrder(createOrderDto: CreateOrderDto, customerId: string) {
-    const { items, dealerId, customerType, shippingCity, shippingAddress } = createOrderDto;
+    const { items, dealerId, customerType, shippingCity, shippingAddress, promoCode } = createOrderDto;
 
     // Validate stock availability
     for (const item of items) {
@@ -55,8 +61,43 @@ export class OrdersService {
       };
     });
 
-    const logisticsSurcharge = createOrderDto.logisticsSurcharge || 0;
-    const total = subtotal + tax + logisticsSurcharge;
+    // Auto-calculate logistics from shipping city
+    let logisticsSurcharge = createOrderDto.logisticsSurcharge || 0;
+    if (!logisticsSurcharge && shippingCity) {
+      const rules = await this.prisma.logisticsRule.findMany({ where: { active: true } });
+      for (const rule of rules) {
+        if (rule.cities.some((c: string) => c.toLowerCase() === shippingCity.toLowerCase())) {
+          const weight = items.length * 10; // 10kg per item estimate
+          logisticsSurcharge = rule.baseSurcharge + weight * rule.perKgSurcharge;
+          logisticsSurcharge = Math.round(logisticsSurcharge * 100) / 100;
+          this.logger.debug(`Logistics for ${shippingCity}: ${logisticsSurcharge} TL (${rule.region})`);
+          break;
+        }
+      }
+    }
+
+    let total = subtotal + tax + logisticsSurcharge;
+    let discountAmount = 0;
+    let appliedPromoCode: string | null = null;
+
+    // Validate and apply promo code
+    if (promoCode) {
+      const isDealer = customerType === 'B2B';
+      const promoResult = await this.promoService.validatePromoCode(promoCode, subtotal, isDealer);
+      if (promoResult.valid) {
+        discountAmount = promoResult.discountAmount;
+        total = total - discountAmount;
+        appliedPromoCode = promoCode.toUpperCase().trim();
+        // Increment usage
+        await this.prisma.promoCode.update({
+          where: { code: appliedPromoCode },
+          data: { usedCount: { increment: 1 } },
+        });
+        this.logger.log(`Promo ${appliedPromoCode} applied: -${discountAmount} TL`);
+      } else {
+        throw new BadRequestException(promoResult.message || 'Geçersiz promosyon kodu');
+      }
+    }
 
     // Generate unique order number: SDK-{year}-{random}
     const now = new Date();
@@ -80,6 +121,8 @@ export class OrdersService {
         tax,
         logisticsSurcharge,
         total,
+        promoCode: appliedPromoCode,
+        discountAmount,
         lines: {
           create: orderLines,
         },
@@ -160,9 +203,23 @@ export class OrdersService {
         approvedAt: new Date(),
         approvedBy: approvingUserId,
       },
+      include: {
+        lines: {
+          include: {
+            product: true,
+          },
+        },
+        dealer: true,
+      },
     });
 
     this.logger.log(`Order ${orderId} approved by ${approvingUserId}`);
+
+    // Auto-generate proforma (fire-and-forget)
+    this.proformaService.createProformaFromOrder(updated).catch((err) => {
+      this.logger.error(`Auto-proforma failed for order ${orderId}: ${err.message}`);
+    });
+
     return updated;
   }
 

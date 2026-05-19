@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref } from 'vue'
 import { formatDate } from '~/utils/storage'
 import type { Popup } from '~/types'
@@ -52,7 +52,7 @@ const confirmDelete = (title: string) => window.confirm(`${title} silinsin mi?`)
       <template #actions>
         <button
           @click="openCreateModal"
-          class="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"
+          class="px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md flex items-center gap-2"
         >
           <Icon name="lucide:plus" class="w-4 h-4" />
           Yeni Popup
@@ -72,10 +72,10 @@ const confirmDelete = (title: string) => window.confirm(`${title} silinsin mi?`)
     </div>
 
     <div v-if="popups.items.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div v-for="p in popups.items" :key="p.id" class="bg-white rounded-xl border border-slate-200 p-5">
+      <div v-for="p in popups.items" :key="p.id" class="bg-white rounded-xl border border-ink-200 p-5">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="min-w-0 flex-1">
-            <h3 class="font-semibold text-slate-900 truncate">{{ p.title }}</h3>
+            <h3 class="font-semibold text-ink-900 truncate">{{ p.title }}</h3>
             <div class="flex items-center gap-2 mt-1.5">
               <StatusBadge :variant="isLive(p) ? 'success' : 'neutral'" :label="isLive(p) ? 'Yayında' : 'Pasif'" />
               <StatusBadge variant="info" :label="audienceLabel(p.audience)" />
@@ -85,30 +85,30 @@ const confirmDelete = (title: string) => window.confirm(`${title} silinsin mi?`)
             @click="popups.toggle(p.id)"
             :class="[
               'relative inline-flex h-5 w-9 rounded-full transition-colors shrink-0',
-              p.active ? 'bg-blue-600' : 'bg-slate-300',
+              p.active ? 'bg-primary-600' : 'bg-ink-300',
             ]"
           >
             <span
               :class="[
                 'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                p.active ? 'translate-x-4' : 'translate-x-0.5',
+                p.active ? 'tranink-x-4' : 'tranink-x-0.5',
               ]"
             />
           </button>
         </div>
-        <div class="text-sm text-slate-600 line-clamp-2" v-html="p.body" />
-        <dl class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
+        <div class="text-sm text-ink-600 line-clamp-2" v-html="p.body" />
+        <dl class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-ink-100 text-xs">
           <div>
-            <dt class="text-slate-500">Başlangıç</dt>
-            <dd class="font-medium text-slate-700 mt-0.5">{{ formatDate(p.startsAt, { hour: undefined, minute: undefined }) }}</dd>
+            <dt class="text-ink-500">Başlangıç</dt>
+            <dd class="font-medium text-ink-700 mt-0.5">{{ formatDate(p.startsAt, { hour: undefined, minute: undefined }) }}</dd>
           </div>
           <div>
-            <dt class="text-slate-500">Bitiş</dt>
-            <dd class="font-medium text-slate-700 mt-0.5">{{ formatDate(p.endsAt, { hour: undefined, minute: undefined }) }}</dd>
+            <dt class="text-ink-500">Bitiş</dt>
+            <dd class="font-medium text-ink-700 mt-0.5">{{ formatDate(p.endsAt, { hour: undefined, minute: undefined }) }}</dd>
           </div>
           <div>
-            <dt class="text-slate-500">CTR</dt>
-            <dd class="font-medium text-slate-700 mt-0.5">
+            <dt class="text-ink-500">CTR</dt>
+            <dd class="font-medium text-ink-700 mt-0.5">
               {{ p.impressions > 0 ? ((p.clicks / p.impressions) * 100).toFixed(1) : '0' }}%
             </dd>
           </div>
@@ -116,7 +116,7 @@ const confirmDelete = (title: string) => window.confirm(`${title} silinsin mi?`)
         <div class="mt-3 flex items-center justify-end gap-1">
           <button
             @click="openEditModal(p)"
-            class="px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded"
+            class="px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100 rounded"
           >
             Düzenle
           </button>

@@ -1,6 +1,7 @@
 """
 Proforma Invoice PDF Generator using ReportLab
 Supports INTERNATIONAL and LOCAL template types
+UTF-8 Turkish character support enabled
 """
 
 from reportlab.lib.pagesizes import A4
@@ -13,16 +14,38 @@ from reportlab.platypus import (
 )
 from reportlab.pdfgen import canvas
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 from datetime import datetime
 import requests
 from PIL import Image as PILImage
 import logging
+import os
+import base64
+import re
 
 logger = logging.getLogger(__name__)
 
+# Register Turkish-compatible fonts
+try:
+    # Try to register DejaVuSans fonts if available on system
+    if os.path.exists('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'):
+        pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+        DEFAULT_FONT = 'DejaVuSans'
+        DEFAULT_FONT_BOLD = 'DejaVuSans-Bold'
+    else:
+        # Fallback to built-in UTF-8 compatible fonts
+        DEFAULT_FONT = 'Helvetica'
+        DEFAULT_FONT_BOLD = 'Helvetica-Bold'
+except Exception as e:
+    logger.warning(f"Could not register DejaVuSans fonts: {e}. Using default fonts.")
+    DEFAULT_FONT = 'Helvetica'
+    DEFAULT_FONT_BOLD = 'Helvetica-Bold'
+
 class ProformaGenerator:
-    """Generate production-ready proforma invoices in PDF format"""
+    """Generate production-ready proforma invoices in PDF format with UTF-8 Turkish support"""
 
     def __init__(self):
         self.page_width, self.page_height = A4
@@ -30,7 +53,7 @@ class ProformaGenerator:
         self._setup_custom_styles()
 
     def _setup_custom_styles(self):
-        """Setup custom paragraph styles"""
+        """Setup custom paragraph styles with Turkish character support"""
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
@@ -38,7 +61,7 @@ class ProformaGenerator:
             textColor=colors.HexColor('#1a1a1a'),
             spaceAfter=30,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            fontName=DEFAULT_FONT_BOLD
         ))
 
         self.styles.add(ParagraphStyle(
@@ -47,7 +70,7 @@ class ProformaGenerator:
             fontSize=11,
             textColor=colors.HexColor('#333333'),
             spaceAfter=6,
-            fontName='Helvetica-Bold'
+            fontName=DEFAULT_FONT_BOLD
         ))
 
         self.styles.add(ParagraphStyle(
@@ -55,8 +78,17 @@ class ProformaGenerator:
             fontSize=10,
             textColor=colors.whitesmoke,
             spaceAfter=6,
-            fontName='Helvetica-Bold',
+            fontName=DEFAULT_FONT_BOLD,
             alignment=TA_CENTER
+        ))
+
+        # Add Normal style with Turkish support
+        self.styles.add(ParagraphStyle(
+            name='TurkishNormal',
+            fontSize=9,
+            fontName=DEFAULT_FONT,
+            alignment=TA_LEFT,
+            leading=11
         ))
 
     def generate(self, template_type, include_logo, customer, items, company_info, international=None):
@@ -140,10 +172,10 @@ class ProformaGenerator:
                 Paragraph("<b>EXPORTER'S REF.</b>", self.styles['CustomHeading'])
             ],
             [
-                Paragraph(f"{company_info['name']}<br/>{company_info['address']}", self.styles['Normal']),
+                Paragraph(f"{company_info['name']}<br/>{company_info['address']}", self.styles['TurkishNormal']),
                 Paragraph(
                     f"{international.get('invoiceNumber', 'PROF-')}<br/>DT.{international.get('invoiceDate', datetime.now().strftime('%d-%m-%Y'))}",
-                    self.styles['Normal']
+                    self.styles['TurkishNormal']
                 ),
                 Paragraph(f"{international.get('exporterRef', 'N/A')}", self.styles['Normal'])
             ],
@@ -155,11 +187,11 @@ class ProformaGenerator:
             [
                 Paragraph(
                     f"{customer['name']}<br/>{customer['address']}<br/>{customer.get('city', '')}",
-                    self.styles['Normal']
+                    self.styles['TurkishNormal']
                 ),
                 Paragraph(
                     f"{customer['name']}<br/>{customer['address']}<br/>{customer.get('city', '')}",
-                    self.styles['Normal']
+                    self.styles['TurkishNormal']
                 ),
                 Paragraph("", self.styles['Normal'])
             ],
@@ -206,11 +238,11 @@ class ProformaGenerator:
             [
                 Paragraph(
                     f"{company_info['address']}<br/>Tel: {company_info.get('phone', '')}<br/>Email: {company_info.get('email', '')}",
-                    self.styles['Normal']
+                    self.styles['TurkishNormal']
                 ),
                 Paragraph(
                     f"{customer['name']}<br/>{customer['address']}<br/>{customer.get('city', '')}<br/>Tel: {customer.get('phone', '')}",
-                    self.styles['Normal']
+                    self.styles['TurkishNormal']
                 )
             ],
             [
@@ -230,8 +262,8 @@ class ProformaGenerator:
         return table
 
     def _build_items_table(self, items, template_type):
-        """Build items table with product images"""
-        # Prepare table data
+        """Build items table with product images (image column always rendered;
+        missing images render a placeholder so columns stay aligned)."""
         header = [
             Paragraph("<b>Image</b>", self.styles['TableHeader']),
             Paragraph("<b>SKU</b>", self.styles['TableHeader']),
@@ -244,25 +276,27 @@ class ProformaGenerator:
         table_data = [header]
 
         for item in items:
-            try:
-                # Fetch and resize image
-                img = self._fetch_and_resize_image(item.get('imageUrl'), width=0.8*inch, height=0.8*inch)
-            except Exception as e:
-                logger.warning(f"Failed to load image for {item.get('sku', 'N/A')}: {str(e)}")
-                img = Paragraph("[No Image]", self.styles['Normal'])
-
-            amount = item['quantity'] * item['price']
+            amount = item.get('quantity', 1) * item.get('price', 0)
+            image_cell = self._fetch_and_resize_image(
+                item.get('imageUrl'),
+                width=0.8 * inch,
+                height=0.8 * inch,
+            )
 
             table_data.append([
-                img,
-                Paragraph(item.get('sku', 'N/A'), self.styles['Normal']),
-                Paragraph(item.get('description', ''), self.styles['Normal']),
-                Paragraph(str(item['quantity']), self.styles['Normal']),
-                Paragraph(f"${item['price']:.2f}", self.styles['Normal']),
-                Paragraph(f"${amount:.2f}", self.styles['Normal'])
+                image_cell,
+                Paragraph(str(item.get('sku', 'N/A')), self.styles['TurkishNormal']),
+                Paragraph(str(item.get('description', '')), self.styles['TurkishNormal']),
+                Paragraph(str(item.get('quantity', 0)), self.styles['TurkishNormal']),
+                Paragraph(f"${item.get('price', 0):.2f}", self.styles['TurkishNormal']),
+                Paragraph(f"${amount:.2f}", self.styles['TurkishNormal'])
             ])
 
-        table = Table(table_data, colWidths=[1*inch, 0.9*inch, 2.5*inch, 0.6*inch, 0.8*inch, 0.8*inch])
+        # Image column kept narrow; description takes the remaining slack
+        table = Table(
+            table_data,
+            colWidths=[0.9*inch, 1.0*inch, 2.3*inch, 0.6*inch, 0.9*inch, 0.9*inch],
+        )
         table.setStyle(TableStyle([
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
@@ -283,57 +317,98 @@ class ProformaGenerator:
             [Paragraph("<b>Subtotal:</b>", self.styles['Normal']), Paragraph(f"${total:.2f}", self.styles['Normal'])],
             [Paragraph("<b>Shipping:</b>", self.styles['Normal']), Paragraph("$0.00", self.styles['Normal'])],
             [Paragraph("<b>Tax:</b>", self.styles['Normal']), Paragraph("$0.00", self.styles['Normal'])],
-            [Paragraph("<b>TOTAL:</b>", self.styles['CustomHeading']), Paragraph(f"<b>${total:.2f}</b>", self.styles['CustomHeading'])]
+            [Paragraph("<b>TOTAL:</b>", self.styles['Normal']), Paragraph(f"${total:.2f}", self.styles['Normal'])]
         ]
 
-        table = Table(totals_data, colWidths=[4*inch, 2*inch])
+        table = Table(totals_data, colWidths=[3.5*inch, 2.5*inch])
         table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTSIZE', (0, 0), (-1, 2), 10),
+            ('FONTSIZE', (0, 3), (-1, 3), 12),
             ('PADDING', (0, 0), (-1, -1), 8),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#CCCCCC')),
-            ('GRID', (0, -1), (-1, -1), 0.5, colors.grey)
+            ('BACKGROUND', (0, 3), (-1, 3), colors.HexColor('#CCCCCC')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 3), (-1, 3), 'Helvetica-Bold')
         ]))
 
         return table
 
     def _build_footer(self, company_info):
         """Build footer with bank details and declaration"""
+        bank = company_info.get('bank', 'N/A')
+        account = company_info.get('bankAccount', 'N/A')
+
         footer_text = f"""
-        <b>Bank Details:</b><br/>
-        Bank: {company_info.get('bank', 'N/A')}<br/>
-        Account: {company_info.get('bankAccount', 'N/A')}<br/>
-        <br/>
-        <b>Declaration:</b><br/>
-        <i>We declare that this invoice shows the actual price of the goods described
-        and that all particulars are true and correct.</i>
+<b>Bank Details:</b><br/>
+Bank: {bank}<br/>
+Account: {account}<br/>
+<br/>
+<b>Declaration:</b><br/>
+<i>We declare that this invoice shows the actual price of the goods described
+and that all particulars are true and correct.</i>
         """
 
         return Paragraph(footer_text, self.styles['Normal'])
 
     def _fetch_and_resize_image(self, url, width=1*inch, height=1*inch):
-        """Fetch image from URL and resize for PDF"""
+        """Resolve an image source and return a ReportLab Image flowable.
+
+        Supports three input shapes (in priority order):
+          1. data: URI — ``data:image/<type>;base64,<payload>`` (inline upload)
+          2. http(s):// URL — fetched via requests
+          3. local path — relative or absolute filesystem path
+
+        Falls back to a neutral placeholder Paragraph on any failure so the
+        PDF still renders. Never raises.
+        """
         if not url:
-            return Paragraph("[No Image]", self.styles['Normal'])
+            return Paragraph("—", self.styles['TurkishNormal'])
 
+        raw_bytes = None
         try:
-            # Fetch image
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
+            url_str = str(url).strip()
 
-            # Load and resize
-            img = PILImage.open(BytesIO(response.content))
+            # 1. data: URI (manual upload from admin form via FileReader)
+            if url_str.startswith('data:'):
+                match = re.match(r'^data:image/[\w+.-]+;base64,(.+)$', url_str, re.DOTALL)
+                if not match:
+                    logger.warning("Malformed data URI for product image")
+                    return Paragraph("—", self.styles['TurkishNormal'])
+                raw_bytes = base64.b64decode(match.group(1))
+
+            # 2. Remote URL
+            elif url_str.startswith('http://') or url_str.startswith('https://'):
+                response = requests.get(url_str, timeout=5)
+                response.raise_for_status()
+                raw_bytes = response.content
+
+            # 3. Local file path (e.g. /uploads/proforma/abc.png mounted into container)
+            elif os.path.exists(url_str):
+                with open(url_str, 'rb') as f:
+                    raw_bytes = f.read()
+            else:
+                logger.warning(f"Unrecognised image source: {url_str[:60]}")
+                return Paragraph("—", self.styles['TurkishNormal'])
+
+            # Load + resize (Pillow handles JPEG/PNG/WebP)
+            img = PILImage.open(BytesIO(raw_bytes))
+            if img.mode in ('RGBA', 'LA', 'P'):
+                # Flatten transparency onto white for clean PDF rendering
+                background = PILImage.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
             img.thumbnail((width, height), PILImage.Resampling.LANCZOS)
 
-            # Convert to bytes
             img_byte_arr = BytesIO()
-            img.save(img_byte_arr, format='PNG')
+            img.save(img_byte_arr, format='PNG', optimize=True)
             img_byte_arr.seek(0)
 
-            # Return ReportLab Image
             return Image(img_byte_arr, width=width, height=height)
 
         except Exception as e:
-            logger.warning(f"Could not fetch/resize image from {url}: {str(e)}")
-            return Paragraph("[Image Error]", self.styles['Normal'])
+            logger.warning(f"Could not render image: {str(e)}")
+            return Paragraph("—", self.styles['TurkishNormal'])
