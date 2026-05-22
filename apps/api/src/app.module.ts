@@ -10,6 +10,13 @@ import { ProformaModule } from './modules/proforma/proforma.module';
 import { DealerModule } from './modules/dealer/dealer.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { PromoModule } from './modules/promo/promo.module';
+import { DiscountsModule } from './modules/discounts/discounts.module';
+import { MailerModule } from './modules/mailer/mailer.module';
+import { CmsModule } from './modules/cms/cms.module';
+import { PopupModule } from './modules/popup/popup.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,12 +28,19 @@ import { PromoModule } from './modules/promo/promo.module';
     DealerModule,
     LogisticsModule,
     PromoModule,
+    DiscountsModule,
+    MailerModule,
+    CmsModule,
     CommonModule,
     AuthModule,
     NetsisModule,
     OrdersModule,
     ProductsModule,
     FavoritesModule,
+    PopupModule,
+    PricingModule,
+    AuditModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],

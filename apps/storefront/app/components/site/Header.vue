@@ -4,10 +4,49 @@ import { useRoute, navigateTo } from '#app'
 import { useDealer } from '~/composables/useDealer'
 import { useAuth } from '~/composables/useAuth'
 import { useCart } from '~/composables/useCart'
+import { useDealerApi } from '~/composables/useDealerApi'
 
 const { isDealer, disableDealer } = useDealer()
 const { isAuthenticated, getUser, logout } = useAuth()
 const { items, loadCart } = useCart()
+const { downloadStockReport } = useDealerApi()
+
+const raporOpen = ref(false)
+const searchQuery = ref('')
+
+const doSearch = () => {
+  const q = searchQuery.value.trim()
+  if (q) {
+    navigateTo(`/urunler?search=${encodeURIComponent(q)}`)
+  } else if (searchQuery.value === '') {
+    // Focus the input if empty
+    const input = document.querySelector<HTMLInputElement>('.md\\:flex input[type="text"]')
+    input?.focus()
+  }
+  searchQuery.value = ''
+}
+
+const downloadReport = async (type: string) => {
+  try {
+    const reportLabels: Record<string, string> = {
+      monthly: 'Aylik-Raporu',
+      yearly: 'Yillik-Raporu',
+      invoice: 'Fatura-Raporu',
+      stock: 'Stok-Raporu',
+      detailed: 'Detayli-Rapor',
+    }
+    const blob = await downloadStockReport(type as any)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${reportLabels[type] || 'Rapor'}-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    // silent
+  }
+  raporOpen.value = false
+}
 const route = useRoute()
 
 const cartCount = ref(0)
@@ -32,7 +71,7 @@ const nav: NavItem[] = [
   { label: 'Anasayfa', to: '/' },
   { label: 'Ürünler', trigger: 'mega' },
   { label: 'Mağazamız', to: '/magaza' },
-  { label: 'Bayilik', to: '/bayilik' },
+  { label: 'Bayilik', to: '/giris' },
   { label: 'Hakkımızda', to: '/hakkimizda' },
   { label: 'İletişim', to: '/iletisim' },
 ]
@@ -147,13 +186,23 @@ watch(() => route.fullPath, () => {
 
       <!-- Right cluster -->
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="hidden md:inline-flex h-10 w-10 items-center justify-center rounded-md text-ink-600 hover:bg-ink-50 hover:text-primary-900 transition-colors"
-          aria-label="Ara"
-        >
-          <Icon name="lucide:search" class="h-5 w-5" />
-        </button>
+        <div class="hidden md:flex items-center gap-1">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Ürün ara..."
+            class="h-10 w-0 focus:w-48 px-0 focus:px-3 rounded-md border border-transparent focus:border-ink-200 bg-transparent focus:bg-ink-50 text-sm text-ink-900 placeholder-ink-400 outline-none transition-all duration-300"
+            @keydown.enter="doSearch"
+          />
+          <button
+            type="button"
+            class="h-10 w-10 inline-flex items-center justify-center rounded-md text-ink-600 hover:bg-ink-50 hover:text-primary-900 transition-colors"
+            aria-label="Ara"
+            @click="doSearch"
+          >
+            <Icon name="lucide:search" class="h-5 w-5" />
+          </button>
+        </div>
 
         <button
           type="button"
@@ -186,6 +235,40 @@ watch(() => route.fullPath, () => {
               <Icon name="lucide:layout-dashboard" class="h-4 w-4" />
               Bayi Paneli
             </NuxtLink>
+            <!-- Raporlar dropdown -->
+            <div class="relative">
+              <button
+                @click="raporOpen = !raporOpen"
+                class="inline-flex btn-outline h-10 px-4 text-xs items-center gap-1.5"
+              >
+                <Icon name="lucide:download" class="h-4 w-4" />
+                Raporlar
+                <Icon :name="raporOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="h-3 w-3" />
+              </button>
+              <div
+                v-if="raporOpen"
+                class="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-ink-100 shadow-card py-2 z-50"
+                @click.self="raporOpen = false"
+              >
+                <button @click="downloadReport('monthly')" class="w-full text-left px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 flex items-center gap-2">
+                  <Icon name="lucide:calendar" class="h-4 w-4 text-ink-400" />
+                  Aylık Rapor
+                </button>
+                <button @click="downloadReport('yearly')" class="w-full text-left px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 flex items-center gap-2">
+                  <Icon name="lucide:bar-chart-3" class="h-4 w-4 text-ink-400" />
+                  Yıllık Rapor
+                </button>
+                <button @click="downloadReport('invoice')" class="w-full text-left px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 flex items-center gap-2">
+                  <Icon name="lucide:file-text" class="h-4 w-4 text-ink-400" />
+                  Fatura Raporu
+                </button>
+                <div class="border-t border-ink-100 my-1"></div>
+                <button @click="downloadReport('stock')" class="w-full text-left px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 flex items-center gap-2">
+                  <Icon name="lucide:package" class="h-4 w-4 text-ink-400" />
+                  Stok & Fiyat Raporu
+                </button>
+              </div>
+            </div>
             <button
               @click="handleDealerLogout"
               class="inline-flex btn-outline h-10 px-4 text-xs text-red-600 hover:bg-red-50 border-red-200"
@@ -213,16 +296,9 @@ watch(() => route.fullPath, () => {
           <template v-else>
             <NuxtLink
               to="/giris"
-              class="inline-flex btn-outline h-10 px-4 text-xs"
+              class="inline-flex btn-accent h-10 px-5 text-xs"
             >
-              <Icon name="lucide:user" class="h-4 w-4" />
-              Üye Girişi
-            </NuxtLink>
-            <NuxtLink
-              to="/bayilik/giris"
-              class="inline-flex btn-outline h-10 px-4 text-xs"
-            >
-              <Icon name="lucide:user-cog" class="h-4 w-4" />
+              <Icon name="lucide:log-in" class="h-4 w-4" />
               Bayi Girişi
             </NuxtLink>
           </template>
@@ -328,12 +404,8 @@ watch(() => route.fullPath, () => {
           </template>
           <template v-else>
             <div class="flex flex-col gap-2 mt-2">
-              <NuxtLink to="/giris" class="btn-outline justify-start">
-                <Icon name="lucide:user" class="h-4 w-4" />
-                Üye Girişi
-              </NuxtLink>
-              <NuxtLink to="/bayilik/giris" class="btn-outline justify-start">
-                <Icon name="lucide:user-cog" class="h-4 w-4" />
+              <NuxtLink to="/giris" class="btn-accent justify-center">
+                <Icon name="lucide:log-in" class="h-4 w-4" />
                 Bayi Girişi
               </NuxtLink>
             </div>

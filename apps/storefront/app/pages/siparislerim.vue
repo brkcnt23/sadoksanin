@@ -1,50 +1,89 @@
 <script setup lang="ts">
-import { useCart } from '~/composables/useCart'
 import { useAuth } from '~/composables/useAuth'
-import type { Order } from '~/composables/useCart'
 
 definePageMeta({
   title: 'Siparişlerim | SADÖKSAN',
+  middleware: 'auth',
 })
 
-const { getUserOrders, loadOrders } = useCart()
-const { getUser } = useAuth()
-
-const currentUser = getUser()
-
-if (!currentUser) {
-  navigateTo('/giris')
+interface OrderLineItem {
+  id: string
+  productId: string
+  quantity: number
+  unitPrice: number
+  taxRate: number
+  total: number
+  product?: { id: string; name: string; brand: string; imageUrl?: string }
 }
 
-const selectedOrder = ref<Order | null>(null)
-const orders = computed(() => {
-  const userOrders = getUserOrders()
-  return userOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-})
+interface ApiOrder {
+  id: string
+  orderNo: string
+  status: string
+  customerType: string
+  subtotal: number
+  tax: number
+  logisticsSurcharge: number
+  total: number
+  paymentMethod?: string
+  paymentStatus?: string
+  notes?: string
+  lines: OrderLineItem[]
+  createdAt: string
+}
+
+const api = useApi()
+const { isAuthenticated } = useAuth()
+
+const orders = ref<ApiOrder[]>([])
+const loading = ref(true)
+const selectedOrder = ref<ApiOrder | null>(null)
+
+async function loadOrders() {
+  if (!isAuthenticated.value) {
+    navigateTo('/giris')
+    return
+  }
+  loading.value = true
+  try {
+    orders.value = await api.get<ApiOrder[]>('/orders')
+  } catch {
+    orders.value = []
+  }
+  loading.value = false
+}
 
 const statusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    'completed': 'Tamamlandı',
-    'pending-approval': 'Onay Beklemede',
+    PENDING_APPROVAL: 'Onay Bekliyor',
+    APPROVED: 'Onaylandı',
+    PREPARING: 'Hazırlanıyor',
+    SHIPPED: 'Kargoda',
+    COMPLETED: 'Tamamlandı',
+    CANCELLED: 'İptal Edildi',
+    REJECTED: 'Reddedildi',
   }
   return labels[status] || status
 }
 
 const statusColor = (status: string) => {
   const colors: Record<string, string> = {
-    completed: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    'pending-approval': 'bg-amber-50 text-amber-800 border-amber-200',
+    PENDING_APPROVAL: 'bg-amber-50 text-amber-800 border-amber-200',
+    APPROVED: 'bg-blue-50 text-blue-800 border-blue-200',
+    PREPARING: 'bg-purple-50 text-purple-800 border-purple-200',
+    SHIPPED: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+    COMPLETED: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    CANCELLED: 'bg-red-50 text-red-800 border-red-200',
+    REJECTED: 'bg-red-50 text-red-800 border-red-200',
   }
   return colors[status] || 'bg-ink-50 text-ink-700 border-ink-200'
 }
 
-onMounted(() => {
-  loadOrders()
-})
-
 const formatPrice = (price: number) => {
   return `₺${price.toLocaleString('tr-TR')}`
 }
+
+onMounted(loadOrders)
 </script>
 
 <template>
@@ -92,7 +131,13 @@ const formatPrice = (price: number) => {
 
         <!-- Orders List -->
         <div class="lg:col-span-2">
-          <div v-if="orders.length > 0" class="space-y-4">
+          <!-- Loading -->
+          <div v-if="loading" class="text-center py-12 text-ink-400">
+            <Icon name="lucide:loader-2" class="h-8 w-8 mx-auto animate-spin mb-2" />
+            Yükleniyor...
+          </div>
+
+          <div v-else-if="orders.length > 0" class="space-y-4">
             <div
               v-for="order in orders"
               :key="order.id"
@@ -101,7 +146,7 @@ const formatPrice = (price: number) => {
             >
               <div class="flex items-center justify-between mb-4">
                 <div>
-                  <h3 class="font-semibold text-primary-900">{{ order.id }}</h3>
+                  <h3 class="font-semibold text-primary-900">{{ order.orderNo }}</h3>
                   <p class="text-sm text-ink-500 mt-1">
                     {{ new Date(order.createdAt).toLocaleDateString('tr-TR') }}
                   </p>
@@ -117,7 +162,7 @@ const formatPrice = (price: number) => {
               </div>
 
               <div class="border-t border-ink-100 pt-4">
-                <p class="text-sm text-ink-600 mb-2">{{ order.items.length }} ürün</p>
+                <p class="text-sm text-ink-600 mb-2">{{ order.lines?.length ?? 0 }} ürün</p>
                 <p class="text-lg font-bold text-primary-900">
                   {{ formatPrice(order.total) }}
                 </p>
@@ -152,7 +197,7 @@ const formatPrice = (price: number) => {
           @click.stop
         >
           <div class="sticky top-0 bg-white border-b border-ink-100 p-6 flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-primary-900">{{ selectedOrder.id }}</h2>
+            <h2 class="text-2xl font-bold text-primary-900">{{ selectedOrder.orderNo }}</h2>
             <button
               @click="selectedOrder = null"
               class="text-ink-500 hover:text-ink-700"
@@ -163,7 +208,7 @@ const formatPrice = (price: number) => {
 
           <div class="p-6 space-y-6">
             <!-- Order Info -->
-            <div class="grid sm:grid-cols-2 gap-6">
+            <div class="grid sm:grid-cols-3 gap-6">
               <div>
                 <p class="text-sm text-ink-600 mb-1">Sipariş Tarihi</p>
                 <p class="font-semibold text-primary-900">
@@ -178,27 +223,31 @@ const formatPrice = (price: number) => {
                     statusColor(selectedOrder.status),
                   ]"
                 >
-                  {{ selectedOrder.status }}
+                  {{ statusLabel(selectedOrder.status) }}
                 </span>
+              </div>
+              <div>
+                <p class="text-sm text-ink-600 mb-1">Ödeme</p>
+                <p class="font-semibold text-primary-900 text-sm">
+                  {{ selectedOrder.paymentMethod === 'CREDIT_CARD' ? 'Kredi Kartı' : selectedOrder.paymentMethod === 'BANK_TRANSFER' ? 'Havale' : '—' }}
+                </p>
               </div>
             </div>
 
-            <!-- Order Items -->
+            <!-- Order Lines -->
             <div class="border-t border-ink-100 pt-6">
-              <h3 class="font-semibold text-primary-900 mb-4">Sipariş Detayları</h3>
+              <h3 class="font-semibold text-primary-900 mb-4">Sipariş Kalemleri</h3>
               <div class="space-y-3">
                 <div
-                  v-for="item in selectedOrder.items"
-                  :key="item.productId"
+                  v-for="line in selectedOrder.lines"
+                  :key="line.id"
                   class="flex items-center justify-between pb-3 border-b border-ink-100"
                 >
                   <div>
-                    <p class="font-medium text-primary-900">{{ item.product.name }}</p>
-                    <p class="text-sm text-ink-600">Adet: {{ item.quantity }}</p>
+                    <p class="font-medium text-primary-900">{{ line.product?.name ?? line.productId }}</p>
+                    <p class="text-sm text-ink-600">Adet: {{ line.quantity }} × {{ formatPrice(line.unitPrice) }}</p>
                   </div>
-                  <p class="font-semibold text-primary-900">
-                    {{ formatPrice(item.product.price * item.quantity) }}
-                  </p>
+                  <p class="font-semibold text-primary-900">{{ formatPrice(line.total) }}</p>
                 </div>
               </div>
             </div>

@@ -10,15 +10,24 @@ definePageMeta({
 
 const { items, calculateTotals, removeItem, updateQuantity, clear, placeOrder, loadCart } = useCart()
 const { isDealer, dealer } = useDealer()
-const { getIsAuthenticated } = useAuth()
+const { getIsAuthenticated, getUser } = useAuth()
 
 const isLoading = ref(false)
 const checkoutStep = ref<'cart' | 'review' | 'complete'>('cart')
 const lastOrder = ref<any>(null)
 const paymentMethod = ref<'bank-transfer' | 'credit-card' | 'installment'>('bank-transfer')
+const cardForm = ref({ cardNumber: '', expiry: '', cvv: '', cardHolder: '' })
+
+const formatExpiry = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  let val = input.value.replace(/\D/g, '')
+  if (val.length >= 2) val = val.slice(0, 2) + '/' + val.slice(2, 4)
+  cardForm.value.expiry = val
+}
 const checkoutError = ref<string | null>(null)
 const shippingCity = ref('')
 const shippingAddress = ref('')
+const orderNotes = ref('')
 const promoCodeInput = ref('')
 const promoApplied = ref(false)
 const promoDiscount = ref(0)
@@ -88,6 +97,8 @@ const removePromoCode = () => {
   promoError.value = null
 }
 
+const userIsDealer = computed(() => getUser()?.role === 'DEALER')
+
 const handlePlaceOrder = async () => {
   if (!shippingCity.value || !shippingAddress.value) {
     checkoutError.value = 'Lütfen şehir ve adres bilgilerini girin'
@@ -98,16 +109,39 @@ const handlePlaceOrder = async () => {
   checkoutError.value = null
 
   try {
+    // Resolve dealer ID: prefer from useDealer, fallback to API call
+    let resolvedDealerId = dealer.value?.id
+    if (userIsDealer.value && !resolvedDealerId) {
+      try {
+        const api = useApi()
+        const info = await api.get<any>('/api/dealer/profile')
+        resolvedDealerId = info?.id
+      } catch {}
+    }
+
     const order = await placeOrder({
-      customerType: isDealer.value ? 'B2B' : 'B2C',
+      customerType: userIsDealer.value ? 'B2B' : 'B2C',
       shippingCity: shippingCity.value,
       shippingAddress: shippingAddress.value,
-      dealerId: isDealer.value && dealer.value ? dealer.value.id : undefined,
+      dealerId: userIsDealer.value ? resolvedDealerId : undefined,
       promoCode: promoApplied.value ? promoCodeInput.value : undefined,
+      notes: orderNotes.value || undefined,
+      paymentMethod: paymentMethod.value,
     })
 
     if (order) {
-      lastOrder.value = order
+      // If credit card, auto-pay via mock endpoint
+      if (paymentMethod.value === 'credit-card') {
+        try {
+          const api = useApi()
+          const paidOrder = await api.post(`/orders/${order.id}/pay`, cardForm.value)
+          lastOrder.value = paidOrder
+        } catch {
+          lastOrder.value = order
+        }
+      } else {
+        lastOrder.value = order
+      }
       checkoutStep.value = 'complete'
     }
   } catch (err) {
@@ -331,6 +365,17 @@ const handleClearCart = () => {
             </div>
           </div>
 
+          <!-- Order Notes -->
+          <div class="mb-8 pb-8 border-b border-ink-100">
+            <h3 class="font-semibold text-primary-900 mb-4">Sipariş Notu (İsteğe Bağlı)</h3>
+            <textarea
+              v-model="orderNotes"
+              rows="3"
+              class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 max-w-lg"
+              placeholder="Siparişinizle ilgili eklemek istediğiniz bir not varsa yazabilirsiniz..."
+            ></textarea>
+          </div>
+
           <!-- Promo Code -->
           <div class="mb-8 pb-8 border-b border-ink-100">
             <h3 class="font-semibold text-primary-900 mb-4">Promosyon Kodu</h3>
@@ -389,9 +434,30 @@ const handleClearCart = () => {
                 />
                 <span class="ml-3">
                   <p class="font-semibold text-primary-900">Kredi Kartı</p>
-                  <p class="text-sm text-ink-600">Güvenli ödeme gateway'i üzerinden</p>
+                  <p class="text-sm text-ink-600">Test kart bilgilerini girin</p>
                 </span>
               </label>
+              <!-- Card details form -->
+              <div v-if="paymentMethod === 'credit-card'" class="ml-8 p-4 bg-ink-50 rounded-lg border border-ink-100 space-y-3 animate-fade-up">
+                <div>
+                  <label class="block text-xs font-semibold text-primary-900 mb-1">Kart Numarası</label>
+                  <input v-model="cardForm.cardNumber" type="text" maxlength="19" placeholder="4111 1111 1111 1111" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-primary-900 mb-1">Son Kullanma</label>
+                    <input :value="cardForm.expiry" @input="formatExpiry" type="text" maxlength="5" placeholder="AA/YY" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-primary-900 mb-1">CVV</label>
+                    <input v-model="cardForm.cvv" type="text" maxlength="4" placeholder="123" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-primary-900 mb-1">Kart Üzerindeki İsim</label>
+                  <input v-model="cardForm.cardHolder" type="text" placeholder="Ad Soyad" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
+                </div>
+              </div>
               <label v-if="!isDealer" class="flex items-center p-4 border-2 border-ink-200 rounded-lg cursor-pointer hover:border-primary-300 transition-colors" :class="{ 'border-accent-600 bg-accent-50': paymentMethod === 'installment' }">
                 <input
                   v-model="paymentMethod"

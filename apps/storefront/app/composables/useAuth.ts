@@ -28,6 +28,13 @@ interface RegisterPayload {
   phone?: string
   city?: string
   address?: string
+  role?: 'CUSTOMER' | 'DEALER'
+  company?: string
+  contactPerson?: string
+  taxNo?: string
+  taxOffice?: string
+  cariNo?: string
+  region?: string
 }
 
 const TOKEN_KEY = 'user-token'

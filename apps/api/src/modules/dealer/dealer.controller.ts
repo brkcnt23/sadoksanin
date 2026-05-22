@@ -73,11 +73,8 @@ export class DealerController {
 
       const excelBuffer = await this.dealerService.exportCariStatement(userId);
 
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader('Content-Disposition', 'attachment; filename="cari-statement.xlsx"');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="cari-ekstresi.csv"');
       res.send(excelBuffer);
     } catch (error) {
       this.logger.error(`Failed to export cari statement: ${error.message}`);
@@ -97,7 +94,7 @@ export class DealerController {
   ) {
     try {
       const userId = req.user?.sub || req.user?.id;
-      const validTypes = ['monthly', 'yearly', 'invoice', 'stock'];
+      const validTypes = ['monthly', 'yearly', 'invoice', 'stock', 'detailed'];
 
       if (!validTypes.includes(reportType)) {
         throw new BadRequestException(`Invalid report type. Must be one of: ${validTypes.join(', ')}`);
@@ -107,11 +104,8 @@ export class DealerController {
 
       const excelBuffer = await this.dealerService.generateReport(userId, reportType);
 
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader('Content-Disposition', `attachment; filename="${reportType}-report.xlsx"`);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${reportType}-rapor.csv"`);
       res.send(excelBuffer);
     } catch (error) {
       this.logger.error(`Failed to generate report: ${error.message}`);

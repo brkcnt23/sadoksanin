@@ -193,6 +193,21 @@ export class ProductsController {
   }
 
   /**
+   * Admin: Bulk price update by category or brand
+   */
+  @Post('admin/bulk-price')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async bulkPriceUpdate(@Body() body: {
+    target: 'category' | 'brand';
+    targetValue: string;
+    type: 'percentage' | 'fixed';
+    value: number;
+  }) {
+    return this.productsService.bulkPriceUpdate(body);
+  }
+
+  /**
    * Admin: Import products from Excel
    */
   @Post('admin/import')
@@ -202,5 +217,40 @@ export class ProductsController {
   async importProducts(@UploadedFile() file: any) {
     if (!file) throw new BadRequestException('Excel dosyası gerekli');
     return this.productsService.importProducts(file.buffer);
+  }
+
+  // ─── Variations ───────────────────────────────────────────────────────────
+
+  @Get(':productId/variations')
+  async getVariations(@Param('productId') productId: string) {
+    return this.productsService.getVariations(productId);
+  }
+
+  @Post(':productId/variations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async createVariation(
+    @Param('productId') productId: string,
+    @Body() body: { sku: string; label: string; attributes?: any; price?: number; stock?: number },
+  ) {
+    return this.productsService.createVariation(productId, body);
+  }
+
+  @Patch(':productId/variations/:variationId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateVariation(
+    @Param('variationId') variationId: string,
+    @Body() body: { label?: string; attributes?: any; price?: number; stock?: number },
+  ) {
+    return this.productsService.updateVariation(variationId, body);
+  }
+
+  @Delete(':productId/variations/:variationId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async deleteVariation(@Param('variationId') variationId: string) {
+    await this.productsService.deleteVariation(variationId);
+    return { success: true };
   }
 }

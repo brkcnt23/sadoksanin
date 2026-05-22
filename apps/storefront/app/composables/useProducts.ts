@@ -17,6 +17,7 @@ export interface Product {
   image: string
   inStock: boolean
   stockCount: number
+  purchasable: boolean
   badges?: string[]
   sku?: string
   description?: string
@@ -436,6 +437,7 @@ interface ApiProduct {
   description?: string | null
   displayStock?: number
   visible?: boolean
+  purchasable?: boolean
   imageUrl?: string | null
 }
 
@@ -461,6 +463,7 @@ const mapApiProduct = (p: ApiProduct): Product => ({
   image: p.imageUrl || '',
   inStock: (p.displayStock ?? 0) > 0,
   stockCount: p.displayStock ?? 0,
+  purchasable: p.purchasable ?? true,
   sku: p.sku,
   description: p.description ?? undefined,
 })

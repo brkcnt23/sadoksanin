@@ -17,6 +17,57 @@ onMounted(() => {
 
 const detail = ref<Order | null>(null)
 const actingIds = ref<Set<string>>(new Set())
+const selectedIds = ref<Set<string>>(new Set())
+
+const pendingOnly = computed(() =>
+  orders.paginated.filter((o) => o.status === 'pending-approval'),
+)
+
+const allSelected = computed(() =>
+  pendingOnly.value.length > 0 && pendingOnly.value.every((o) => selectedIds.value.has(o.id)),
+)
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedIds.value = new Set()
+  } else {
+    selectedIds.value = new Set(pendingOnly.value.map((o) => o.id))
+  }
+}
+
+function toggleSelect(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+async function bulkApprove() {
+  const u = auth.getUser()
+  if (!u) return
+  if (!confirm(`${selectedIds.value.size} sipariş onaylansın mı?`)) return
+
+  for (const id of selectedIds.value) {
+    actingIds.value.add(id)
+    try { await orders.approve(id, u.id) } catch { /* continue */ }
+    actingIds.value.delete(id)
+  }
+  selectedIds.value = new Set()
+}
+
+async function bulkReject() {
+  const u = auth.getUser()
+  if (!u) return
+  const reason = prompt(`${selectedIds.value.size} sipariş için red sebebi:`)
+  if (!reason) return
+
+  for (const id of selectedIds.value) {
+    actingIds.value.add(id)
+    try { await orders.reject(id, u.id, reason) } catch { /* continue */ }
+    actingIds.value.delete(id)
+  }
+  selectedIds.value = new Set()
+}
 
 const orderStatusBadge = (s: OrderStatus) => {
   const m: Record<OrderStatus, { variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'; label: string }> = {
@@ -41,6 +92,35 @@ const approve = async (o: Order) => {
   } finally {
     actingIds.value.delete(o.id)
   }
+}
+
+const orderHistory = ref<any[]>([])
+
+watch(detail, async (newVal) => {
+  if (!newVal) { orderHistory.value = []; return }
+  try {
+    const { useApi } = await import('~/composables/useApi')
+    const api = useApi()
+    orderHistory.value = await api.get<any[]>(`/orders/${newVal.id}/history`)
+  } catch { orderHistory.value = [] }
+})
+
+const statusLabel2 = (s: string) => {
+  const labels: Record<string, string> = {
+    PENDING_APPROVAL: 'Onay Bekliyor', APPROVED: 'Onaylandı', SHIPPED: 'Kargoya Verildi',
+    COMPLETED: 'Tamamlandı', CANCELLED: 'İptal Edildi', REJECTED: 'Reddedildi',
+  }
+  return labels[s] ?? s
+}
+
+const formatTimeAgo2 = (d: string) => {
+  const diff = Date.now() - new Date(d).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Az önce'
+  if (mins < 60) return `${mins}dk önce`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}s önce`
+  return `${Math.floor(hours / 24)}g önce`
 }
 
 const reject = async (o: Order) => {
@@ -136,12 +216,48 @@ const triggerInvoice = async (o: Order) => {
       </div>
     </div>
 
+    <!-- Bulk Action Bar -->
+    <div
+      v-if="selectedIds.size > 0"
+      class="bg-primary-900 text-white rounded-xl p-4 flex items-center justify-between shadow-lg sticky top-4 z-10"
+    >
+      <p class="font-semibold text-sm">{{ selectedIds.size }} sipariş seçildi</p>
+      <div class="flex gap-2">
+        <button
+          @click="bulkApprove"
+          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Toplu Onayla
+        </button>
+        <button
+          @click="bulkReject"
+          class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Toplu Reddet
+        </button>
+        <button
+          @click="selectedIds = new Set()"
+          class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Seçimi Temizle
+        </button>
+      </div>
+    </div>
+
     <!-- Table -->
     <div class="bg-white rounded-xl border border-ink-200 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-ink-50 border-b border-ink-200 text-left">
             <tr>
+              <th class="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  class="rounded border-ink-300"
+                  @change="toggleSelectAll"
+                />
+              </th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Sipariş No</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Müşteri</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Ürün</th>
@@ -153,8 +269,16 @@ const triggerInvoice = async (o: Order) => {
             </tr>
           </thead>
           <tbody class="divide-y divide-ink-100">
-            <tr v-for="o in orders.paginated" :key="o.id" class="hover:bg-ink-50">
+            <tr v-for="o in orders.paginated" :key="o.id" class="hover:bg-ink-50" :class="{ 'bg-primary-50': selectedIds.has(o.id) }">
               <td class="px-4 py-3">
+                <input
+                  v-if="o.status === 'pending-approval'"
+                  type="checkbox"
+                  :checked="selectedIds.has(o.id)"
+                  class="rounded border-ink-300"
+                  @change="toggleSelect(o.id)"
+                />
+              </td>
                 <p class="font-mono text-sm font-medium text-ink-900">{{ o.orderNo }}</p>
                 <StatusBadge
                   :variant="o.customerType === 'B2C' ? 'info' : 'purple'"
@@ -292,6 +416,42 @@ const triggerInvoice = async (o: Order) => {
         <div v-if="detail.notes" class="p-3 bg-amber-50 border border-amber-200 rounded-md">
           <p class="text-xs font-semibold text-amber-900 mb-1">Müşteri Notu</p>
           <p class="text-sm text-amber-800">{{ detail.notes }}</p>
+        </div>
+
+        <!-- Status Timeline -->
+        <div class="border-t border-ink-100 pt-4">
+          <h4 class="font-semibold text-ink-900 mb-3 text-sm flex items-center gap-2">
+            <Icon name="lucide:clock" class="w-4 h-4 text-primary-600" />
+            Durum Geçmişi
+          </h4>
+          <div class="space-y-0 pl-4 border-l-2 border-ink-200">
+            <div
+              v-for="entry in orderHistory"
+              :key="entry.id"
+              class="relative pl-6 pb-4 last:pb-0"
+            >
+              <div
+                class="absolute left-[-6px] top-1 w-3 h-3 rounded-full border-2"
+                :class="{
+                  'bg-amber-400 border-amber-400': entry.status === 'PENDING_APPROVAL',
+                  'bg-blue-400 border-blue-400': entry.status === 'APPROVED',
+                  'bg-purple-400 border-purple-400': entry.status === 'SHIPPED',
+                  'bg-emerald-400 border-emerald-400': entry.status === 'COMPLETED',
+                  'bg-red-400 border-red-400': entry.status === 'CANCELLED' || entry.status === 'REJECTED',
+                  'bg-ink-300 border-ink-300': true,
+                }"
+              />
+              <p class="text-sm font-medium text-ink-900">{{ statusLabel2(entry.status) }}</p>
+              <p v-if="entry.note" class="text-xs text-ink-500 mt-0.5">{{ entry.note }}</p>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span v-if="entry.actorEmail" class="text-xs text-ink-400">{{ entry.actorEmail }}</span>
+                <span class="text-xs text-ink-400">{{ formatTimeAgo2(entry.createdAt) }}</span>
+              </div>
+            </div>
+            <div v-if="orderHistory.length === 0" class="text-xs text-ink-400 py-2 pl-6">
+              Henüz kayıt yok
+            </div>
+          </div>
         </div>
       </div>
 

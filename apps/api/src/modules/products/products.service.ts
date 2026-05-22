@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -11,6 +12,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private ordersService: OrdersService,
+    private discountsService: DiscountsService,
   ) {}
 
   /**
@@ -59,19 +61,24 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
-    // Enrich with available stock for each product
+    // Enrich with available stock and discount for each product
     const enriched = await Promise.all(
-      products.map(async (product) => ({
-        ...product,
-        availableStock: await this.ordersService.getAvailableStock(product.id),
-      })),
+      products.map(async (product) => {
+        const discounted = await this.discountsService.getDiscountedPrice(product);
+        return {
+          ...product,
+          availableStock: await this.ordersService.getAvailableStock(product.id),
+          discountedPrice: discounted.price,
+          discount: discounted.discount,
+        };
+      }),
     );
 
     return { products: enriched, total };
   }
 
   /**
-   * Get single product with details
+   * Get single product with details and discount
    */
   async getProduct(productId: string) {
     const product = await this.prisma.product.findUnique({
@@ -85,10 +92,13 @@ export class ProductsService {
       throw new NotFoundException(`Product ${productId} not found`);
     }
 
-    // Add available stock
+    const discounted = await this.discountsService.getDiscountedPrice(product);
+
     return {
       ...product,
       availableStock: await this.ordersService.getAvailableStock(product.id),
+      discountedPrice: discounted.price,
+      discount: discounted.discount,
     };
   }
 
@@ -159,12 +169,17 @@ export class ProductsService {
       this.prisma.product.count(),
     ]);
 
-    // Enrich with available stock
+    // Enrich with available stock and discount
     const enriched = await Promise.all(
-      products.map(async (product) => ({
-        ...product,
-        availableStock: await this.ordersService.getAvailableStock(product.id),
-      })),
+      products.map(async (product) => {
+        const discounted = await this.discountsService.getDiscountedPrice(product);
+        return {
+          ...product,
+          availableStock: await this.ordersService.getAvailableStock(product.id),
+          discountedPrice: discounted.price,
+          discount: discounted.discount,
+        };
+      }),
     );
 
     return { products: enriched, total };
@@ -246,6 +261,7 @@ export class ProductsService {
         purchasable: dto.purchasable ?? true,
         syncStatus: 'SYNCED',
         imageUrl: dto.imageUrl ?? null,
+        images: dto.images ?? null,
         weight: dto.weight ?? null,
       },
     });
@@ -273,7 +289,7 @@ export class ProductsService {
     const fields: (keyof UpdateProductDto)[] = [
       'name', 'description', 'brand', 'category', 'basePrice', 'taxRate',
       'unit', 'netsisCode', 'sku', 'netsisStock', 'minimumStock',
-      'middleStock', 'visible', 'purchasable', 'imageUrl', 'weight',
+      'middleStock', 'visible', 'purchasable', 'imageUrl', 'images', 'weight',
     ];
 
     for (const f of fields) {
@@ -395,5 +411,71 @@ export class ProductsService {
 
     this.logger.log(`Import done: ${result.created} created, ${result.updated} updated, ${result.errors.length} errors`);
     return result;
+  }
+
+  // ─── Variations ─────────────────────────────────────────────────────────────
+
+  async getVariations(productId: string) {
+    return this.prisma.productVariation.findMany({ where: { productId } });
+  }
+
+  async createVariation(productId: string, body: { sku: string; label: string; attributes?: any; price?: number; stock?: number }) {
+    return this.prisma.productVariation.create({
+      data: {
+        productId,
+        sku: body.sku,
+        label: body.label,
+        attributes: body.attributes ? JSON.stringify(body.attributes) : '{}',
+        price: body.price ?? null,
+        stock: body.stock ?? 0,
+      },
+    });
+  }
+
+  async updateVariation(variationId: string, body: { label?: string; attributes?: any; price?: number; stock?: number }) {
+    const data: any = {};
+    if (body.label !== undefined) data.label = body.label;
+    if (body.attributes !== undefined) data.attributes = JSON.stringify(body.attributes);
+    if (body.price !== undefined) data.price = body.price;
+    if (body.stock !== undefined) data.stock = body.stock;
+
+    return this.prisma.productVariation.update({ where: { id: variationId }, data });
+  }
+
+  async deleteVariation(variationId: string) {
+    return this.prisma.productVariation.delete({ where: { id: variationId } });
+  }
+
+  /**
+   * Bulk price update — by category or brand, percentage or fixed amount
+   */
+  async bulkPriceUpdate(dto: {
+    target: 'category' | 'brand';
+    targetValue: string;
+    type: 'percentage' | 'fixed';
+    value: number; // percentage (e.g. 15 = +15%) or fixed amount in TL
+  }) {
+    const where: any = {};
+    if (dto.target === 'category') where.category = dto.targetValue;
+    else where.brand = dto.targetValue;
+
+    const products = await this.prisma.product.findMany({ where, select: { id: true, basePrice: true, name: true } });
+    if (products.length === 0) return { updated: 0 };
+
+    for (const p of products) {
+      let newPrice: number;
+      if (dto.type === 'percentage') {
+        newPrice = Math.round(p.basePrice * (1 + dto.value / 100) * 100) / 100;
+      } else {
+        newPrice = Math.max(0, p.basePrice + dto.value);
+      }
+      await this.prisma.product.update({
+        where: { id: p.id },
+        data: { basePrice: newPrice },
+      });
+    }
+
+    this.logger.log(`Bulk price update: ${dto.target}=${dto.targetValue}, ${dto.type}=${dto.value} → ${products.length} products`);
+    return { updated: products.length };
   }
 }

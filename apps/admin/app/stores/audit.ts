@@ -1,87 +1,85 @@
 /**
- * Audit log — every admin-initiated mutation is recorded.
- * Capped at 1000 entries client-side; backend keeps the canonical record.
+ * Audit log — backed by /api/admin/audit API.
  */
 import { defineStore } from 'pinia'
-import type { AuditLogEntry } from '~/types'
-import { storage, uid } from '~/utils/storage'
 
-const MAX_ENTRIES = 1000
+interface AuditLogItem {
+  id: string
+  userId?: string
+  email?: string
+  action: string
+  entity: string
+  entityId: string
+  oldValue?: string
+  newValue?: string
+  ipAddress?: string
+  userAgent?: string
+  createdAt: string
+}
 
 interface State {
-  items: AuditLogEntry[]
+  items: AuditLogItem[]
+  total: number
+  page: number
+  totalPages: number
   loaded: boolean
-  filter: { entity: string | null; action: string | null; actorId: string | null }
+  filter: { entity: string | null; action: string | null; userId: string | null }
 }
 
 export const useAuditStore = defineStore('audit', {
   state: (): State => ({
     items: [],
+    total: 0,
+    page: 1,
+    totalPages: 1,
     loaded: false,
-    filter: { entity: null, action: null, actorId: null },
+    filter: { entity: null, action: null, userId: null },
   }),
 
   getters: {
-    filtered(s): AuditLogEntry[] {
-      let list = s.items
-      if (s.filter.entity) list = list.filter((e) => e.entity === s.filter.entity)
-      if (s.filter.action) list = list.filter((e) => e.action === s.filter.action)
-      if (s.filter.actorId) list = list.filter((e) => e.actorId === s.filter.actorId)
-      return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    },
     distinctActions: (s) => Array.from(new Set(s.items.map((e) => e.action))).sort(),
     distinctEntities: (s) => Array.from(new Set(s.items.map((e) => e.entity))).sort(),
   },
 
   actions: {
-    load() {
-      this.items = storage.read<AuditLogEntry[]>('audit-log', [])
-      this.loaded = true
-    },
+    async load(page = 1) {
+      try {
+        const { useApi } = await import('~/composables/useApi')
+        const api = useApi()
+        const params: Record<string, string | number> = { page, limit: 50 }
+        if (this.filter.entity) params.entity = this.filter.entity
+        if (this.filter.action) params.action = this.filter.action
+        if (this.filter.userId) params.userId = this.filter.userId
 
-    persist() {
-      // cap before persisting
-      if (this.items.length > MAX_ENTRIES) this.items = this.items.slice(0, MAX_ENTRIES)
-      storage.write('audit-log', this.items)
+        const result = await api.get<{
+          items: AuditLogItem[]
+          total: number
+          page: number
+          totalPages: number
+        }>('/api/admin/audit', params)
+
+        this.items = result.items
+        this.total = result.total
+        this.page = result.page
+        this.totalPages = result.totalPages
+      } catch {
+        // Silent fail
+      }
+      this.loaded = true
     },
 
     setFilter<K extends keyof State['filter']>(key: K, v: State['filter'][K]) {
       this.filter[key] = v
     },
 
-    log(
-      action: string,
-      entity: string,
-      entityId: string,
-      diff?: Record<string, { from: unknown; to: unknown }>,
-    ) {
-      // resolve current actor lazily to avoid composables-in-store gymnastics
-      let actorId = '0'
-      let actorEmail = 'system'
+    async log(action: string, entity: string, entityId: string) {
       try {
-        if (import.meta.client) {
-          const raw = localStorage.getItem('admin-user')
-          if (raw) {
-            const u = JSON.parse(raw)
-            actorId = u.id ?? '0'
-            actorEmail = u.email ?? 'system'
-          }
-        }
+        const { useApi } = await import('~/composables/useApi')
+        const api = useApi()
+        await api.post('/api/admin/audit/log', { action, entity, entityId })
       } catch {
-        /* ignore */
+        /* non-critical — don't break the caller */
       }
-
-      this.items.unshift({
-        id: uid('audit'),
-        actorId,
-        actorEmail,
-        action,
-        entity,
-        entityId,
-        diff,
-        createdAt: new Date().toISOString(),
-      })
-      this.persist()
     },
   },
 })

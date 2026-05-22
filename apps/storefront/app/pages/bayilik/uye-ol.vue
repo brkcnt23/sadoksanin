@@ -157,21 +157,28 @@ const handleSubmit = async () => {
   serverError.value = ''
 
   try {
-    // TODO: Integrate with actual API
-    // const response = await $fetch('/api/dealers/register', {
-    //   method: 'POST',
-    //   body: formData.value,
-    // })
+    const { register } = useAuth()
+    const result = await register({
+      name: `${formData.value.ad} ${formData.value.soyad}`,
+      email: formData.value.email,
+      password: formData.value.sifre,
+      phone: formData.value.telefon,
+      role: 'DEALER',
+      company: formData.value.isletmeAdi,
+      contactPerson: `${formData.value.ad} ${formData.value.soyad}`,
+      cariNo: formData.value.cariHesapNumarasi,
+    })
 
-    // Simulated delay for demo
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    if (result.success) {
+      success.value = true
+      window.scrollTo({ top: 0, behavior: 'smooth' })
 
-    success.value = true
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-
-    setTimeout(() => {
-      navigateTo('/bayilik/giris')
-    }, 2000)
+      setTimeout(() => {
+        navigateTo('/bayilik/giris')
+      }, 2000)
+    } else {
+      serverError.value = result.error || 'Kayıt başarısız. Lütfen tekrar deneyin.'
+    }
   } catch (error: any) {
     serverError.value = error?.data?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.'
   } finally {

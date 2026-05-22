@@ -46,6 +46,70 @@ async function main() {
   });
   console.log(`  ✅ B2C Müşteri: ${customer.email}`);
 
+  // ─── Dashboard demo dealers (test@test.com, erzurum@test.com) ─────────────
+  const testUser = await prisma.user.upsert({
+    where: { email: 'test@test.com' },
+    update: { role: 'DEALER' },
+    create: {
+      email: 'test@test.com', password: pw, name: 'Ahmet Yılmaz',
+      role: 'DEALER', phone: '0532 555 44 33', city: 'İstanbul',
+    },
+  });
+  const testDealer = await prisma.dealer.upsert({
+    where: { userId: testUser.id },
+    update: { status: 'ACTIVE', cariValidated: true },
+    create: {
+      userId: testUser.id, name: 'Ahmet Yılmaz', company: 'Yılmaz Yapı Malzemeleri',
+      taxNo: '4567891230', taxOffice: 'Kadıköy', cariNo: 'CARI-005', cariValidated: true,
+      contactPerson: 'Ahmet Yılmaz', phone: '0532 555 44 33', city: 'İstanbul', region: 'Marmara',
+      address: 'Bağdat Cad. No: 150 Kadıköy / İstanbul', status: 'ACTIVE',
+      creditLimit: 100000,
+    },
+  });
+  console.log(`  ✅ Demo Bayi: test@test.com (${testDealer.city})`);
+
+  const erzUser = await prisma.user.upsert({
+    where: { email: 'erzurum@test.com' },
+    update: {},
+    create: {
+      email: 'erzurum@test.com', password: pw, name: 'Ali Kaya',
+      role: 'DEALER', phone: '0532 111 22 33', city: 'Erzurum',
+    },
+  });
+  const erzDealer = await prisma.dealer.upsert({
+    where: { userId: erzUser.id },
+    update: { status: 'ACTIVE', cariValidated: true },
+    create: {
+      userId: erzUser.id, name: 'Ali Kaya', company: 'Kaya İnşaat Malzemeleri',
+      taxNo: '9876543210', taxOffice: 'Yakutiye', cariNo: 'CARI-003', cariValidated: true,
+      contactPerson: 'Ali Kaya', phone: '0532 111 22 33', city: 'Erzurum', region: 'Doğu Anadolu',
+      address: 'Cumhuriyet Cad. No:45 Erzurum', status: 'ACTIVE',
+      creditLimit: 75000,
+    },
+  });
+  console.log(`  ✅ Demo Bayi: erzurum@test.com (${erzDealer.city})`);
+
+  const bayiUser = await prisma.user.upsert({
+    where: { email: 'bayi@test.com' },
+    update: {},
+    create: {
+      email: 'bayi@test.com', password: pw, name: 'Mehmet Demir',
+      role: 'DEALER', phone: '0532 100 20 30', city: 'Ankara',
+    },
+  });
+  const bayiDealer = await prisma.dealer.upsert({
+    where: { userId: bayiUser.id },
+    update: { status: 'ACTIVE', cariValidated: true },
+    create: {
+      userId: bayiUser.id, name: 'Mehmet Demir', company: 'Demir Yapı Malzemeleri',
+      taxNo: '1234567890', taxOffice: 'Çankaya', cariNo: 'CARI-001', cariValidated: true,
+      contactPerson: 'Mehmet Demir', phone: '0532 100 20 30', city: 'Ankara', region: 'İç Anadolu',
+      address: 'Atatürk Bulvarı No: 100', status: 'ACTIVE',
+      creditLimit: 50000,
+    },
+  });
+  console.log(`  ✅ Demo Bayi: bayi@test.com (${bayiDealer.city})`);
+
   // ─── 5 Dealers (User + Dealer) ─────────────────────────────────────────────
   const dealerDefs = [
     { email: 'ankara@test.com',   name: 'Ankara Yapı Malz.',   contact: 'Mehmet Kaya',    city: 'Ankara',  region: 'İç Anadolu', cariNo: '120.01.0001', phone: '03121112233', taxNo: '1110001111', taxOffice: 'Çankaya',     address: 'Kızılay Mah. No:12 Çankaya/Ankara' },
@@ -180,9 +244,162 @@ async function main() {
   });
   console.log('  ✅ SiteSettings');
 
+  // ─── Mock Orders for demo dealers ──────────────────────────────────────────
+  // Only create if no orders exist yet for the test dealer
+  const existingOrders = await prisma.order.count({ where: { dealerId: testDealer.id } });
+  if (existingOrders === 0) {
+    console.log('\n📦 Mock siparişler oluşturuluyor...');
+
+    // Pick 5 products with images
+    const products = await prisma.product.findMany({
+      where: { imageUrl: { not: null } },
+      take: 5,
+      orderBy: { basePrice: 'asc' },
+    });
+
+    if (products.length >= 5) {
+      const [p1, p2, p3, p4, p5] = products;
+
+      const now = new Date();
+      const orderTemplates = [
+        { orderNo: 'ORD-2026-001', date: new Date('2026-03-15'), status: 'COMPLETED' as const, items: [{ p: p1, qty: 2 }, { p: p3, qty: 1 }] },
+        { orderNo: 'ORD-2026-002', date: new Date('2026-03-22'), status: 'COMPLETED' as const, items: [{ p: p2, qty: 3 }, { p: p5, qty: 2 }] },
+        { orderNo: 'ORD-2026-003', date: new Date('2026-03-28'), status: 'COMPLETED' as const, items: [{ p: p4, qty: 3 }, { p: p1, qty: 1 }, { p: p2, qty: 1 }] },
+        { orderNo: 'ORD-2026-004', date: new Date('2026-04-05'), status: 'COMPLETED' as const, items: [{ p: p3, qty: 4 }] },
+        { orderNo: 'ORD-2026-005', date: new Date('2026-04-12'), status: 'COMPLETED' as const, items: [{ p: p5, qty: 3 }, { p: p4, qty: 2 }, { p: p1, qty: 1 }] },
+        { orderNo: 'ORD-2026-006', date: new Date('2026-04-20'), status: 'COMPLETED' as const, items: [{ p: p4, qty: 4 }] },
+        { orderNo: 'ORD-2026-007', date: new Date('2026-04-28'), status: 'PENDING_APPROVAL' as const, items: [{ p: p3, qty: 3 }, { p: p5, qty: 2 }, { p: p1, qty: 1 }] },
+        { orderNo: 'ORD-2026-008', date: new Date('2026-05-05'), status: 'COMPLETED' as const, items: [{ p: p1, qty: 3 }] },
+        { orderNo: 'ORD-2026-009', date: new Date('2026-05-12'), status: 'PENDING_APPROVAL' as const, items: [{ p: p2, qty: 2 }, { p: p4, qty: 2 }, { p: p3, qty: 1 }] },
+        { orderNo: 'ORD-2026-010', date: new Date('2026-05-18'), status: 'PENDING_APPROVAL' as const, items: [{ p: p5, qty: 2 }, { p: p3, qty: 2 }, { p: p1, qty: 1 }] },
+      ];
+
+      let totalRevenue = 0;
+      let totalOrders = 0;
+
+      for (const tpl of orderTemplates) {
+        let subtotal = 0;
+        for (const item of tpl.items) {
+          subtotal += item.p.basePrice * item.qty;
+        }
+        const logistics = tpl.items.reduce((s, i) => s + i.qty, 0) * 40;
+        const tax = Math.round(subtotal * 0.20);
+        const total = subtotal + tax + logistics;
+        const approvedAt = tpl.status === 'COMPLETED' ? new Date(tpl.date.getTime() + 86400000) : null;
+
+        const order = await prisma.order.create({
+          data: {
+            orderNo: tpl.orderNo,
+            customerId: testUser.id,
+            customerType: 'B2B',
+            dealerId: testDealer.id,
+            shippingCity: testDealer.city,
+            shippingAddress: testDealer.address,
+            subtotal, tax, logisticsSurcharge: logistics, total,
+            status: tpl.status,
+            approvedAt,
+            createdAt: tpl.date,
+            updatedAt: approvedAt || tpl.date,
+          },
+        });
+
+        for (const item of tpl.items) {
+          await prisma.orderLine.create({
+            data: {
+              orderId: order.id,
+              productId: item.p.id,
+              quantity: item.qty,
+              unitPrice: item.p.basePrice,
+              taxRate: 0.20,
+              total: item.p.basePrice * item.qty,
+              createdAt: tpl.date,
+            },
+          });
+        }
+
+        if (tpl.status === 'COMPLETED') {
+          totalRevenue += total;
+        }
+        totalOrders++;
+      }
+
+      await prisma.dealer.update({
+        where: { id: testDealer.id },
+        data: {
+          totalOrders,
+          totalRevenue,
+          cariBalance: -totalRevenue,
+          lastOrderAt: new Date('2026-05-18'),
+        },
+      });
+      console.log(`  ✅ Test dealer: ${totalOrders} sipariş, ${totalRevenue} TL ciro`);
+    }
+
+    // Erzurum dealer: 3 orders
+    const erzProducts = await prisma.product.findMany({
+      where: { imageUrl: { not: null } },
+      take: 3,
+      orderBy: { basePrice: 'asc' },
+    });
+
+    if (erzProducts.length >= 3) {
+      const [e1, e2, e3] = erzProducts;
+      const erzOrders = [
+        { orderNo: 'ORD-2026-101', date: new Date('2026-04-08'), status: 'COMPLETED' as const, subtotal: 1240, tax: 248, logistics: 120, items: [{ p: e1, qty: 2 }, { p: e3, qty: 2 }] },
+        { orderNo: 'ORD-2026-102', date: new Date('2026-04-28'), status: 'COMPLETED' as const, subtotal: 1575, tax: 315, logistics: 120, items: [{ p: products[4], qty: 3 }, { p: products[1], qty: 2 }] },
+        { orderNo: 'ORD-2026-103', date: new Date('2026-05-15'), status: 'PENDING_APPROVAL' as const, subtotal: 960, tax: 192, logistics: 120, items: [{ p: e1, qty: 3 }] },
+      ];
+
+      let erzRevenue = 0;
+      for (const tpl of erzOrders) {
+        const total = tpl.subtotal + tpl.tax + tpl.logistics;
+        const approvedAt = tpl.status === 'COMPLETED' ? new Date(tpl.date.getTime() + 7 * 86400000) : null;
+
+        const order = await prisma.order.create({
+          data: {
+            orderNo: tpl.orderNo,
+            customerId: erzUser.id,
+            customerType: 'B2B',
+            dealerId: erzDealer.id,
+            shippingCity: erzDealer.city,
+            shippingAddress: erzDealer.address,
+            subtotal: tpl.subtotal, tax: tpl.tax, logisticsSurcharge: tpl.logistics, total,
+            status: tpl.status,
+            approvedAt,
+            createdAt: tpl.date,
+            updatedAt: approvedAt || tpl.date,
+          },
+        });
+
+        for (const item of tpl.items) {
+          await prisma.orderLine.create({
+            data: {
+              orderId: order.id,
+              productId: item.p.id,
+              quantity: item.qty,
+              unitPrice: item.p.basePrice,
+              taxRate: 0.20,
+              total: item.p.basePrice * item.qty,
+              createdAt: tpl.date,
+            },
+          });
+        }
+
+        if (tpl.status === 'COMPLETED') erzRevenue += total;
+      }
+
+      await prisma.dealer.update({
+        where: { id: erzDealer.id },
+        data: { totalOrders: 3, totalRevenue: erzRevenue, cariBalance: -erzRevenue, lastOrderAt: new Date('2026-05-15') },
+      });
+      console.log(`  ✅ Erzurum dealer: 3 sipariş, ${erzRevenue} TL ciro`);
+    }
+  }
+
   console.log('\n🎉 Seed complete!');
   console.log('   Admin: admin@sadoksan.com / asd123');
-  console.log('   Bayiler: ankara@test.com, izmir@test.com, istanbul@test.com, bursa@test.com, antalya@test.com (hepsi asd123)');
+  console.log('   Bayiler (asd123): test@test.com, erzurum@test.com, bayi@test.com');
+  console.log('   Diğer: ankara@test.com, izmir@test.com, istanbul@test.com, bursa@test.com, antalya@test.com');
   console.log('   Müşteri: musteri@test.com / asd123');
   console.log('   Promo kodları: HOSGELDIN, BAYI20, NAKIT1000, KARGOBEDAVA, VIP2026');
 }

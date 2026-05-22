@@ -141,6 +141,14 @@ export class GenerateProformaDto {
   companyInfo: ProformaCompanyInfoDto;
 
   @IsOptional()
+  @IsString()
+  dealerId?: string;
+
+  @IsOptional()
+  @IsString()
+  customerId?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => ProformaInternationalDto)
   international?: ProformaInternationalDto;
@@ -154,7 +162,15 @@ export class CreateProformaDraftDto {
   templateType: ProformaTemplate;
 
   @IsString()
-  customer: string; // Just customer name for now
+  customer: string; // Customer name
+
+  @IsOptional()
+  @IsString()
+  dealerId?: string;
+
+  @IsOptional()
+  @IsString()
+  customerId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

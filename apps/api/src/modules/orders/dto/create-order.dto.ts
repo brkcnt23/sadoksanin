@@ -46,4 +46,12 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   promoCode?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string; // CREDIT_CARD | BANK_TRANSFER
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

@@ -1,12 +1,30 @@
 /**
  * Popups store — campaigns, dealer-specific announcements.
+ * Backed by /api/admin/popups API endpoints.
  */
 import { defineStore } from 'pinia'
-import type { Popup } from '~/types'
-import { storage, uid } from '~/utils/storage'
+
+interface PopupItem {
+  id: string
+  title: string
+  bodyHtml?: string
+  imageUrl?: string
+  ctaText?: string
+  ctaUrl?: string
+  audience: 'ALL' | 'B2C' | 'B2B' | 'SPECIFIC_DEALER'
+  dealerIds: string[]
+  isActive: boolean
+  showOnce: boolean
+  startDate?: string
+  endDate?: string
+  impressions: number
+  clicks: number
+  createdAt: string
+  updatedAt: string
+}
 
 interface State {
-  items: Popup[]
+  items: PopupItem[]
   loaded: boolean
 }
 
@@ -17,60 +35,52 @@ export const usePopupsStore = defineStore('popups', {
     activeNow: (s) => {
       const now = Date.now()
       return s.items.filter(
-        (p) => p.active && new Date(p.startsAt).getTime() <= now && new Date(p.endsAt).getTime() > now,
+        (p) =>
+          p.isActive &&
+          (!p.startDate || new Date(p.startDate).getTime() <= now) &&
+          (!p.endDate || new Date(p.endDate).getTime() > now),
       )
     },
   },
 
   actions: {
-    load() {
-      this.items = storage.read<Popup[]>('popups', [])
+    async load() {
+      try {
+        const { useApi } = await import('~/composables/useApi')
+        const api = useApi()
+        this.items = await api.get<PopupItem[]>('/api/admin/popups')
+      } catch {
+        // Silent fail — items stay as []
+      }
       this.loaded = true
     },
 
-    persist() {
-      storage.write('popups', this.items)
-    },
+    async upsert(input: Partial<PopupItem> & { id?: string }) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
 
-    upsert(input: Partial<Popup> & { id?: string }) {
-      const now = new Date().toISOString()
       if (input.id) {
+        const updated = await api.patch<PopupItem>(`/api/admin/popups/${input.id}`, input)
         const idx = this.items.findIndex((p) => p.id === input.id)
-        if (idx >= 0) this.items[idx] = { ...this.items[idx]!, ...input, updatedAt: now } as Popup
+        if (idx >= 0) this.items[idx] = updated
+        else this.items.unshift(updated)
       } else {
-        this.items.unshift({
-          id: uid('pop'),
-          title: input.title ?? 'Yeni Popup',
-          body: input.body ?? '',
-          imageUrl: input.imageUrl,
-          ctaLabel: input.ctaLabel,
-          ctaUrl: input.ctaUrl,
-          audience: input.audience ?? 'all',
-          dealerIds: input.dealerIds ?? [],
-          startsAt: input.startsAt ?? now,
-          endsAt: input.endsAt ?? new Date(Date.now() + 7 * 86_400_000).toISOString(),
-          active: input.active ?? false,
-          showOnceKey: input.showOnceKey,
-          impressions: 0,
-          clicks: 0,
-          createdAt: now,
-          updatedAt: now,
-        })
+        const created = await api.post<PopupItem>('/api/admin/popups', input)
+        this.items.unshift(created)
       }
-      this.persist()
     },
 
-    toggle(id: string) {
+    async toggle(id: string) {
       const p = this.items.find((x) => x.id === id)
       if (!p) return
-      p.active = !p.active
-      p.updatedAt = new Date().toISOString()
-      this.persist()
+      const updated = await this.upsert({ id, isActive: !p.isActive })
     },
 
-    remove(id: string) {
+    async remove(id: string) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      await api.delete(`/api/admin/popups/${id}`)
       this.items = this.items.filter((p) => p.id !== id)
-      this.persist()
     },
   },
 })

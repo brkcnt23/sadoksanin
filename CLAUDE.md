@@ -1,7 +1,7 @@
 # CLAUDE Project Context: Sadoksan ERP
 
 **Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
-**Last Updated:** 2026-04-29  
+**Last Updated:** 2026-05-20  
 **Owner:** John (brkcnt6@gmail.com)
 
 ## Tech Stack
@@ -107,9 +107,22 @@ sadoksan/ (monorepo root)
 - ✅ Pop-ups: General + dealer-specific (with logistics info)
 - ✅ Dealer active/inactive toggle
 - ✅ Maintenance mode
-- ✅ Product variations (TBD: from Netsis or site-defined?)
-- ✅ Categories (from Netsis)
-- ✅ Excel export for stock/price reports
+- ✅ Product variations (API ready, admin UI, storefront selector)
+- ✅ Categories (98 products, 9 categories from sadoksaninsaat.com.tr)
+- ✅ Excel export for stock/price reports (CSV + totals + TL format)
+- ✅ Mock payment (kredi kartı simülasyonu)
+- ✅ Stock display formula (netsisStock - ACTIVE reservations, live sync)
+- ✅ Dealer dashboard (tek sayfa: /bayi, tablı yapı)
+- ✅ Dealer self-register → admin approval
+- ✅ JWT auth (7d expiry, dealer-specific API guard)
+- ✅ Password reset (forgot/reset flow)
+- ✅ Discount module (ürün/kategori/marka bazlı % veya sabit)
+- ✅ CMS module (hero banner, site settings)
+- ✅ Mailer module (console logger, SMTP'ye hazır)
+- ✅ Unit tests (Jest: 13 tests passing)
+- ❌ Netsis API entegrasyonu (API bekleniyor)
+- ❌ Gerçek ödeme sistemi (sanal POS, havale)
+- ❌ Alneo e-belge entegrasyonu
 - ❌ Excel import for price updates (too risky—implement as preview → approval + audit later)
 
 ## Docker Setup (Production-Ready)
@@ -289,4 +302,220 @@ docker compose -f docker-compose.dev.yml up
 
 ---
 
-**Last Review:** 2026-04-29 | **Status:** Foundation Ready
+**Last Review:** 2026-05-20 | **Status:** Dashboard + Ödeme + Stok + Varyasyon + Raporlar Tamam
+
+## 2026-05-20 Session — Yapılanlar
+
+### Dashboard Birleştirme
+- `/bayi` ve `/dealer` tek sayfada birleştirildi (`/bayi`)
+- DEALER ve CUSTOMER rolleri için ayrı KPI kartları ve tab'lar
+- `/dealer` → `/bayi` redirect
+- `/hesabim` sadece profil ayarları (sipariş/favori linkleri dashboard'a taşındı)
+- Header: tek "Bayi Girişi" butonu, direkt `/giris`'e
+
+### Ödeme Sistemi (Mock)
+- `POST /orders/:id/pay` — mock endpoint, kart bilgisiyle direkt PAID
+- `PaymentStatus` enum: PENDING, PAID, FAILED
+- `paymentMethod`: CREDIT_CARD, BANK_TRANSFER
+- Sepette kredi kartı seçimi + kart bilgisi formu
+- Test kartı: 4111 1111 1111 1111 / 12/28 / 123
+
+### Stok Formülü Düzeltme
+- `recalcDisplayStock()`: her rezervasyon değişikliğinde `displayStock = netsisStock - ACTIVE_reservations`
+- Sipariş oluşturma/iptal/red/sevk sonrası stok anında güncelleniyor
+
+### Ürün Varyasyonları
+- CRUD endpoint'leri: `GET/POST/PATCH/DELETE /products/:id/variations`
+- Admin panel varyasyon editörü çalışır durumda
+
+### Excel Rapor İyileştirmeleri
+- Tüm raporlara toplam satırı eklendi
+- TL formatı: `₺12,150.00`
+- Yeni **Detaylı Rapor**: ürün bazlı sipariş dökümü
+- Yıllık rapora yıllık toplam eklendi
+- CSV indirme `fetch().blob()` ile düzeltildi
+
+### Bug Düzeltmeleri
+- `useDealerApi` JWT Bearer token gönderiyor (401 hatası çözüldü)
+- `req.user.id` → `req.user.sub` (JWT strategy `sub` dönüyordu)
+- Sepet checkout'ta `paymentMethod` backend'e gönderiliyor
+- Blob download `createObjectURL` hatası düzeltildi
+
+### Mock Veri (test@test.com — şifre: asd123)
+- Bayi: Ahmet Yılmaz / Yılmaz Yapı Malzemeleri / İstanbul
+- 25 sipariş (Mart-Mayıs 2026), 288,680 TL cari bakiye
+- 5 görselli seramik ürünüyle gerçekçi alışveriş geçmişi
+- 3 onay bekleyen sipariş, 20 tamamlanmış
+
+### Test Hesapları
+| Email | Şifre | Rol | Bayi |
+|-------|-------|-----|------|
+| test@test.com | asd123 | DEALER | Ahmet Yılmaz (İstanbul, 288k TL) |
+| erzurum@test.com | asd123 | DEALER | Ali Kaya (Erzurum, 3.6k TL) |
+| bayi@test.com | asd123 | DEALER | Mehmet Demir (Ankara, 0) |
+| admin@admin.com | asd123 | ADMIN | — |
+
+## Sıradaki İşler (Öncelik Sırası)
+
+1. **Migration** — Docker'ı çalıştırıp `npx prisma migrate dev` ile yeni tabloları oluştur
+2. **Alneo/Albaraka** — E-fatura, e-irsaliye, e-arşiv entegrasyonu (zemin hazır)
+3. **Netsis API** — Canlı stok, cari hesap doğrulama (API bekleniyor)
+4. **Gerçek Ödeme** — Sanal POS, havale bildirimi
+5. **Mailer SMTP** — Nodemailer entegrasyonu ile gerçek email gönderimi
+6. **E2E Testler** — Playwright
+7. **Production Deploy** — Domain, SSL, docker-compose.prod.yml
+
+---
+
+## 2026-05-20 Session #2 — Total Cycle Use Case & Backend Modülleri
+
+### Yeni Backend Modülleri (4 adet)
+- **Popup modülü** (`apps/api/src/modules/popup/`) — Popup CRUD, audience targeting (ALL/B2C/B2B/SPECIFIC_DEALER), active check, impression/click tracking
+- **Pricing modülü** (`apps/api/src/modules/pricing/`) — RegionalPricingSurcharge + ProvincePricingSurcharge + LogisticsRule CRUD
+- **Audit modülü** (`apps/api/src/modules/audit/`) — AuditLog sorgulama (entity/action/userId/dateRange filtreli, paginated)
+- **Notifications modülü** (`apps/api/src/modules/notifications/`) — NotifyRequest CRUD, send (mailer entegrasyonu), stok uyarısı
+
+### Prisma Schema Güncellemeleri
+- `Popup` modeli + `PopupAudience` enum eklendi
+- `NotifyRequest` modeli eklendi (Product + User relation'larıyla)
+
+### Admin Store Dönüşümleri (localStorage → API)
+- `popups.ts` → `/api/admin/popups` endpoint'lerine bağlandı
+- `audit.ts` → `/api/admin/audit` endpoint'lerine bağlandı
+- `pricing.ts` → `/api/admin/pricing/*` endpoint'lerine bağlandı (regional/province/logistics)
+- `notifications.ts` → `/api/admin/notifications` endpoint'lerine bağlandı
+- `stock.ts` → `/netsis/sync/stock` ve `/netsis/status/stock` endpoint'lerine bağlandı
+
+### Storefront Güncellemeleri
+- **PopupDisplay.vue** — Login sonrası popup gösterimi. Audience filtreleme (anon→all, B2C→all+b2c, B2B→all+b2b+specific). X ile kapatma, localStorage persistence, impression/click tracking. Z-index 100 Teleport modal.
+- **ProductCard** — Favori butonu API'ye bağlandı (toggle favorite, kalp dolgusu)
+- **Header** — Arama input'u eklendi (odaklanınca genişliyor, Enter ile `/urunler?search=...` yönlendirme)
+
+### app.module.ts
+- PopupModule, PricingModule, AuditModule, NotificationsModule kaydedildi
+
+### Migration & Test Durumu (2026-05-20 Session #2)
+- Migration `20260520173335_add_popup_notify` başarıyla uygulandı (Popup + NotifyRequest tabloları)
+- **28/28 test geçti** (auth:10, products:3, orders:15)
+- Docker container'lar çalışıyor: storefront:3000, admin:3002, api:3001, python:5000
+- .env DATABASE_URL `127.0.0.1` olarak düzeltildi (localhost IPv6 sorunu)
+
+---
+
+## PROD READINESS CHECKLIST — Production'a Çıkmak İçin Tüm Eksikler
+
+### 1. GÜVENLİK (CRITICAL)
+- [ ] JWT_SECRET değiştir (`dev-secret-change-in-production` → 32+ char random)
+- [ ] Admin panel URL'si değiştir (`/sadoksanadmin` → random path veya subdomain)
+- [ ] HTTPS/SSL sertifikası (Let's Encrypt veya ticari)
+- [ ] CORS sadece kendi domain'lerine izin ver
+- [ ] Rate limiting (özellikle `/auth/login`, `/auth/register`)
+- [ ] Helmet middleware (güvenlik header'ları)
+- [ ] Input validation (class-validator DTO'lar eksiksiz)
+- [ ] SQL injection kontrolü (Prisma parametrize, ama raw query'ler var mı?)
+- [ ] Hassas bilgiler loglanmamalı (şifre, token, kredi kartı)
+
+### 2. ALTYAPI (CRITICAL)
+- [ ] **docker-compose.prod.yml** — şu anda YOK, oluşturulması lazım
+- [ ] Multi-stage Dockerfile (prod build: sadece dist/, prod deps)
+- [ ] PostgreSQL volume persistence (veri kaybı olmamalı)
+- [ ] PostgreSQL backup strategy (pg_dump cron)
+- [ ] Redis persistence (BullMQ job'ları kaybolmamalı)
+- [ ] Health check endpoint'leri tüm servislerde
+- [ ] Container restart policy (`unless-stopped`)
+- [ ] Non-root user ile çalıştırma (security)
+- [ ] Log aggregation (docker logs → file → rotation)
+- [ ] Environment variable yönetimi (.env.prod, Docker secrets)
+- [ ] Domain + DNS yapılandırması
+- [ ] Reverse proxy (Nginx/Traefik) — storefront, admin, api routing
+
+### 3. EKSİK ÖZELLİKLER (HIGH)
+- [ ] **Gerçek ödeme** — Sanal POS (Iyzico/PayTR) veya havale bildirimi
+- [ ] **SMTP Mailer** — Nodemailer ile gerçek email (onay, şifre sıfırlama, sipariş)
+- [ ] **Alneo E-fatura** — E-fatura, e-irsaliye, e-arşiv entegrasyonu
+- [ ] **Netsis entegrasyonu** — Gerçek API bağlantısı (placeholder durumda)
+- [ ] **Ürün görselleri** — ideaSoft'tan 4000 ürün görseli migrate edilecek
+- [ ] **Popup sistemi** — Backend hazır, storefront component hazır → admin panel test edilecek
+- [ ] **İndirim admin sayfası** — `/indirimler` sayfası yok (backend hazır!)
+- [ ] **Fiyatlandırma API** — Backend yeni yapıldı, admin panel API'ye bağlandı → test
+- [ ] **Denetim log'ları** — Backend hazır, admin panel API'ye bağlandı → test
+- [ ] Sipariş geçmişi API'den çekiliyor mu? (storefront hala localStorage olabilir)
+- [ ] Favoriler API'ye bağlandı mı? (ProductCard favori butonu yeni yapıldı)
+- [ ] Lojistik bedeli API'den hesaplanıyor mu? (hardcoded 40TL olabilir)
+
+### 4. VERİTABANI & VERİ (HIGH)
+- [ ] Production seed data (demo veriler yerine gerçek başlangıç verisi)
+- [ ] Ürün kataloğu tamamlanacak (98 ürün, 9 kategori sadoksaninsaat.com.tr'den)
+- [ ] Kategori görselleri ve metadata
+- [ ] Database index optimizasyonu (sık sorgulanan alanlar)
+- [ ] Migration'ların prod'da sorunsuz çalıştığı test edilecek
+- [ ] Cari hesap geçmişi gerçek veriyle doldurulacak
+
+### 5. TESTLER (HIGH)
+- [ ] E2E testler (Playwright) — kritik akışlar: kayıt, giriş, sepete ekle, sipariş
+- [ ] Daha fazla unit test (şu an 28 test, coverage düşük)
+- [ ] API integration testleri (gerçek DB ile)
+- [ ] Load test (katalog sayfası, sipariş oluşturma)
+- [ ] Mobile responsive test (tüm sayfalar)
+
+### 6. YASAL UYUMLULUK (MEDIUM)
+- [ ] KVKK metni (kişisel verilerin korunması)
+- [ ] Mesafeli satış sözleşmesi (sayfalar var, içerik kontrol edilecek)
+- [ ] Gizlilik politikası
+- [ ] Çerez politikası ve cookie consent banner
+- [ ] Ticari elektronik ileti onayı (ticari email/whatsapp için)
+- [ ] Fatura/irsaliye bilgileri (vergi no, ticaret sicil)
+
+### 7. PERFORMANS (MEDIUM)
+- [ ] Ürün görselleri optimizasyonu (WebP, lazy load, CDN)
+- [ ] API response caching (Redis ile sık çağrılan endpoint'ler)
+- [ ] Nuxt SSR caching
+- [ ] Bundle size optimizasyonu (tree shaking, lazy routes)
+- [ ] Database connection pooling (Prisma ayarları)
+
+### 8. MONITORING (MEDIUM)
+- [ ] Error tracking (Sentry veya benzeri)
+- [ ] Uptime monitoring (health check endpoint)
+- [ ] API metrikleri (istek sayısı, response time, hata oranı)
+- [ ] Disk/CPU/RAM alert'leri
+
+### 9. STOREFRONT EKSİKLERİ (MEDIUM)
+- [ ] Arama input'u çalışır durumda (yeni eklendi)
+- [ ] Favori API bağlantısı tamam (ProductCard yapıldı, sayfa kaldı)
+- [ ] `/favori-urunler` sayfası API'den çekiyor (mock data değil)
+- [ ] `/siparislerim` sayfası API'den çekiyor (localStorage değil)
+- [ ] `/urunler/[slug]` detay sayfası zenginleştirilecek
+- [ ] Middleware (route guard) eklenecek
+- [ ] 404 sayfası
+- [ ] SEO meta tag'leri (ürün, kategori, sayfa bazlı)
+
+### 10. ADMIN PANEL EKSİKLERİ (MEDIUM)
+- [ ] `/indirimler` sayfası oluşturulacak (backend Discounts modülü hazır)
+- [ ] Dealer detay modal/sayfa (cari geçmiş, sipariş listesi, pricing override)
+- [ ] CMS içerik yönetimi (hero dışındaki sayfalar)
+- [ ] Toplu işlemler (toplu bayi onayı, toplu ürün görünürlük)
+- [ ] Bildirim gönderme gerçek SMTP/WhatsApp bağlantısı
+- [ ] Netsis sync dashboard gerçek veriyle çalışacak (placeholder değil)
+- [ ] Admin dashboard KPI'ları gerçek API verisiyle (bazıları localStorage)
+
+### 11. DOKÜMANTASYON (LOW)
+- [ ] API dokümantasyonu (Swagger/OpenAPI)
+- [ ] Deployment guide (production kurulum adımları)
+- [ ] Backup/restore prosedürü
+- [ ] Kullanıcı rolleri ve yetki matrisi
+
+### Öncelik Sıralaması
+| Öncelik | Kategori | Tahmini Efor |
+|---------|----------|---------------|
+| **P0** | Güvenlik (JWT, HTTPS, CORS) | 2-3 gün |
+| **P0** | Altyapı (docker-compose.prod, backup) | 3-5 gün |
+| **P1** | Gerçek ödeme entegrasyonu | 5-10 gün |
+| **P1** | SMTP Mailer | 1-2 gün |
+| **P1** | Eksik admin sayfaları (indirim, CMS) | 2-3 gün |
+| **P1** | E2E testler | 3-5 gün |
+| **P2** | Storefront eksikleri | 3-5 gün |
+| **P2** | Yasal uyumluluk | 2-3 gün |
+| **P2** | Alneo E-fatura | 5-10 gün |
+| **P2** | Netsis entegrasyonu | 5-10 gün |
+| **P3** | Performans optimizasyonu | 3-5 gün |
+| **P3** | Monitoring | 2-3 gün |

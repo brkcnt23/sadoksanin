@@ -113,9 +113,10 @@ model Product {
   category          String
   description       String?
 
-  // Visual asset (used in proforma PDF, product cards, etc.)
-  // Accepts: https URL, /uploads/... path, or data:image/...;base64 URI
+  // Visual assets (used in proforma PDF, product cards, etc.)
+  // imageUrl = primary cover image. images[] = gallery (JSON array of URLs).
   imageUrl          String?
+  images            String?   // JSON array: ["url1","url2",...]
 
   // Pricing & Tax
   basePrice         Float
@@ -239,11 +240,16 @@ model Order {
   promoCode         String?
   discountAmount    Float     @default(0)
 
+  // Payment
+  paymentMethod     String?   // CREDIT_CARD or BANK_TRANSFER
+  paymentStatus     PaymentStatus?
+
   // Notes
   notes             String?
 
   // Stock reservation
   stockReservations StockReservation[]
+  statusHistory     OrderStatusHistory[]
 
   // Audit
   createdAt         DateTime    @default(now())
@@ -268,6 +274,8 @@ enum OrderStatus {
   COMPLETED
   CANCELLED
   REJECTED
+  RETURN_REQUESTED
+  RETURNED
 }
 
 enum EInvoiceStatus {
@@ -275,6 +283,12 @@ enum EInvoiceStatus {
   SUBMITTED
   ACCEPTED
   REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
 }
 
 model OrderLine {
@@ -295,6 +309,21 @@ model OrderLine {
 
   @@index([orderId])
   @@index([productId])
+}
+
+// ───── Order Status History ────────────────────────────────────────────────────
+model OrderStatusHistory {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      String   // PENDING_APPROVAL, APPROVED, SHIPPED, etc
+  note        String?  // Optional note (e.g. rejection reason, tracking number)
+  actorId     String?  // Who changed it (admin/user ID)
+  actorEmail  String?  // Email at time of change
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 // ───── Stock Management ──────────────────────────────────────────────────────
@@ -515,6 +544,94 @@ model PromoCode {
 
   @@index([code])
   @@index([isActive])
+}
+
+// ───── Site Content (CMS) ──────────────────────────────────────────────────
+model SiteContent {
+  id          String   @id @default("hero")
+  headline    String   @default("Premium işçilik, profesyonel tedarik.")
+  subheading  String   @default("23 yıllık tecrübemizle, 4000+ ürün ve 50+ markayı Türkiye genelinde 300+ bayiye ulaştırıyoruz.")
+  imageUrl    String?
+  ctaText     String   @default("Ürünleri Keşfedin")
+  ctaLink     String   @default("/urunler")
+  secondaryCtaText String? @default("Bayi Olun")
+  secondaryCtaLink String? @default("/bayilik")
+  stats       String?  // JSON: [{label:"23+ Yıl",value:"Tecrübe"},...]
+  updatedAt   DateTime @updatedAt
+}
+
+// ───── Discounts ───────────────────────────────────────────────────────────
+model Discount {
+  id           String       @id @default(cuid())
+  type         DiscountType
+  targetId     String       // Product ID, category slug, or brand slug
+  targetName   String       // Display name
+  discountType DiscountKind @default(PERCENTAGE)
+  value        Float
+  isActive     Boolean      @default(true)
+  validFrom    DateTime     @default(now())
+  validUntil   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
+
+enum DiscountType {
+  PRODUCT
+  CATEGORY
+  BRAND
+}
+
+enum DiscountKind {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// ───── Popup / Campaign Management ────────────────────────────────────────────
+model Popup {
+  id            String        @id @default(cuid())
+  title         String
+  bodyHtml      String?
+  imageUrl      String?
+  ctaText       String?
+  ctaUrl        String?
+  audience      PopupAudience @default(ALL)
+  dealerIds     String[]      @default([]) // Specific dealer IDs when audience=SPECIFIC_DEALER
+  isActive      Boolean       @default(false)
+  showOnce      Boolean       @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+  impressions   Int           @default(0)
+  clicks        Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([isActive])
+  @@index([audience])
+}
+
+enum PopupAudience {
+  ALL
+  B2C
+  B2B
+  SPECIFIC_DEALER
+}
+
+// ───── Notify Requests (Back-in-stock) ────────────────────────────────────────
+model NotifyRequest {
+  id          String   @id @default(cuid())
+  productId   String
+  userId      String
+  channel     String   @default("email") // email, whatsapp
+  status      String   @default("pending") // pending, notified, cancelled
+  createdAt   DateTime @default(now())
+  notifiedAt  DateTime?
+
+  @@unique([productId, userId, channel])
+  @@index([productId])
+  @@index([status])
 }
 
 // ───── Audit ─────────────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ export class OrdersController {
    */
   @Post()
   async createOrder(@Body() createOrderDto: CreateOrderDto, @Request() req: any) {
-    return this.ordersService.createOrder(createOrderDto, req.user.id);
+    return this.ordersService.createOrder(createOrderDto, req.user.sub);
   }
 
   /**
@@ -68,12 +68,20 @@ export class OrdersController {
     @Query('offset') offset?: string,
   ) {
     return this.ordersService.getOrders(
-      req.user.id,
+      req.user.sub,
       status,
       undefined,
       parseInt(limit || '50'),
       parseInt(offset || '0'),
     );
+  }
+
+  /**
+   * Get order status history (timeline)
+   */
+  @Get(':orderId/history')
+  async getOrderHistory(@Param('orderId') orderId: string) {
+    return this.ordersService.getOrderHistory(orderId);
   }
 
   /**
@@ -91,7 +99,7 @@ export class OrdersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   async approveOrder(@Param('orderId') orderId: string, @Request() req: any) {
-    return this.ordersService.approveOrder(orderId, req.user.id);
+    return this.ordersService.approveOrder(orderId, req.user.sub);
   }
 
   /**
@@ -105,7 +113,7 @@ export class OrdersController {
     @Body() body: { reason: string },
     @Request() req: any,
   ) {
-    return this.ordersService.rejectOrder(orderId, req.user.id, body.reason);
+    return this.ordersService.rejectOrder(orderId, req.user.sub, body.reason);
   }
 
   /**
@@ -116,6 +124,40 @@ export class OrdersController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   async shipOrder(@Param('orderId') orderId: string) {
     return this.ordersService.completeOrder(orderId);
+  }
+
+  /**
+   * Mock payment — accepts card info, always succeeds (no real API call)
+   */
+  @Post(':orderId/pay')
+  async payOrder(
+    @Param('orderId') orderId: string,
+    @Body() body: { cardNumber?: string; expiry?: string; cvv?: string; cardHolder?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.payOrder(orderId, req.user.sub);
+  }
+
+  /**
+   * Customer/dealer: Request return on a completed order
+   */
+  @Post(':orderId/return')
+  async requestReturn(
+    @Param('orderId') orderId: string,
+    @Body() body: { reason: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.requestReturn(orderId, body.reason, req.user.sub);
+  }
+
+  /**
+   * Admin: Approve return — refund stock back to inventory
+   */
+  @Post(':orderId/return/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async approveReturn(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.approveReturn(orderId, req.user.sub);
   }
 
   /**

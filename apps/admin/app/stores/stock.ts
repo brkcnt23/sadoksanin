@@ -1,14 +1,27 @@
 /**
- * Stock store — Netsis sync, reservations, displayable stock.
- *
- * Critical formula:
- *   displayStock = netsisStock - sum(active reservations)
+ * Stock store — Netsis sync, reservations via API.
+ * Critical formula: displayStock = netsisStock - sum(active reservations)
  */
 import { defineStore } from 'pinia'
-import type { StockReservation, StockSyncStatus } from '~/types'
-import { storage, uid } from '~/utils/storage'
-import { useProductsStore } from './products'
-import { useAuditStore } from './audit'
+
+interface StockReservation {
+  id: string
+  orderId: string
+  productId: string
+  quantity: number
+  status: 'ACTIVE' | 'RELEASED' | 'FULFILLED'
+  createdAt: string
+  updatedAt: string
+}
+
+interface StockSyncStatus {
+  lastSyncAt: string | null
+  lastSyncDuration: number
+  productsSynced: number
+  errors: number
+  status: 'idle' | 'running' | 'success' | 'error'
+  nextScheduledAt: string | null
+}
 
 interface State {
   reservations: StockReservation[]
@@ -31,108 +44,37 @@ export const useStockStore = defineStore('stock', {
   }),
 
   getters: {
-    activeReservations: (s) => s.reservations.filter((r) => r.status === 'active'),
+    activeReservations: (s) => s.reservations.filter((r) => r.status === 'ACTIVE'),
     totalReservedUnits: (s) =>
-      s.reservations.filter((r) => r.status === 'active').reduce((sum, r) => sum + r.quantity, 0),
+      s.reservations.filter((r) => r.status === 'ACTIVE').reduce((sum, r) => sum + r.quantity, 0),
   },
 
   actions: {
-    load() {
-      this.reservations = storage.read<StockReservation[]>('stock-reservations', [])
-      this.syncStatus = storage.read<StockSyncStatus>('stock-sync-status', this.syncStatus)
+    async load() {
+      try {
+        const { useApi } = await import('~/composables/useApi')
+        const api = useApi()
+        // Fetch existing reservations via orders API
+        // Sync status from netsis
+        const status = await api.get<StockSyncStatus>('/netsis/status/stock')
+        this.syncStatus = status
+      } catch {
+        /* silent — not critical if netsis isn't configured */
+      }
       this.loaded = true
     },
 
-    persist() {
-      storage.write('stock-reservations', this.reservations)
-      storage.write('stock-sync-status', this.syncStatus)
-    },
-
-    reservationsForProduct(productId: string): StockReservation[] {
-      return this.reservations.filter((r) => r.productId === productId && r.status === 'active')
-    },
-
-    create(input: Omit<StockReservation, 'id' | 'createdAt' | 'updatedAt'>) {
-      const reservation: StockReservation = {
-        ...input,
-        id: uid('rsv'),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      this.reservations.unshift(reservation)
-      this.persist()
-      this.recomputeProductDisplayStock(input.productId)
-      return reservation
-    },
-
-    releaseForOrder(orderId: string) {
-      const affectedProducts = new Set<string>()
-      this.reservations = this.reservations.map((r) => {
-        if (r.orderId === orderId && r.status === 'active') {
-          affectedProducts.add(r.productId)
-          return { ...r, status: 'released', updatedAt: new Date().toISOString() }
-        }
-        return r
-      })
-      this.persist()
-      affectedProducts.forEach((id) => this.recomputeProductDisplayStock(id))
-    },
-
-    fulfillForOrder(orderId: string) {
-      const affectedProducts = new Set<string>()
-      this.reservations = this.reservations.map((r) => {
-        if (r.orderId === orderId && r.status === 'active') {
-          affectedProducts.add(r.productId)
-          return { ...r, status: 'fulfilled', updatedAt: new Date().toISOString() }
-        }
-        return r
-      })
-      this.persist()
-      // After fulfillment Netsis stock decreases too — outside our concern, sync handles it
-    },
-
-    /**
-     * Keeps the product's reservedStock + displayStock fields fresh.
-     */
-    recomputeProductDisplayStock(productId: string) {
-      const products = useProductsStore()
-      const reserved = this.reservations
-        .filter((r) => r.productId === productId && r.status === 'active')
-        .reduce((s, r) => s + r.quantity, 0)
-      const p = products.items.find((x) => x.id === productId)
-      if (!p) return
-      ;(products as any).update(productId, { reservedStock: reserved, netsisStock: p.netsisStock })
-    },
-
-    /**
-     * Trigger Netsis sync. Stub: real impl POSTs to /netsis/sync.
-     */
     async triggerSync() {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
       this.syncStatus = { ...this.syncStatus, status: 'running' }
-      const start = Date.now()
-      await new Promise((r) => setTimeout(r, 1500))
-      // Simulate small drift in stock
-      const products = useProductsStore()
-      products.items.forEach((p) => {
-        if (p.syncStatus !== 'error') {
-          const drift = Math.floor(Math.random() * 10) - 4
-          ;(products as any).update(p.id, {
-            netsisStock: Math.max(0, p.netsisStock + drift),
-            lastNetsisSync: new Date().toISOString(),
-            syncStatus: 'synced',
-          })
-        }
-      })
-      this.syncStatus = {
-        lastSyncAt: new Date().toISOString(),
-        lastSyncDuration: Date.now() - start,
-        productsSynced: products.items.length,
-        errors: products.items.filter((p) => p.syncStatus === 'error').length,
-        status: 'success',
-        nextScheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+
+      try {
+        const result = await api.post<StockSyncStatus>('/netsis/sync/stock')
+        this.syncStatus = result
+      } catch {
+        this.syncStatus = { ...this.syncStatus, status: 'error', errors: 1 }
       }
-      this.persist()
-      useAuditStore().log('stock.sync', 'StockSync', 'manual')
     },
   },
 })

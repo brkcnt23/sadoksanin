@@ -11,6 +11,7 @@ definePageMeta({
 
 const products = useProductsStore()
 const stock = useStockStore()
+const api = useApi()
 
 onMounted(() => {
   if (!products.loaded) products.load()
@@ -58,6 +59,24 @@ const bulkDelete = () => {
   if (!confirm(`${selected.value.size} ürünü silmek istediğinize emin misiniz?`)) return
   ;[...selected.value].forEach((id) => products.remove(id))
   selected.value = new Set()
+}
+
+const showBulkPrice = ref(false)
+const bulkForm = ref({ target: 'category' as 'category' | 'brand', targetValue: '', type: 'percentage' as 'percentage' | 'fixed', value: 0 })
+const bulkLoading = ref(false)
+
+async function doBulkPrice() {
+  if (!bulkForm.value.targetValue.trim()) return
+  bulkLoading.value = true
+  try {
+    const result = await api.post('/products/admin/bulk-price', bulkForm.value)
+    alert(`${result.updated} ürün güncellendi`)
+    showBulkPrice.value = false
+    await products.load()
+  } catch (e: any) {
+    alert(e.message || 'Hata oluştu')
+  }
+  bulkLoading.value = false
 }
 
 const exportCsv = async () => {
@@ -151,6 +170,13 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
         >
           <Icon name="lucide:download" class="w-4 h-4" />
           CSV İndir
+        </button>
+        <button
+          @click="showBulkPrice = true"
+          class="px-3 py-2 text-sm font-medium text-white bg-amber-600 border border-amber-600 rounded-md hover:bg-amber-700 flex items-center gap-2"
+        >
+          <Icon name="lucide:percent" class="w-4 h-4" />
+          Toplu Fiyat
         </button>
         <label class="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-300 rounded-md hover:bg-ink-50 flex items-center gap-2 cursor-pointer">
           <Icon name="lucide:upload" class="w-4 h-4" />
@@ -371,5 +397,61 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
     </template>
 
     <ProductsProductFormModal :open="formOpen" :product="editing" @close="formOpen = false" />
+
+    <!-- Bulk Price Modal -->
+    <Modal v-if="showBulkPrice" size="md" title="Toplu Fiyat Güncelleme" @close="showBulkPrice = false">
+      <div class="p-4 space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1">Hedef</label>
+            <select v-model="bulkForm.target" class="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm">
+              <option value="category">Kategori</option>
+              <option value="brand">Marka</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1">Değer</label>
+            <input
+              v-model="bulkForm.targetValue"
+              type="text"
+              class="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm"
+              :placeholder="bulkForm.target === 'category' ? 'örn: Seramik' : 'örn: AKGÜN'"
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1">İşlem Tipi</label>
+            <select v-model="bulkForm.type" class="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm">
+              <option value="percentage">Yüzde (%)</option>
+              <option value="fixed">Sabit Tutar (TL)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1">
+              {{ bulkForm.type === 'percentage' ? 'Zam Oranı (%)' : 'Tutar Değişimi (TL)' }}
+            </label>
+            <input v-model.number="bulkForm.value" type="number" step="any" class="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm" placeholder="15" />
+            <p class="text-xs text-ink-400 mt-1">
+              {{ bulkForm.type === 'percentage' ? '+%15 = %15 zam, -%10 = %10 indirim' : '+50 = 50TL zam, -20 = 20TL indirim' }}
+            </p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3 p-4 border-t border-ink-100">
+          <button class="px-4 py-2 text-sm text-ink-600 hover:bg-ink-50 rounded-lg" @click="showBulkPrice = false">
+            İptal
+          </button>
+          <button
+            class="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold disabled:opacity-50"
+            :disabled="bulkLoading"
+            @click="doBulkPrice"
+          >
+            {{ bulkLoading ? 'Güncelleniyor...' : 'Toplu Güncelle' }}
+          </button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>

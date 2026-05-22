@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
-  title: 'Hesabım | Sadöksan İnşaat',
+  title: 'Hesap Ayarları | Sadöksan İnşaat',
   description: 'Hesap bilgilerinizi yönetin.',
+  middleware: 'auth',
 })
 
 const { logout, getUser, isAuthenticated } = useAuth()
@@ -17,8 +19,6 @@ watchEffect(() => {
 
 const navItems = [
   { icon: 'lucide:user', label: 'Profil Bilgileri', to: '/hesabim', active: true },
-  { icon: 'lucide:package', label: 'Siparişlerim', to: '/siparislerim', active: false },
-  { icon: 'lucide:heart', label: 'Favori Ürünler', to: '/favori-urunler', active: false },
   { icon: 'lucide:log-out', label: 'Çıkış Yap', action: 'logout', active: false },
 ]
 
@@ -43,9 +43,34 @@ const startEdit = () => {
   isEditing.value = true
 }
 
-const saveChanges = () => {
-  // TODO: API call to update profile — PATCH /auth/me
-  isEditing.value = false
+const isSaving = ref(false)
+const saveError = ref('')
+
+const saveChanges = async () => {
+  isSaving.value = true
+  saveError.value = ''
+
+  try {
+    const api = useApi()
+    const updated = await api.patch<{ id: string; name: string; email: string; phone?: string; city?: string; address?: string }>('/auth/me', {
+      name: editForm.value.name,
+      phone: editForm.value.phone,
+      city: editForm.value.city,
+      address: editForm.value.address,
+    })
+
+    // Refresh user state with updated data
+    const { user } = useAuth()
+    if (user.value) {
+      user.value = { ...user.value, ...updated }
+    }
+
+    isEditing.value = false
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : 'Güncelleme başarısız'
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const cancelEdit = () => {
@@ -68,8 +93,8 @@ const initials = computed(() => {
   <div class="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 lg:py-16">
     <div class="px-6 lg:px-12 mx-auto max-w-7xl">
       <div class="mb-12">
-        <h1 class="text-4xl font-bold text-primary-900 mb-2">Hesap Yönetimi</h1>
-        <p class="text-ink-600">Profil bilgilerinizi düzenleyin ve siparişlerinizi takip edin</p>
+        <h1 class="text-4xl font-bold text-primary-900 mb-2">Hesap Ayarları</h1>
+        <p class="text-ink-600">Profil bilgilerinizi düzenleyin</p>
       </div>
 
       <div class="grid lg:grid-cols-4 gap-6">
@@ -88,7 +113,7 @@ const initials = computed(() => {
 
             <nav class="p-4 space-y-2">
               <NuxtLink
-                v-for="(item, idx) in navItems.slice(0, 3)"
+                v-for="(item, idx) in navItems.filter(i => !i.action)"
                 :key="idx"
                 :to="item.to"
                 class="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all"
@@ -102,14 +127,14 @@ const initials = computed(() => {
                 <span>{{ item.label }}</span>
               </NuxtLink>
 
-              <!-- Dealer Dashboard Button (Only for DEALER users) -->
+              <!-- Bayi Paneli (Only for DEALER users) -->
               <NuxtLink
                 v-if="getUser()?.role === 'DEALER'"
-                to="/dealer"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-primary-900 hover:bg-blue-50 border border-transparent hover:border-blue-200 bg-blue-50/50"
+                to="/bayi"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-primary-900 hover:bg-accent-50 border border-transparent hover:border-accent-200 bg-accent-50/50"
               >
-                <Icon name="lucide:chart-line" class="h-5 w-5 text-blue-600" />
-                <span class="text-blue-700">Dashboard</span>
+                <Icon name="lucide:layout-dashboard" class="h-5 w-5 text-accent-600" />
+                <span class="text-accent-700">Bayi Paneli</span>
               </NuxtLink>
 
               <button
@@ -211,6 +236,10 @@ const initials = computed(() => {
 
               <!-- Edit Mode -->
               <form v-else @submit.prevent="saveChanges" class="space-y-6">
+                <div v-if="saveError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {{ saveError }}
+                </div>
+
                 <div>
                   <label class="block text-sm font-semibold text-primary-900 mb-2">Ad Soyad</label>
                   <input
@@ -225,7 +254,8 @@ const initials = computed(() => {
                   <input
                     v-model="editForm.email"
                     type="email"
-                    class="w-full px-4 py-3 border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                    disabled
+                    class="w-full px-4 py-3 border border-ink-200 rounded-lg bg-ink-50 text-ink-500"
                   />
                 </div>
 
@@ -260,15 +290,17 @@ const initials = computed(() => {
                 <div class="flex gap-4 pt-6 border-t border-ink-100">
                   <button
                     type="submit"
-                    class="px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                    :disabled="isSaving"
+                    class="px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Icon name="lucide:check" class="h-4 w-4" />
-                    Kaydet
+                    <Icon :name="isSaving ? 'lucide:loader' : 'lucide:check'" :class="['h-4 w-4', isSaving && 'animate-spin']" />
+                    {{ isSaving ? 'Kaydediliyor...' : 'Kaydet' }}
                   </button>
                   <button
                     @click="cancelEdit"
                     type="button"
-                    class="px-6 py-3 border border-ink-200 text-primary-900 hover:bg-ink-50 font-semibold rounded-lg transition-colors"
+                    :disabled="isSaving"
+                    class="px-6 py-3 border border-ink-200 text-primary-900 hover:bg-ink-50 font-semibold rounded-lg transition-colors disabled:opacity-50"
                   >
                     İptal
                   </button>

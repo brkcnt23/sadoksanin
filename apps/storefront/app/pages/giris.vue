@@ -7,7 +7,7 @@ definePageMeta({
   description: 'Hesabınıza giriş yapın.',
 })
 
-const { login } = useAuth()
+const { login, getUser } = useAuth()
 
 interface FormData {
   email: string
@@ -81,7 +81,8 @@ const handleSubmit = async () => {
     const result = await login(formData.value.email, formData.value.sifre)
 
     if (result.success) {
-      navigateTo('/hesabim')
+      const user = getUser()
+      navigateTo('/bayi')
     } else {
       serverError.value = result.error || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
     }

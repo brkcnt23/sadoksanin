@@ -1,8 +1,7 @@
 <script setup lang="ts">
 const { brands } = useCatalog()
-const items = brands()
 // Marquee için seti iki kere render ediyoruz
-const doubled = [...items, ...items]
+const doubled = computed(() => [...brands.value, ...brands.value])
 </script>
 
 <template>

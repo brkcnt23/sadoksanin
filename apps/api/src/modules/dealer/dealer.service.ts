@@ -112,16 +112,40 @@ export class DealerService {
   }
 
   /**
-   * Export cari statement as Excel buffer
+   * Export cari statement as CSV (Excel-compatible with UTF-8 BOM)
    */
   async exportCariStatement(userId: string): Promise<Buffer> {
     try {
-      const transactions = await this.getCariTransactions(userId);
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { dealer: true },
+      });
+      if (!user || !user.dealer) throw new BadRequestException('Dealer not found');
 
-      // For now, return a mock Excel buffer
-      // In production, use xlsx library to generate proper Excel file
-      const mockExcel = Buffer.from('Mock Excel Content for Cari Statement');
-      return mockExcel;
+      const orders = await this.prisma.order.findMany({
+        where: { dealerId: user.dealer.id },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const BOM = '﻿';
+      const headers = ['Tarih', 'Sipariş No', 'İşlem Türü', 'Tutar (TL)', 'KDV', 'Toplam', 'Bakiye'];
+      const rows: string[] = [BOM + headers.join(',')];
+
+      let balance = 0;
+      for (const o of orders) {
+        balance += o.total;
+        rows.push([
+          o.createdAt.toISOString().split('T')[0],
+          o.orderNo,
+          'Borç',
+          o.subtotal.toFixed(2),
+          o.tax.toFixed(2),
+          o.total.toFixed(2),
+          balance.toFixed(2),
+        ].join(','));
+      }
+
+      return Buffer.from(rows.join('\n'), 'utf-8');
     } catch (error) {
       this.logger.error(`Error exporting cari statement: ${error.message}`);
       throw error;
@@ -149,6 +173,8 @@ export class DealerService {
           return await this.generateYearlyReport(user.dealer.id);
         case 'invoice':
           return await this.generateInvoiceReport(user.dealer.id);
+        case 'detailed':
+          return await this.generateDetailedReport(user.dealer.id);
         case 'stock':
           return await this.generateStockReport(user.dealer.id);
         default:
@@ -161,101 +187,165 @@ export class DealerService {
   }
 
   /**
-   * Generate monthly report
+   * Generate monthly report as CSV
    */
   private async generateMonthlyReport(dealerId: string): Promise<Buffer> {
-    this.logger.debug(`Generating monthly report for dealer ${dealerId}`);
-
-    const currentMonth = new Date();
-    const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const orders = await this.prisma.order.findMany({
-      where: {
-        dealerId,
-        createdAt: {
-          gte: firstDay,
-          lte: lastDay,
-        },
-      },
-      include: {
-        lines: true,
-      },
+      where: { dealerId, createdAt: { gte: firstDay, lte: lastDay } },
+      include: { lines: true },
+      orderBy: { createdAt: 'asc' },
     });
 
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-
-    // Return mock Excel buffer
-    const mockData = `Monthly Report\nTotal Orders: ${totalOrders}\nTotal Revenue: ${totalRevenue}`;
-    return Buffer.from(mockData);
+    const BOM = '﻿';
+    const tl = (n: number) => `₺${n.toFixed(2)}`;
+    const headers = ['Tarih', 'Sipariş No', 'Ürün Adedi', 'Ara Toplam', 'KDV', 'Nakliye', 'Toplam'];
+    const rows: string[] = [BOM + headers.join(',')];
+    let tSub = 0, tTax = 0, tLog = 0, tTotal = 0, tItems = 0;
+    for (const o of orders) {
+      rows.push([
+        o.createdAt.toISOString().split('T')[0], o.orderNo, o.lines.length.toString(),
+        tl(o.subtotal), tl(o.tax), tl(o.logisticsSurcharge), tl(o.total),
+      ].join(','));
+      tSub += o.subtotal; tTax += o.tax; tLog += o.logisticsSurcharge; tTotal += o.total; tItems += o.lines.length;
+    }
+    // Summary row
+    rows.push('');
+    rows.push(['TOPLAM', `${orders.length} sipariş`, tItems.toString(), tl(tSub), tl(tTax), tl(tLog), tl(tTotal)].join(','));
+    return Buffer.from(rows.join('\n'), 'utf-8');
   }
 
   /**
-   * Generate yearly report
+   * Generate yearly report as CSV
    */
   private async generateYearlyReport(dealerId: string): Promise<Buffer> {
-    this.logger.debug(`Generating yearly report for dealer ${dealerId}`);
-
-    const currentYear = new Date().getFullYear();
-    const firstDay = new Date(currentYear, 0, 1);
-    const lastDay = new Date(currentYear, 11, 31);
+    const year = new Date().getFullYear();
+    const firstDay = new Date(year, 0, 1);
+    const lastDay = new Date(year, 11, 31);
 
     const orders = await this.prisma.order.findMany({
-      where: {
-        dealerId,
-        createdAt: {
-          gte: firstDay,
-          lte: lastDay,
-        },
-      },
+      where: { dealerId, createdAt: { gte: firstDay, lte: lastDay } },
+      orderBy: { createdAt: 'asc' },
     });
 
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-
-    const mockData = `Yearly Report ${currentYear}\nTotal Orders: ${totalOrders}\nTotal Revenue: ${totalRevenue}`;
-    return Buffer.from(mockData);
+    const tl = (n: number) => `₺${n.toFixed(2)}`;
+    const BOM = '﻿';
+    const headers = ['Ay', 'Sipariş Sayısı', 'Toplam Tutar (TL)', 'Ortalama Sipariş'];
+    const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+    const monthly: Record<number, { count: number; total: number }> = {};
+    for (const o of orders) {
+      const m = new Date(o.createdAt).getMonth();
+      if (!monthly[m]) monthly[m] = { count: 0, total: 0 };
+      monthly[m].count++;
+      monthly[m].total += o.total;
+    }
+    const rows: string[] = [BOM + headers.join(',')];
+    let yCount = 0, yTotal = 0;
+    for (let m = 0; m < 12; m++) {
+      const d = monthly[m] || { count: 0, total: 0 };
+      rows.push([monthNames[m], d.count.toString(), tl(d.total), d.count > 0 ? tl(d.total / d.count) : '₺0.00'].join(','));
+      yCount += d.count; yTotal += d.total;
+    }
+    rows.push('');
+    rows.push(['YILLIK TOPLAM', yCount.toString(), tl(yTotal), yCount > 0 ? tl(yTotal / yCount) : '₺0.00'].join(','));
+    return Buffer.from(rows.join('\n'), 'utf-8');
   }
 
   /**
-   * Generate invoice report (all invoices)
+   * Generate invoice report as CSV
    */
   private async generateInvoiceReport(dealerId: string): Promise<Buffer> {
-    this.logger.debug(`Generating invoice report for dealer ${dealerId}`);
-
     const orders = await this.prisma.order.findMany({
-      where: {
-        dealerId,
-      },
-      include: {
-        lines: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      where: { dealerId },
+      include: { lines: { include: { product: true } } },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const mockData = `Invoice Report\nTotal Invoices: ${orders.length}\nTotal Value: ${orders.reduce((sum, o) => sum + o.total, 0)}`;
-    return Buffer.from(mockData);
+    const tl = (n: number) => `₺${n.toFixed(2)}`;
+    const BOM = '﻿';
+    const headers = ['Tarih', 'Sipariş No', 'Durum', 'Ürün', 'Adet', 'Birim Fiyat', 'Satır Toplamı'];
+    const rows: string[] = [BOM + headers.join(',')];
+    let grandTotal = 0;
+    for (const o of orders) {
+      for (const l of o.lines) {
+        rows.push([
+          o.createdAt.toISOString().split('T')[0], o.orderNo, o.status,
+          `"${l.product?.name || l.productId}"`, l.quantity.toString(),
+          tl(l.unitPrice), tl(l.total),
+        ].join(','));
+      }
+      rows.push([`Sipariş ${o.orderNo} Toplam`, '', '', '', '', tl(o.subtotal + o.tax + o.logisticsSurcharge), tl(o.total)].join(','));
+      rows.push('');
+      grandTotal += o.total;
+    }
+    rows.push(['GENEL TOPLAM', '', '', '', '', '', tl(grandTotal)].join(','));
+    return Buffer.from(rows.join('\n'), 'utf-8');
   }
 
   /**
-   * Generate stock report (product pricing and availability)
+   * Generate detailed report with full product breakdown
    */
-  private async generateStockReport(dealerId: string): Promise<Buffer> {
-    this.logger.debug(`Generating stock report for dealer ${dealerId}`);
-
-    const products = await this.prisma.product.findMany({
-      where: {
-        visible: true,
-        purchasable: true,
-      },
-      take: 100,
+  private async generateDetailedReport(dealerId: string): Promise<Buffer> {
+    const orders = await this.prisma.order.findMany({
+      where: { dealerId },
+      include: { lines: { include: { product: true } } },
+      orderBy: { createdAt: 'asc' },
     });
 
-    const mockData = `Stock Report\nTotal Products: ${products.length}\nProducts with stock: ${products.filter((p) => p.displayStock > 0).length}`;
-    return Buffer.from(mockData);
+    const tl = (n: number) => `₺${n.toFixed(2)}`;
+    const BOM = '﻿';
+    const headers = ['Sipariş No', 'Tarih', 'Ürün Adı', 'Marka', 'Kategori', 'Adet', 'Birim Fiyat', 'Satır Toplamı', 'KDV Oranı', 'Sipariş Toplamı', 'Durum'];
+    const rows: string[] = [BOM + headers.join(',')];
+    let grandTotal = 0;
+
+    for (const o of orders) {
+      for (const l of o.lines) {
+        const p = l.product;
+        rows.push([
+          o.orderNo,
+          o.createdAt.toISOString().split('T')[0],
+          `"${p?.name || l.productId}"`,
+          p?.brand || '-',
+          p?.category || '-',
+          l.quantity.toString(),
+          tl(l.unitPrice),
+          tl(l.total),
+          `%${((l.taxRate || 0.2) * 100).toFixed(0)}`,
+          tl(o.total),
+          o.status,
+        ].join(','));
+      }
+      grandTotal += o.total;
+    }
+
+    rows.push('');
+    rows.push(['GENEL TOPLAM', '', '', '', '', '', '', tl(grandTotal), '', '', ''].join(','));
+    return Buffer.from(rows.join('\n'), 'utf-8');
+  }
+
+  /**
+   * Generate stock report as CSV
+   */
+  private async generateStockReport(_dealerId: string): Promise<Buffer> {
+    const products = await this.prisma.product.findMany({
+      where: { visible: true },
+      orderBy: { category: 'asc' },
+    });
+
+    const BOM = '﻿';
+    const headers = ['Stok Kodu', 'NetSis Kodu', 'Ürün Adı', 'Marka', 'Kategori', 'Birim Fiyat', 'Stok', 'Görünür', 'Satın Alınabilir'];
+    const rows: string[] = [BOM + headers.join(',')];
+    for (const p of products) {
+      rows.push([
+        p.sku, p.netsisCode, p.name, p.brand, p.category,
+        p.basePrice.toFixed(2), p.displayStock.toString(),
+        p.visible ? 'Evet' : 'Hayır', p.purchasable ? 'Evet' : 'Hayır',
+      ].join(','));
+    }
+    return Buffer.from(rows.join('\n'), 'utf-8');
   }
 
   /**

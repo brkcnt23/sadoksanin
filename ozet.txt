@@ -1,0 +1,249 @@
+================================================================================
+SADÖKSAN ERP — KALDIĞIMIZ YER ÖZETİ
+Tarih: 2026-05-20
+================================================================================
+
+PROJE: Modüler ERP (B2B ağırlıklı e-ticaret + bayi yönetimi)
+  - Nuxt 4 Storefront + Admin
+  - NestJS API
+  - PostgreSQL + Redis + Python (PDF servisi)
+  - Docker Compose (dev ortamı)
+
+================================================================================
+ÇALIŞTIRMA (Docker açıkken):
+  docker compose -f docker-compose.dev.yml up -d
+
+GİRİŞ BİLGİLERİ:
+  Admin:   admin@admin.com / asd123  →  http://localhost:3002
+  Bayi:    erzurum@test.com / asd123 →  http://localhost:3000/bayilik/giris
+  Bayi:    trabzon@test.com / asd123
+  Bayi:    testbayi@test.com / asd123
+  Müşteri: test@test.com / asd123    →  http://localhost:3000/giris
+
+================================================================================
+YAPILANLAR (Bu oturumda):
+
+1. BAYİ KAYIT AKIŞI (GERÇEK API)
+   - POST /auth/register DEALER rolüyle User + Dealer kaydı oluşturuyor
+   - /bayilik/uye-ol sayfası gerçek API'ye bağlı
+   - Cari no, vergi no, işletme adı validasyonları var
+   - Bayiler PENDING olarak kaydoluyor, admin onayı gerekiyor
+
+2. PROFİL GÜNCELLEME
+   - PATCH /auth/me endpoint'i çalışıyor
+   - /hesabim sayfası API'ye bağlı (kaydet butonu gerçek)
+
+3. ŞİFREMİ UNUTTUM
+   - /sifremi-unuttum sayfası (email gönderir — dev'de link döner)
+   - /sifre-sifirla sayfası (token ile yeni şifre)
+   - POST /auth/forgot-password + POST /auth/reset-password
+
+4. STOREFRONT KATALOG VERİSİ
+   - useCatalog.ts artık API'den kategori/marka çekiyor
+   - /products/filters/categories ve /brands endpointleri
+
+5. DEALER EXCEL RAPORLARI (GERÇEK VERİ)
+   - Cari ekstre, aylık/yıllık/fatura/stok raporları
+   - CSV + UTF-8 BOM formatında (Excel uyumlu)
+   - Rapor uzantıları .csv olarak düzeltildi
+
+6. İNDİRİM SİSTEMİ
+   - Ürün, kategori, marka bazlı yüzde veya sabit indirim
+   - Discount modeli Prisma'da
+   - GET/POST/PATCH/DELETE /discounts (admin JWT ile)
+   - Ürün fiyatlarına otomatik yansıyor (discountedPrice + discount alanı)
+
+7. MAİL ALTYAPISI
+   - MailerService: send(), sendCartReminder(), sendNotification()
+   - Şimdilik konsola logluyor, SMTP hazır olunca gerçek mail gönderir
+   - POST /mailer/cart-reminders — terk edilmiş sepet hatırlatması
+
+8. CMS / İÇERİK YÖNETİMİ
+   - SiteContent modeli (hero banner)
+   - GET/PATCH /cms/hero — admin hero görselini ve metnini değiştirebilir
+   - GET/PATCH /cms/settings — site ayarları DB'de kalıcı
+   - Storefront Hero.vue API'den besleniyor, fallback default var
+
+9. UNIT TESTLER (JEST)
+   - jest.config.ts + tsconfig.test.json yapılandırıldı
+   - 13 test (auth: 10, products: 3) — hepsi geçiyor
+   - Çalıştırma: docker exec sadoksan-api sh -c "cd /app/apps/api && npx jest --config jest.config.ts"
+
+10. BUG DÜZELTMELERİ
+    - Ürün görsel yükleme: imageUrl artık API'ye gönderiliyor
+    - Proforma bayi eşleşmesi: dealerId artık atanıyor
+    - Bayi sayfası butonları: stub değil, gerçek linkler
+    - Fiyat gizleme: giriş yapmayan fiyat göremez
+    - Sepet kısıtlama: giriş yapmayan sepete ekleyemez
+    - Login yönlendirme: DEALER → /bayi, CUSTOMER → /hesabim
+    - /dealer auth guard: token yüklenmeden API çağrısı yapılmıyor
+    - ProductCard: shadow-sm eklendi, beyaz çerçeve düzeldi
+
+11. VERİTABANI
+    - 4 bayi (erzurum, trabzon, testbayi, bayi@test)
+    - 98 ürün (9 kategori: Seramik, Vitrifiye, RTRMAX, Banyo Grubu,
+      Banyo Aksesuarları, Batarya ve Musluklar, Silikon & Köpük,
+      Yapı Kimyasalları, İnsört Ürünler)
+    - Gerçek sadoksaninsaat.com.tr verilerinden seed edildi
+
+================================================================================
+ROTA HARİTASI:
+
+STOREFRONT:
+  /                       Anasayfa (Hero API'den, kategori/marka API'den)
+  /urunler                Ürün listesi (fiyat gizli, giriş yapmayana)
+  /urunler/[slug]         Ürün detay (fiyat gizli)
+  /sepet                  Sepet (sadece giriş yapmış kullanıcı)
+  /giris                  Giriş (DEALER→/bayi, CUSTOMER→/hesabim)
+  /uye-ol                 Üyelik (CUSTOMER)
+  /bayilik/giris          Bayi girişi
+  /bayilik/uye-ol         Bayi üyeliği (DEALER, API'ye bağlı)
+  /bayi                   Bayi dashboard (cari, stok, quick actions)
+  /dealer                 Bayi paneli (cari hesap, rapor, proforma, bilgiler)
+  /hesabim                Hesap sayfası (CUSTOMER, profil düzenleme API)
+  /siparislerim           Sipariş geçmişi
+  /favori-urunler         Favoriler
+  /sifremi-unuttum        Şifre sıfırlama
+  /sifre-sifirla?token=   Yeni şifre belirleme
+
+ADMİN:
+  /                       Dashboard (canlı veri)
+  /siparisler             Sipariş yönetimi
+  /bayiler                Bayi yönetimi (onay/red/aktif/pasif)
+  /urunler                Ürün yönetimi (CRUD + görsel + CSV)
+  /stok                   Stok takibi
+  /fiyatlandirma          Bölge/il lojistik fiyatlandırma
+  /proforma               Proforma (PDF Python servisiyle)
+  /raporlar               Excel raporlar (xlsx kütüphanesi)
+  /bildirimler            Bildirimler
+  /popup                  Popup yönetimi (şimdilik localStorage)
+  /doviz                  Kur yönetimi (TCMB + manuel)
+  /denetim                Denetim kaydı
+  /ayarlar                Ayarlar (artık API/DB'de)
+
+================================================================================
+API ENDPOİNTLERİ (özet):
+
+Auth:
+  POST /auth/register     Kayıt (role: CUSTOMER|DEALER)
+  POST /auth/login        Giriş → JWT
+  GET  /auth/me           Profil (JWT)
+  PATCH /auth/me          Profil güncelleme
+  POST /auth/forgot-password  Şifre sıfırlama bağlantısı
+  POST /auth/reset-password   Şifre değiştir
+
+Products (public):
+  GET  /products          Ürün listesi (+ discountedPrice + discount)
+  GET  /products/:id      Ürün detay
+  GET  /products/filters/categories
+  GET  /products/filters/brands
+
+Products (admin):
+  GET  /products/admin/all
+  POST /products          Oluştur
+  PATCH /products/:id     Güncelle
+  DELETE /products/:id    Sil
+  POST /products/:id/visibility
+  POST /products/:id/purchasable
+  POST /products/:id/stock-thresholds
+  GET  /products/admin/export   CSV
+  POST /products/admin/import   CSV
+
+Dealer (JWT):
+  GET  /api/dealer/list
+  GET  /api/dealer/profile
+  GET  /api/dealer/cari/transactions
+  GET  /api/dealer/cari/export       CSV
+  GET  /api/dealer/reports/:type     CSV
+  GET  /api/dealer/admin/list
+  PATCH /api/dealer/:id/approve
+  PATCH /api/dealer/:id/reject
+
+CMS:
+  GET  /cms/hero          Hero içeriği (public)
+  PATCH /cms/hero         Hero güncelle (admin JWT)
+  GET  /cms/settings      Ayarlar (admin JWT)
+  PATCH /cms/settings     Ayarlar güncelle (admin JWT)
+
+Discounts (admin JWT):
+  GET    /discounts
+  POST   /discounts
+  PATCH  /discounts/:id
+  DELETE /discounts/:id
+
+Mailer (admin JWT):
+  POST /mailer/send
+  POST /mailer/cart-reminders?hours=24
+
+================================================================================
+BİLİNEN EKSİKLER / SONRA YAPILACAKLAR:
+
+1. NETSiS API ENTEGRASYONU (API bekleniyor)
+   - Canlı stok senkronizasyonu
+   - Cari hesap doğrulama (gerçek Netsis verisi)
+   - Stoktan otomatik düşme
+   - Cari bakiye canlı görüntüleme
+
+2. ÖDEME SİSTEMİ
+   - Sanal POS entegrasyonu
+   - Havale bildirimi (UI var, backend stub)
+
+3. ALNEO E-BELGE (API bekleniyor)
+   - E-fatura, e-irsaliye, e-arşiv
+
+4. AURORA UI İYİLEŞTİRMESİ
+   - Admin panel görsel iyileştirme
+   - Aurora React+MUI tabanlı, direkt kopyalanamaz
+   - Figma dosyası mevcut: https://www.figma.com/design/OIZ1aaYEK7LkS08pJs4UQE/
+   - Free demo: aurora-free.themewagon.com
+
+5. POPUP SİSTEMİ API'YE TAŞINACAK (şimdilik localStorage)
+
+6. TAM KAPSAMLI E2E TEST (Playwright)
+
+7. PRODUCTION DEPLOY
+   - Domain, SSL
+   - docker-compose.prod.yml
+   - Gerçek bayi hesapları
+
+================================================================================
+ÖNEMLİ DOSYALAR:
+
+Backend:
+  apps/api/prisma/schema.prisma       — Veritabanı şeması
+  apps/api/src/modules/auth/          — Kimlik doğrulama
+  apps/api/src/modules/products/      — Ürün yönetimi
+  apps/api/src/modules/dealer/        — Bayi işlemleri
+  apps/api/src/modules/orders/        — Sipariş yönetimi
+  apps/api/src/modules/discounts/     — İndirim sistemi (YENİ)
+  apps/api/src/modules/cms/           — İçerik yönetimi (YENİ)
+  apps/api/src/modules/mailer/        — Mail altyapısı (YENİ)
+  apps/api/src/modules/proforma/      — Proforma (Python PDF)
+  apps/api/src/scripts/seed-products-from-site.ts  — Ürün seed
+
+Storefront:
+  apps/storefront/app/pages/          — Tüm sayfalar
+  apps/storefront/app/composables/    — useAuth, useCart, useDealer, useCatalog
+  apps/storefront/app/components/     — Vue bileşenleri
+
+Admin:
+  apps/admin/app/pages/               — Tüm admin sayfaları
+  apps/admin/app/stores/              — Pinia store'lar (settings artık API)
+  apps/admin/app/composables/         — Admin composable'lar
+
+Test:
+  apps/api/jest.config.ts
+  apps/api/tsconfig.test.json
+  apps/api/test/auth.service.spec.ts      — 10 test
+  apps/api/test/products.controller.spec.ts — 3 test
+
+================================================================================
+DOCKER SERVİSLERİ:
+  sadoksan-postgres     :5432  (sadoksan/sadoksan_dev)
+  sadoksan-redis        :6379
+  sadoksan-python       :5000  (PDF servisi)
+  sadoksan-api          :3001  (NestJS)
+  sadoksan-storefront   :3000  (Nuxt 4)
+  sadoksan-admin        :3002  (Nuxt 4)
+
+================================================================================

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 const { categories } = useCatalog()
-const items = categories()
 </script>
 
 <template>
   <section class="py-20 md:py-28">
     <div class="container-x">
-      <div class="flex items-end justify-between gap-6 flex-wrap">
+      <div class="flex categories-end justify-between gap-6 flex-wrap">
         <div class="max-w-2xl">
           <p class="eyebrow">Kategoriler</p>
           <h2 class="mt-3 heading-lg">Aradığınız her şey, tek tedarikçide</h2>
@@ -22,7 +21,7 @@ const items = categories()
 
       <div class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <NuxtLink
-          v-for="(c, i) in items"
+          v-for="(c, i) in categories"
           :key="c.slug"
           :to="`/kategori/${c.slug}`"
           class="group relative aspect-[4/3] overflow-hidden rounded-xl bg-ink-100"
@@ -44,7 +43,7 @@ const items = categories()
             </h3>
             <p class="mt-1.5 text-sm text-ink-300 max-w-sm">{{ c.description }}</p>
 
-            <span class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <span class="mt-4 inline-flex categories-center gap-1.5 text-sm font-semibold text-white">
               Kategoriye git
               <Icon name="lucide:arrow-right" class="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </span>

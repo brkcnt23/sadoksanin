@@ -65,6 +65,7 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+  images?: string;
 
   @IsOptional()
   @IsNumber()

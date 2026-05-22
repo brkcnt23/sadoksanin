@@ -116,6 +116,8 @@ export const useCart = () => {
     shippingAddress: string
     dealerId?: string
     promoCode?: string
+    notes?: string
+    paymentMethod?: string
   }) => {
     if (items.value.length === 0) {
       return null
@@ -136,6 +138,8 @@ export const useCart = () => {
         shippingAddress: payload.shippingAddress,
         dealerId: payload.dealerId,
         promoCode: payload.promoCode,
+        notes: payload.notes,
+        paymentMethod: payload.paymentMethod,
       }
 
       const response = await api.post<Order>('/orders', orderData)

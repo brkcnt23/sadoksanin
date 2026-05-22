@@ -61,6 +61,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+  images?: string;
 
   @IsOptional()
   @IsNumber()

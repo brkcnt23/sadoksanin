@@ -1,9 +1,21 @@
 <script setup lang="ts">
 import type { Product } from '~/composables/useProducts'
 import { useProducts } from '~/composables/useProducts'
+import { useAuth } from '~/composables/useAuth'
+import { useCart } from '~/composables/useCart'
 
 const route = useRoute()
 const { load, findBySlug, byBrand } = useProducts()
+const { isAuthenticated } = useAuth()
+const { addItem } = useCart()
+
+const toast = ref('')
+
+const handleAddToCart = (p: Product) => {
+  addItem(p, 1)
+  toast.value = 'Ürün sepete eklendi'
+  setTimeout(() => { toast.value = '' }, 2000)
+}
 
 const product = ref<Product | null>(null)
 const relatedProducts = ref<Product[]>([])
@@ -47,15 +59,36 @@ onMounted(async () => {
           <div>
             <p class="text-sm text-gray-600 mb-2">{{ product.brand }}</p>
             <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
-            <p class="text-3xl text-accent-600 font-bold mb-6">₺{{ product.price.toLocaleString('tr-TR') }}</p>
+
+            <!-- Price (auth required) -->
+            <template v-if="isAuthenticated">
+              <p class="text-3xl text-accent-600 font-bold mb-6">₺{{ product.price.toLocaleString('tr-TR') }}</p>
+            </template>
+            <NuxtLink v-else to="/giris" class="block text-lg text-accent-600 hover:text-accent-700 font-semibold mb-6">
+              Fiyat Görmek İçin Giriş Yapın →
+            </NuxtLink>
 
             <p class="text-gray-700 mb-8">{{ product.description }}</p>
 
+            <!-- Toast -->
+            <div v-if="toast" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+              {{ toast }}
+            </div>
+
             <button
+              v-if="isAuthenticated"
+              @click="handleAddToCart(product)"
               class="w-full bg-accent-500 text-white py-3 rounded-lg font-bold mb-4"
             >
               Sepete Ekle
             </button>
+            <NuxtLink
+              v-else
+              to="/giris"
+              class="w-full bg-ink-100 text-ink-700 py-3 rounded-lg font-bold mb-4 block text-center"
+            >
+              Sepete Eklemek İçin Giriş Yapın
+            </NuxtLink>
 
             <button class="w-full border-2 border-gray-300 py-3 rounded-lg font-bold">
               WhatsApp Siparişi

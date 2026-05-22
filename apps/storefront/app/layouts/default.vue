@@ -18,5 +18,6 @@ onMounted(() => {
     </main>
     <SiteFooter />
     <SiteToast />
+    <SitePopupDisplay />
   </div>
 </template>

@@ -1,13 +1,22 @@
 /**
- * Notify-when-available store — subscriber list, manual trigger.
+ * Notify-when-available store — backed by /api/admin/notifications API.
  */
 import { defineStore } from 'pinia'
-import type { NotifyRequest } from '~/types'
-import { storage } from '~/utils/storage'
-import { useAuditStore } from './audit'
+
+interface NotifyItem {
+  id: string
+  productId: string
+  userId: string
+  channel: string
+  status: 'pending' | 'notified' | 'cancelled'
+  createdAt: string
+  notifiedAt?: string
+  product?: { id: string; name: string; displayStock: number; netsisStock: number }
+  user?: { id: string; email: string; name: string; phone?: string }
+}
 
 interface State {
-  items: NotifyRequest[]
+  items: NotifyItem[]
   loaded: boolean
   filter: { status: 'all' | 'pending' | 'notified' | 'cancelled'; productId: string | null }
 }
@@ -21,7 +30,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
   getters: {
     pendingCount: (s) => s.items.filter((n) => n.status === 'pending').length,
-    filtered(s): NotifyRequest[] {
+    filtered(s): NotifyItem[] {
       let list = s.items
       if (s.filter.status !== 'all') list = list.filter((n) => n.status === s.filter.status)
       if (s.filter.productId) list = list.filter((n) => n.productId === s.filter.productId)
@@ -37,46 +46,38 @@ export const useNotificationsStore = defineStore('notifications', {
   },
 
   actions: {
-    load() {
-      this.items = storage.read<NotifyRequest[]>('notify-requests', [])
+    async load() {
+      try {
+        const { useApi } = await import('~/composables/useApi')
+        const api = useApi()
+        this.items = await api.get<NotifyItem[]>('/api/admin/notifications')
+      } catch {
+        /* silent */
+      }
       this.loaded = true
-    },
-
-    persist() {
-      storage.write('notify-requests', this.items)
     },
 
     setFilter<K extends keyof State['filter']>(key: K, v: State['filter'][K]) {
       this.filter[key] = v
     },
 
-    /**
-     * Send notifications for all pending requests on a product.
-     * Stub: real impl POSTs to /notifications/send (which routes to email/whatsapp).
-     */
     async sendForProduct(productId: string) {
-      const pending = this.items.filter((n) => n.productId === productId && n.status === 'pending')
-      const now = new Date().toISOString()
-      pending.forEach((n) => {
-        const idx = this.items.findIndex((x) => x.id === n.id)
-        if (idx >= 0) {
-          this.items[idx] = { ...this.items[idx]!, status: 'notified', notifiedAt: now, updatedAt: now }
-        }
-      })
-      this.persist()
-      useAuditStore().log('notify.send', 'Product', productId, { count: { from: 0, to: pending.length } })
-      return pending.length
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      const result = await api.post<{ sent: number; total: number }>(
+        `/api/admin/notifications/send/${productId}`,
+      )
+      // Reload to get updated statuses
+      await this.load()
+      return result
     },
 
-    cancel(id: string) {
+    async cancel(id: string) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      await api.delete(`/api/admin/notifications/${id}`)
       const idx = this.items.findIndex((n) => n.id === id)
-      if (idx === -1) return
-      this.items[idx] = {
-        ...this.items[idx]!,
-        status: 'cancelled',
-        updatedAt: new Date().toISOString(),
-      }
-      this.persist()
+      if (idx >= 0) this.items[idx] = { ...this.items[idx]!, status: 'cancelled' }
     },
   },
 })

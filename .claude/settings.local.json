@@ -3,7 +3,31 @@
     "allow": [
       "WebFetch(domain:aurora.themewagon.com)",
       "WebSearch",
-      "WebFetch(domain:www.sadoksaninsaat.com.tr)"
+      "WebFetch(domain:www.sadoksaninsaat.com.tr)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\brkcn\\\\onedrive\\\\belgeler\\\\claude\\\\projects\\\\sadoksaninsaat\" -Filter \"*test*\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(docker exec *)",
+      "Bash(docker compose *)",
+      "Bash(curl *)",
+      "Bash(pnpm install *)",
+      "Bash(docker cp *)",
+      "Bash(npx jest *)",
+      "Bash(node *)",
+      "Bash(pnpm --filter api test)",
+      "Bash(npx ts-jest *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\brkcn\\\\onedrive\\\\belgeler\\\\claude\\\\projects\\\\sadoksaninsaat\" -Recurse -Filter \"schema.prisma\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(docker compose *)",
+      "Bash(pnpm *)",
+      "PowerShell(docker network inspect *)",
+      "PowerShell(docker exec talepci-postgre *)",
+      "PowerShell(docker restart sadoksan-api *)",
+      "PowerShell(cd \"C:\\\\Users\\\\brkcn\\\\onedrive\\\\belgeler\\\\claude\\\\projects\\\\sadoksaninsaat\\\\apps\\\\api\"; $env:DATABASE_URL=\"postgresql://sadoksan:sadoksan_dev@127.0.0.1:5432/sadoksan_dev\"; npx prisma migrate dev --name add_order_status_history 2>&1)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Start-Sleep -Seconds 20)",
+      "Bash(docker restart sadoksan-api *)",
+      "Bash(git add *)"
     ]
   }
 }

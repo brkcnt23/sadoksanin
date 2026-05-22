@@ -9,6 +9,7 @@ const { list, load, loading, error } = useProducts()
 const { computePrice } = useDealer()
 const { addItem } = useCart()
 const { getStockStatus, getStockLabel, getStockColor, getAvailableStock, loadOrders } = useStock()
+const { isAuthenticated } = useAuth()
 
 const route = useRoute()
 const cartNotification = ref('')
@@ -90,11 +91,20 @@ const paginatedProducts = computed(() => {
   return filteredProducts.value.slice(start, end)
 })
 
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toLocaleUpperCase('tr-TR'))
+
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c').replace(/&/g,'ve').replace(/[^a-z0-9\s-]/g,'').replace(/[\s]+/g,'-')
+
 const getUniqueCategories = (): Array<{ slug: string; name: string }> => {
-  const cats = new Set(allProducts.value.map(p => p.category.toLowerCase()))
-  return Array.from(cats)
-    .sort()
-    .map(slug => ({ slug, name: categoryNames[slug] || slug }))
+  const seen = new Map<string, string>()
+  allProducts.value.forEach(p => {
+    const slug = slugify(p.category)
+    if (!seen.has(slug)) seen.set(slug, p.category)
+  })
+  return Array.from(seen.entries())
+    .sort(([,a], [,b]) => a.localeCompare(b, 'tr'))
+    .map(([slug, name]) => ({ slug, name: categoryNames[slug] || titleCase(name) }))
 }
 
 const getUniqueBrands = (): string[] => {
@@ -406,14 +416,19 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                     {{ product.name }}
                   </h3>
 
-                  <!-- Price Display -->
+                  <!-- Price Display (auth required) -->
                   <div class="mb-4 pb-4 border-b border-ink-100">
-                    <p class="text-2xl font-bold text-accent-600">
-                      ₺{{ computePrice(product.price).total.toLocaleString('tr-TR') }}
-                    </p>
-                    <p v-if="computePrice(product.price).isDealer" class="text-xs text-ink-600 mt-1">
-                      Taban: ₺{{ product.price }} + ₺{{ computePrice(product.price).surcharge }} lojistik
-                    </p>
+                    <template v-if="isAuthenticated">
+                      <p class="text-2xl font-bold text-accent-600">
+                        ₺{{ computePrice(product.price).total.toLocaleString('tr-TR') }}
+                      </p>
+                      <p v-if="computePrice(product.price).isDealer" class="text-xs text-ink-600 mt-1">
+                        Taban: ₺{{ product.price }} + ₺{{ computePrice(product.price).surcharge }} lojistik
+                      </p>
+                    </template>
+                    <NuxtLink v-else to="/giris" class="text-sm font-semibold text-accent-600 hover:text-accent-700">
+                      Fiyat Görmek İçin Giriş Yapın
+                    </NuxtLink>
                     <p class="text-xs text-ink-500 mt-2">
                       <Icon name="lucide:package" class="h-3 w-3 inline mr-1" />
                       {{ getAvailableStock(product) }} adet mevcut
@@ -423,6 +438,7 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                   <!-- Action Buttons -->
                   <div class="space-y-2">
                     <button
+                      v-if="isAuthenticated"
                       @click="addToCart(product)"
                       type="button"
                       :disabled="getStockStatus(product) === 'out-of-stock'"
@@ -431,6 +447,14 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                       <Icon name="lucide:shopping-cart" class="h-4 w-4" />
                       Sepete Ekle
                     </button>
+                    <NuxtLink
+                      v-else
+                      to="/giris"
+                      class="w-full bg-ink-100 hover:bg-ink-200 text-ink-700 font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Icon name="lucide:log-in" class="h-4 w-4" />
+                      Sepete Eklemek İçin Giriş Yapın
+                    </NuxtLink>
                     <button
                       @click="orderViaWhatsApp(product)"
                       type="button"

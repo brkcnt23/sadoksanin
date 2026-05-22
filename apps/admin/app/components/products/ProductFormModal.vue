@@ -83,6 +83,8 @@ const save = async () => {
         description: form.value.description,
         visible: form.value.visible,
         purchasable: form.value.purchasable,
+        imageUrl: form.value.images?.[0] || undefined,
+        images: form.value.images?.length ? JSON.stringify(form.value.images) : undefined,
       })
     } else {
       // Create new product
@@ -101,6 +103,8 @@ const save = async () => {
         description: form.value.description,
         visible: form.value.visible,
         purchasable: form.value.purchasable,
+        imageUrl: form.value.images?.[0] || undefined,
+        images: form.value.images?.length ? JSON.stringify(form.value.images) : undefined,
       })
     }
     emit('saved', form.value)

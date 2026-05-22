@@ -20,7 +20,7 @@ export class OrdersService {
    * B2B: status PENDING_APPROVAL for admin approval
    */
   async createOrder(createOrderDto: CreateOrderDto, customerId: string) {
-    const { items, dealerId, customerType, shippingCity, shippingAddress, promoCode } = createOrderDto;
+    const { items, dealerId, customerType, shippingCity, shippingAddress, promoCode, notes, paymentMethod } = createOrderDto;
 
     // Validate stock availability
     for (const item of items) {
@@ -29,7 +29,7 @@ export class OrdersService {
       });
 
       if (!product) {
-        throw new NotFoundException(`Product ${item.productId} not found`);
+        throw new BadRequestException(`Ürün bulunamadı: ${item.productId}. Sepetinizi güncelleyip tekrar deneyin.`);
       }
 
       const available = await this.getAvailableStock(item.productId);
@@ -108,25 +108,30 @@ export class OrdersService {
     const orderNo = `SDK-${year}-${random}`;
 
     // Create order
+    const createData: any = {
+      orderNo,
+      customerId,
+      customerType,
+      dealerId,
+      shippingCity,
+      shippingAddress,
+      status: customerType === 'B2B' ? 'PENDING_APPROVAL' : 'APPROVED',
+      subtotal,
+      tax,
+      logisticsSurcharge,
+      total,
+      promoCode: appliedPromoCode,
+      discountAmount,
+      notes: notes || undefined,
+      lines: { create: orderLines },
+    };
+    if (paymentMethod) {
+      createData.paymentMethod = paymentMethod;
+      createData.paymentStatus = 'PENDING';
+    }
+
     const order = await this.prisma.order.create({
-      data: {
-        orderNo,
-        customerId,
-        customerType,
-        dealerId,
-        shippingCity,
-        shippingAddress,
-        status: customerType === 'B2B' ? 'PENDING_APPROVAL' : 'APPROVED',
-        subtotal,
-        tax,
-        logisticsSurcharge,
-        total,
-        promoCode: appliedPromoCode,
-        discountAmount,
-        lines: {
-          create: orderLines,
-        },
-      },
+      data: createData,
       include: {
         lines: true,
       },
@@ -142,10 +147,33 @@ export class OrdersService {
           status: 'ACTIVE',
         },
       });
+      await this.recalcDisplayStock(item.productId);
     }
 
     this.logger.log(`Order ${order.id} created with ${items.length} items`);
+    await this.logStatusChange(order.id, order.status, undefined, customerId, undefined);
     return order;
+  }
+
+  /**
+   * Recalculate Product.displayStock = netsisStock - ACTIVE reservations
+   * Must be called after every reservation status change
+   */
+  private async recalcDisplayStock(productId: string) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) return;
+
+    const reservations = await this.prisma.stockReservation.aggregate({
+      where: { productId, status: 'ACTIVE' },
+      _sum: { quantity: true },
+    });
+    const reserved = reservations._sum.quantity || 0;
+    const displayStock = Math.max(0, product.netsisStock - reserved);
+
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: { reservedStock: reserved, displayStock },
+    });
   }
 
   /**
@@ -214,6 +242,7 @@ export class OrdersService {
     });
 
     this.logger.log(`Order ${orderId} approved by ${approvingUserId}`);
+    await this.logStatusChange(orderId, 'APPROVED', undefined, approvingUserId, undefined);
 
     // Auto-generate proforma (fire-and-forget)
     this.proformaService.createProformaFromOrder(updated).catch((err) => {
@@ -240,10 +269,17 @@ export class OrdersService {
     }
 
     // Release all stock reservations
+    const reservations = await this.prisma.stockReservation.findMany({
+      where: { orderId, status: 'ACTIVE' },
+      select: { productId: true },
+    });
     await this.prisma.stockReservation.updateMany({
       where: { orderId },
       data: { status: 'RELEASED' },
     });
+    for (const r of reservations) {
+      await this.recalcDisplayStock(r.productId);
+    }
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
@@ -254,6 +290,7 @@ export class OrdersService {
     });
 
     this.logger.log(`Order ${orderId} rejected by ${rejectingUserId}: ${reason}`);
+    await this.logStatusChange(orderId, 'REJECTED', reason, rejectingUserId, undefined);
     return updated;
   }
 
@@ -271,10 +308,17 @@ export class OrdersService {
     }
 
     // Release all active stock reservations (become fulfilled)
+    const reservations = await this.prisma.stockReservation.findMany({
+      where: { orderId, status: 'ACTIVE' },
+      select: { productId: true },
+    });
     await this.prisma.stockReservation.updateMany({
       where: { orderId, status: 'ACTIVE' },
       data: { status: 'FULFILLED' },
     });
+    for (const r of reservations) {
+      await this.recalcDisplayStock(r.productId);
+    }
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
@@ -284,6 +328,7 @@ export class OrdersService {
     });
 
     this.logger.log(`Order ${orderId} shipped, stock reservations fulfilled`);
+    await this.logStatusChange(orderId, 'SHIPPED', undefined, undefined, undefined);
     return updated;
   }
 
@@ -300,10 +345,17 @@ export class OrdersService {
     }
 
     // Release all active reservations
+    const reservations = await this.prisma.stockReservation.findMany({
+      where: { orderId, status: 'ACTIVE' },
+      select: { productId: true },
+    });
     await this.prisma.stockReservation.updateMany({
       where: { orderId, status: 'ACTIVE' },
       data: { status: 'RELEASED' },
     });
+    for (const r of reservations) {
+      await this.recalcDisplayStock(r.productId);
+    }
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
@@ -314,6 +366,28 @@ export class OrdersService {
     });
 
     this.logger.log(`Order ${orderId} cancelled: ${reason}`);
+    await this.logStatusChange(orderId, 'CANCELLED', reason, undefined, undefined);
+    return updated;
+  }
+
+  /**
+   * Mock payment — always succeeds, no real API call
+   */
+  async payOrder(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException(`Order ${orderId} not found`);
+    if (order.customerId !== userId) throw new BadRequestException('Bu sipariş size ait değil');
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: 'PAID',
+        status: order.customerType === 'B2C' ? 'APPROVED' : order.status,
+      },
+      include: { lines: { include: { product: true } } },
+    });
+
+    this.logger.log(`Order ${orderId} payment successful (mock)`);
     return updated;
   }
 
@@ -377,5 +451,71 @@ export class OrdersService {
     }
 
     return order;
+  }
+
+  async requestReturn(orderId: string, reason: string, userId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Sipariş bulunamadı');
+    if (order.status !== 'COMPLETED' && order.status !== 'SHIPPED') {
+      throw new BadRequestException('Sadece tamamlanmış/kargodaki siparişler iade edilebilir');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'RETURN_REQUESTED' },
+    });
+    await this.logStatusChange(orderId, 'RETURN_REQUESTED', reason, userId, undefined);
+    this.logger.log(`Order ${orderId} return requested by ${userId}: ${reason}`);
+    return updated;
+  }
+
+  async approveReturn(orderId: string, adminId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { stockReservations: { where: { status: 'FULFILLED' } } },
+    });
+    if (!order || order.status !== 'RETURN_REQUESTED') {
+      throw new BadRequestException('İade talebi bulunamadı');
+    }
+
+    // Release fulfilled stock back to inventory
+    for (const r of order.stockReservations) {
+      await this.prisma.stockReservation.update({
+        where: { id: r.id },
+        data: { status: 'RELEASED' },
+      });
+      await this.prisma.product.update({
+        where: { id: r.productId },
+        data: { netsisStock: { increment: r.quantity } },
+      });
+      await this.recalcDisplayStock(r.productId);
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'RETURNED' },
+    });
+    await this.logStatusChange(orderId, 'RETURNED', 'İade onaylandı — stok geri alındı', adminId, undefined);
+    this.logger.log(`Order ${orderId} return approved by ${adminId}`);
+    return updated;
+  }
+
+  async getOrderHistory(orderId: string) {
+    return this.prisma.orderStatusHistory.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private async logStatusChange(
+    orderId: string,
+    status: string,
+    note?: string,
+    actorId?: string,
+    actorEmail?: string,
+  ) {
+    return this.prisma.orderStatusHistory.create({
+      data: { orderId, status, note, actorId, actorEmail },
+    });
   }
 }

@@ -13,6 +13,7 @@ const products = useProductsStore()
 const stock = useStockStore()
 const settings = useSettingsStore()
 const auth = useAdminAuth()
+const api = useApi()
 
 onMounted(() => {
   if (!orders.loaded) orders.load()
@@ -20,6 +21,7 @@ onMounted(() => {
   if (!products.loaded) products.load()
   if (!stock.loaded) stock.load()
   if (!settings.loaded) settings.load()
+  loadAuditFeed()
 })
 
 const pendingOrders = computed(() =>
@@ -43,6 +45,57 @@ const todayRevenue = computed(() => {
     .reduce((s, o) => s + o.total, 0)
 })
 
+// ── Pending order aging ──
+const pendingByAge = computed(() => {
+  const now = Date.now()
+  const groups = { '24s': 0, '48s': 0, '72s': 0, '72s+': 0 }
+  orders.items
+    .filter((o) => o.status === 'pending-approval')
+    .forEach((o) => {
+      const age = now - new Date(o.createdAt).getTime()
+      const hours = age / 3600000
+      if (hours < 24) groups['24s']++
+      else if (hours < 48) groups['48s']++
+      else if (hours < 72) groups['72s']++
+      else groups['72s+']++
+    })
+  return groups
+})
+
+// ── Revenue chart (last 7 days, CSS bars) ──
+const revenueChart = computed(() => {
+  const days: { label: string; revenue: number }[] = []
+  const now = new Date()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    d.setHours(0, 0, 0, 0)
+    const end = new Date(d)
+    end.setHours(23, 59, 59, 999)
+    const rev = orders.items
+      .filter((o) => {
+        const t = new Date(o.createdAt).getTime()
+        return t >= d.getTime() && t <= end.getTime() && o.status !== 'cancelled' && o.status !== 'rejected'
+      })
+      .reduce((s, o) => s + o.total, 0)
+    days.push({
+      label: d.toLocaleDateString('tr-TR', { weekday: 'short' }),
+      revenue: rev,
+    })
+  }
+  const maxRev = Math.max(...days.map((d) => d.revenue), 1)
+  return days.map((d) => ({ ...d, pct: (d.revenue / maxRev) * 100 }))
+})
+
+// ── Recent audit feed ──
+const auditFeed = ref<any[]>([])
+async function loadAuditFeed() {
+  try {
+    const result = await api.get<{ items: any[] }>('/api/admin/audit', { limit: 8 })
+    auditFeed.value = result.items ?? []
+  } catch { /* silent */ }
+}
+
 const approve = (id: string) => {
   const u = auth.getUser()
   if (!u) return
@@ -60,6 +113,31 @@ const orderStatusBadge = (s: string) => {
     rejected: { variant: 'danger', label: 'Reddedildi' },
   }
   return m[s] ?? { variant: 'neutral', label: s }
+}
+
+const auditActionLabel = (a: string) => {
+  const labels: Record<string, string> = {
+    'order.approve': 'Sipariş onayladı',
+    'order.reject': 'Sipariş reddetti',
+    'order.cancel': 'Sipariş iptal etti',
+    'order.ship': 'Sevkiyat yapıldı',
+    'dealer.approve': 'Bayi onayladı',
+    'dealer.reject': 'Bayi reddetti',
+    'product.update': 'Ürün güncelledi',
+    'stock.sync': 'Stok senkronize etti',
+    'notify.send': 'Bildirim gönderdi',
+  }
+  return labels[a] ?? a
+}
+
+const formatTimeAgo = (d: string) => {
+  const diff = Date.now() - new Date(d).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Az önce'
+  if (mins < 60) return `${mins}dk önce`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}s önce`
+  return `${Math.floor(hours / 24)}g önce`
 }
 </script>
 
@@ -194,34 +272,30 @@ const orderStatusBadge = (s: string) => {
 
       <!-- Side widgets -->
       <div class="space-y-4">
+        <!-- Pending Order Aging -->
         <div class="bg-white rounded-xl border border-ink-200 p-5">
-          <h3 class="font-semibold text-ink-900 mb-4 text-sm">Sipariş Türü</h3>
-          <div class="space-y-3">
+          <h3 class="font-semibold text-ink-900 mb-4 text-sm">Bekleyen Sipariş Yaşlanma</h3>
+          <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-ink-600">B2C (Bireysel)</span>
-              <span class="font-semibold text-ink-900">
-                {{ orders.items.filter((o) => o.customerType === 'B2C').length }}
-              </span>
+              <span class="text-ink-600">Son 24 saat</span>
+              <span class="font-semibold" :class="pendingByAge['24s'] > 0 ? 'text-emerald-600' : 'text-ink-400'">{{ pendingByAge['24s'] }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
-              <span class="text-ink-600">B2B (Bayi)</span>
-              <span class="font-semibold text-ink-900">
-                {{ orders.items.filter((o) => o.customerType === 'B2B').length }}
-              </span>
+              <span class="text-ink-600">24-48 saat</span>
+              <span class="font-semibold" :class="pendingByAge['48s'] > 0 ? 'text-amber-600' : 'text-ink-400'">{{ pendingByAge['48s'] }}</span>
             </div>
-            <div class="pt-3 border-t border-ink-100 space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-ink-500">B2C Ciro</span>
-                <span class="font-medium text-ink-700">{{ formatPrice(orders.revenueByType.b2c) }}</span>
-              </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-ink-500">B2B Ciro</span>
-                <span class="font-medium text-ink-700">{{ formatPrice(orders.revenueByType.b2b) }}</span>
-              </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink-600">48-72 saat</span>
+              <span class="font-semibold" :class="pendingByAge['72s'] > 0 ? 'text-orange-600' : 'text-ink-400'">{{ pendingByAge['72s'] }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm pt-2 border-t border-ink-100">
+              <span class="text-ink-600 font-medium">72 saat +</span>
+              <span class="font-bold" :class="pendingByAge['72s+'] > 0 ? 'text-red-600' : 'text-ink-400'">{{ pendingByAge['72s+'] }}</span>
             </div>
           </div>
         </div>
 
+        <!-- Critical Alerts -->
         <div class="bg-white rounded-xl border border-ink-200 p-5">
           <h3 class="font-semibold text-ink-900 mb-4 text-sm">Kritik Uyarılar</h3>
           <div class="space-y-2">
@@ -269,6 +343,69 @@ const orderStatusBadge = (s: string) => {
             </p>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Revenue Chart + Activity Feed -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Revenue Chart (CSS-only bar chart) -->
+      <div class="bg-white rounded-xl border border-ink-200 p-5">
+        <h3 class="font-semibold text-ink-900 mb-4 text-sm flex items-center gap-2">
+          <Icon name="lucide:bar-chart-3" class="w-4 h-4 text-primary-600" />
+          7 Günlük Ciro
+        </h3>
+        <div class="flex items-end justify-between gap-2 h-40 px-2">
+          <div
+            v-for="(day, i) in revenueChart"
+            :key="i"
+            class="flex-1 flex flex-col items-center gap-1 h-full justify-end"
+          >
+            <span class="text-[10px] font-semibold text-ink-700">{{ formatPrice(day.revenue) }}</span>
+            <div
+              class="w-full rounded-t-md bg-gradient-to-t from-primary-600 to-primary-400 transition-all duration-500 min-h-[4px]"
+              :style="{ height: Math.max(day.pct, 4) + '%' }"
+            />
+            <span class="text-[10px] text-ink-500 mt-1">{{ day.label }}</span>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-ink-100 flex items-center justify-between text-xs text-ink-500">
+          <span>Toplam: <strong class="text-ink-900">{{ formatPrice(revenueChart.reduce((s, d) => s + d.revenue, 0)) }}</strong></span>
+          <span>Ort: <strong class="text-ink-900">{{ formatPrice(Math.round(revenueChart.reduce((s, d) => s + d.revenue, 0) / 7)) }}</strong></span>
+        </div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="bg-white rounded-xl border border-ink-200 p-5">
+        <h3 class="font-semibold text-ink-900 mb-4 text-sm flex items-center gap-2">
+          <Icon name="lucide:activity" class="w-4 h-4 text-primary-600" />
+          Son İşlemler
+        </h3>
+        <div v-if="auditFeed.length > 0" class="space-y-3 max-h-[220px] overflow-y-auto">
+          <div
+            v-for="entry in auditFeed"
+            :key="entry.id"
+            class="flex items-start gap-3 text-sm"
+          >
+            <div class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+              :class="{
+                'bg-emerald-500': entry.action?.includes('approve') || entry.action?.includes('ship'),
+                'bg-red-500': entry.action?.includes('reject') || entry.action?.includes('cancel'),
+                'bg-blue-500': entry.action?.includes('update') || entry.action?.includes('create'),
+                'bg-amber-500': entry.action?.includes('sync') || entry.action?.includes('send'),
+                'bg-ink-400': true,
+              }"
+            />
+            <div class="flex-1 min-w-0">
+              <p class="text-ink-700">
+                <span class="font-medium text-ink-900">{{ entry.email ?? 'Sistem' }}</span>
+                <span class="text-ink-500"> — {{ auditActionLabel(entry.action) }}</span>
+              </p>
+              <p class="text-xs text-ink-400">{{ entry.entity }}{{ entry.entityId ? ' #' + entry.entityId.slice(-6) : '' }}</p>
+            </div>
+            <span class="text-xs text-ink-400 shrink-0">{{ formatTimeAgo(entry.createdAt) }}</span>
+          </div>
+        </div>
+        <p v-else class="text-sm text-ink-400 text-center py-8">Henüz işlem kaydı yok</p>
       </div>
     </div>
 

@@ -56,7 +56,7 @@ const year = new Date().getFullYear()
       <div>
         <h4 class="text-sm font-semibold uppercase tracking-wider text-white">Kategoriler</h4>
         <ul class="mt-5 space-y-2.5 text-sm">
-          <li v-for="c in categories().slice(0, 6)" :key="c.slug">
+          <li v-for="c in categories.slice(0, 6)" :key="c.slug">
             <NuxtLink :to="`/kategori/${c.slug}`" class="hover:text-accent-400 transition-colors">
               {{ c.name }}
             </NuxtLink>
@@ -67,7 +67,7 @@ const year = new Date().getFullYear()
       <div>
         <h4 class="text-sm font-semibold uppercase tracking-wider text-white">Markalar</h4>
         <ul class="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-          <li v-for="b in brands().slice(0, 8)" :key="b.slug">
+          <li v-for="b in brands.slice(0, 8)" :key="b.slug">
             <NuxtLink :to="`/urunler?marka=${b.slug}`" class="hover:text-accent-400 transition-colors">
               {{ b.name }}
             </NuxtLink>

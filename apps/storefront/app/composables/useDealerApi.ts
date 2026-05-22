@@ -1,6 +1,6 @@
 /**
  * Dealer API Composable for Storefront
- * Handles dealer dashboard data fetching
+ * Handles dealer dashboard data fetching with JWT auth
  */
 
 interface CariTransaction {
@@ -44,87 +44,78 @@ export const useDealerApi = () => {
   const config = useRuntimeConfig()
   const apiBase = `${config.public.apiBase}/api`
 
-  /**
-   * Get dealer cari account transactions (history)
-   */
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {}
+    if (import.meta.client) {
+      const token = localStorage.getItem('user-token')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+    return headers
+  }
+
   const getCariTransactions = async (): Promise<CariTransaction[]> => {
     try {
-      const response = await $fetch<CariTransaction[]>(`${apiBase}/dealer/cari/transactions`)
-      return response
+      return await $fetch<CariTransaction[]>(`${apiBase}/dealer/cari/transactions`, {
+        headers: getAuthHeaders(),
+      })
     } catch (error) {
       console.error('Error fetching cari transactions:', error)
       throw error
     }
   }
 
-  /**
-   * Get dealer's received proformas
-   */
   const getProformas = async (): Promise<DealerProforma[]> => {
     try {
-      const response = await $fetch<DealerProforma[]>(`${apiBase}/proforma/dealer`)
-      return response
+      return await $fetch<DealerProforma[]>(`${apiBase}/proforma/dealer`, {
+        headers: getAuthHeaders(),
+      })
     } catch (error) {
       console.error('Error fetching dealer proformas:', error)
       throw error
     }
   }
 
-  /**
-   * Download proforma as PDF
-   */
+  const downloadBlob = async (url: string): Promise<Blob> => {
+    const headers = getAuthHeaders()
+    const response = await fetch(url, { headers })
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`)
+    return await response.blob()
+  }
+
   const downloadProforma = async (proformaId: string): Promise<Blob> => {
     try {
-      const response = await $fetch(`${apiBase}/proforma/${proformaId}/download`, {
-        method: 'GET',
-        responseType: 'blob'
-      })
-      return response as Blob
+      return await downloadBlob(`${apiBase}/proforma/${proformaId}/download`)
     } catch (error) {
       console.error('Error downloading proforma:', error)
       throw error
     }
   }
 
-  /**
-   * Get dealer profile information
-   */
   const getDealerInfo = async (): Promise<DealerInfo> => {
     try {
-      const response = await $fetch<DealerInfo>(`${apiBase}/dealer/profile`)
-      return response
+      return await $fetch<DealerInfo>(`${apiBase}/dealer/profile`, {
+        headers: getAuthHeaders(),
+      })
     } catch (error) {
       console.error('Error fetching dealer info:', error)
       throw error
     }
   }
 
-  /**
-   * Download cari statement as Excel
-   */
   const downloadCariStatement = async (): Promise<Blob> => {
     try {
-      const response = await $fetch(`${apiBase}/dealer/cari/export`, {
-        method: 'GET',
-        responseType: 'blob'
-      })
-      return response as Blob
+      return await downloadBlob(`${apiBase}/dealer/cari/export`)
     } catch (error) {
       console.error('Error downloading cari statement:', error)
       throw error
     }
   }
 
-  /**
-   * Download stock/price report as Excel
-   */
-  const downloadStockReport = async (reportType: 'monthly' | 'yearly' | 'invoice' | 'stock'): Promise<Blob> => {
+  const downloadStockReport = async (reportType: 'monthly' | 'yearly' | 'invoice' | 'stock' | 'detailed'): Promise<Blob> => {
     try {
-      const response = await $fetch(`${apiBase}/dealer/reports/${reportType}`, {
-        method: 'GET',
-        responseType: 'blob'
-      })
-      return response as Blob
+      return await downloadBlob(`${apiBase}/dealer/reports/${reportType}`)
     } catch (error) {
       console.error('Error downloading report:', error)
       throw error
@@ -137,6 +128,6 @@ export const useDealerApi = () => {
     downloadProforma,
     getDealerInfo,
     downloadCariStatement,
-    downloadStockReport
+    downloadStockReport,
   }
 }

@@ -22,6 +22,24 @@ export class AuthService {
       throw new BadRequestException('Email already registered');
     }
 
+    const role = dto.role || 'CUSTOMER';
+
+    // Validate dealer-specific fields
+    if (role === 'DEALER') {
+      if (!dto.company) throw new BadRequestException('İşletme adı zorunludur');
+      if (!dto.contactPerson) throw new BadRequestException('İletişim kişisi zorunludur');
+      if (!dto.cariNo) throw new BadRequestException('Cari hesap numarası zorunludur');
+      if (!dto.taxNo) throw new BadRequestException('Vergi numarası zorunludur');
+      if (!dto.city) throw new BadRequestException('Şehir zorunludur');
+
+      const existingCari = await this.prisma.dealer.findUnique({
+        where: { cariNo: dto.cariNo },
+      });
+      if (existingCari) {
+        throw new BadRequestException('Bu cari hesap numarası zaten kayıtlı');
+      }
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -31,11 +49,32 @@ export class AuthService {
         email: dto.email,
         name: dto.name,
         password: hashedPassword,
+        role,
         phone: dto.phone,
         address: dto.address,
         city: dto.city,
       },
     });
+
+    // If dealer, create Dealer record (PENDING status - requires admin approval)
+    if (role === 'DEALER') {
+      await this.prisma.dealer.create({
+        data: {
+          userId: user.id,
+          name: dto.company!,
+          company: dto.company!,
+          contactPerson: dto.contactPerson!,
+          phone: dto.phone || '',
+          cariNo: dto.cariNo!,
+          taxNo: dto.taxNo!,
+          taxOffice: dto.taxOffice || '',
+          city: dto.city!,
+          region: dto.region || 'Marmara',
+          address: dto.address || '',
+          status: 'PENDING',
+        },
+      });
+    }
 
     // Return token
     return this.generateToken(user);
@@ -58,6 +97,25 @@ export class AuthService {
     return this.generateToken(user);
   }
 
+  async updateProfile(userId: string, data: { name?: string; phone?: string; city?: string; address?: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Kullanıcı bulunamadı');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        city: true,
+        address: true,
+      },
+    });
+  }
+
   async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -75,6 +133,48 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Don't reveal whether the email exists
+      return { message: 'Şifre sıfırlama bağlantısı email adresinize gönderildi.' };
+    }
+
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, purpose: 'password-reset' },
+      { expiresIn: '15m' },
+    );
+
+    // In production, send this via email. For dev, return the reset URL.
+    const resetUrl = `${process.env.STOREFRONT_URL || 'http://localhost:3000'}/sifre-sifirla?token=${resetToken}`;
+
+    return {
+      message: 'Şifre sıfırlama bağlantısı email adresinize gönderildi.',
+      resetUrl,
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    let payload: { sub: string; email: string; purpose: string };
+    try {
+      payload = this.jwtService.verify(token);
+    } catch {
+      throw new BadRequestException('Geçersiz veya süresi dolmuş bağlantı.');
+    }
+
+    if (payload.purpose !== 'password-reset') {
+      throw new BadRequestException('Geçersiz bağlantı.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Şifreniz başarıyla değiştirildi.' };
   }
 
   private generateToken(user: any) {
