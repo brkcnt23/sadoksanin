@@ -131,9 +131,7 @@ sadoksan/ (monorepo root)
 
 | Email | Şifre | Rol | Bayi |
 |-------|-------|-----|------|
-| test@test.com | asd123 | DEALER | Ahmet Yılmaz (İstanbul, 288k TL cari) |
-| erzurum@test.com | asd123 | DEALER | Ali Kaya (Erzurum, 3.6k TL) |
-| bayi@test.com | asd123 | DEALER | Mehmet Demir (Ankara, 0) |
+| bayi@test.com | asd123 | DEALER | BayiTest Yapı Malzemeleri (İstanbul, 250k TL limit) |
 | admin@admin.com | asd123 | ADMIN | — |
 
 ## Test Durumu

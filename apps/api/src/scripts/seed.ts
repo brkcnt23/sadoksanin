@@ -46,27 +46,7 @@ async function main() {
   });
   console.log(`  ✅ B2C Müşteri: ${customer.email}`);
 
-  // ─── Dashboard demo dealers (test@test.com, erzurum@test.com) ─────────────
-  const testUser = await prisma.user.upsert({
-    where: { email: 'test@test.com' },
-    update: { role: 'DEALER' },
-    create: {
-      email: 'test@test.com', password: pw, name: 'Ahmet Yılmaz',
-      role: 'DEALER', phone: '0532 555 44 33', city: 'İstanbul',
-    },
-  });
-  const testDealer = await prisma.dealer.upsert({
-    where: { userId: testUser.id },
-    update: { status: 'ACTIVE', cariValidated: true },
-    create: {
-      userId: testUser.id, name: 'Ahmet Yılmaz', company: 'Yılmaz Yapı Malzemeleri',
-      taxNo: '4567891230', taxOffice: 'Kadıköy', cariNo: 'CARI-005', cariValidated: true,
-      contactPerson: 'Ahmet Yılmaz', phone: '0532 555 44 33', city: 'İstanbul', region: 'Marmara',
-      address: 'Bağdat Cad. No: 150 Kadıköy / İstanbul', status: 'ACTIVE',
-      creditLimit: 100000,
-    },
-  });
-  console.log(`  ✅ Demo Bayi: test@test.com (${testDealer.city})`);
+  // ─── Dashboard demo dealers (bayi@test.com, erzurum@test.com) ─────────────
 
   const erzUser = await prisma.user.upsert({
     where: { email: 'erzurum@test.com' },
@@ -101,14 +81,14 @@ async function main() {
     where: { userId: bayiUser.id },
     update: { status: 'ACTIVE', cariValidated: true },
     create: {
-      userId: bayiUser.id, name: 'Mehmet Demir', company: 'Demir Yapı Malzemeleri',
-      taxNo: '1234567890', taxOffice: 'Çankaya', cariNo: 'CARI-001', cariValidated: true,
-      contactPerson: 'Mehmet Demir', phone: '0532 100 20 30', city: 'Ankara', region: 'İç Anadolu',
-      address: 'Atatürk Bulvarı No: 100', status: 'ACTIVE',
-      creditLimit: 50000,
+      userId: bayiUser.id, name: 'Bayi Test', company: 'BayiTest Yapı Malzemeleri',
+      taxNo: '9990009990', taxOffice: 'Kadıköy', cariNo: 'CARI-BAYITEST', cariValidated: true,
+      contactPerson: 'Bayi Test', phone: '0532 999 88 77', city: 'İstanbul', region: 'Marmara',
+      address: 'Sanayi Mah. İnşaat Sk. No:42 İstanbul', status: 'ACTIVE',
+      creditLimit: 250000,
     },
   });
-  console.log(`  ✅ Demo Bayi: bayi@test.com (${bayiDealer.city})`);
+  console.log(`  ✅ Demo Bayi: bayi@test.com (${bayiDealer.city}) — BayiTest`);
 
   // ─── 5 Dealers (User + Dealer) ─────────────────────────────────────────────
   const dealerDefs = [
