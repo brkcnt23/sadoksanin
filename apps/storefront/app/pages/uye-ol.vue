@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   title: 'Bayi Üyeliği - Kayıt Ol | SADÖKSAN İnşaat',
   description: 'Bayi olarak kayıt olun. Distribütör ağımıza katılın.',
 })
+
+const { push: pushToast } = useToast()
 
 interface FormData {
   ad: string
@@ -155,16 +158,16 @@ const handleSubmit = async () => {
 
     if (result.success) {
       success.value = true
+      pushToast({ variant: 'success', title: 'Kayıt başarılı!', description: 'Giriş sayfasına yönlendiriliyorsunuz.', duration: 3000 })
       window.scrollTo({ top: 0, behavior: 'smooth' })
-
-      setTimeout(() => {
-        navigateTo('/giris')
-      }, 2000)
+      setTimeout(() => { navigateTo('/giris') }, 2000)
     } else {
-      serverError.value = result.error || 'Kayıt başarısız. Lütfen tekrar deneyin.'
+      serverError.value = result.error || 'Kayıt başarısız.'
+      pushToast({ variant: 'error', title: 'Kayıt başarısız', description: serverError.value, duration: 4000 })
     }
   } catch (error: any) {
-    serverError.value = error?.data?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.'
+    serverError.value = error?.data?.message || 'Bir hata oluştu.'
+    pushToast({ variant: 'error', title: 'Hata', description: serverError.value, duration: 4000 })
   } finally {
     loading.value = false
   }

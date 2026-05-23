@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   title: 'Üye Girişi | Sadöksan İnşaat',
@@ -8,6 +9,7 @@ definePageMeta({
 })
 
 const { login, getUser } = useAuth()
+const { push: pushToast } = useToast()
 
 interface FormData {
   email: string
@@ -82,12 +84,15 @@ const handleSubmit = async () => {
 
     if (result.success) {
       const user = getUser()
-      navigateTo('/bayi')
+      pushToast({ variant: 'success', title: 'Giriş başarılı', description: `Hoş geldiniz, ${user?.name}`, duration: 3000 })
+      navigateTo(user?.role === 'DEALER' ? '/bayi' : '/')
     } else {
-      serverError.value = result.error || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
+      serverError.value = result.error || 'Email veya şifre hatalı.'
+      pushToast({ variant: 'error', title: 'Giriş başarısız', description: serverError.value, duration: 4000 })
     }
   } catch (error: any) {
-    serverError.value = 'Bir hata oluştu. Lütfen tekrar deneyin.'
+    serverError.value = 'Bir hata oluştu.'
+    pushToast({ variant: 'error', title: 'Hata', description: serverError.value, duration: 4000 })
   } finally {
     loading.value = false
   }

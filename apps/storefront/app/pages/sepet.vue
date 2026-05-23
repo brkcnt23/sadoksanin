@@ -3,6 +3,7 @@ import { useCart } from '~/composables/useCart'
 import { useDealer } from '~/composables/useDealer'
 import { useAuth } from '~/composables/useAuth'
 import { useApi } from '~/composables/useApi'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   title: 'Sepetim | SADÖKSAN',
@@ -11,6 +12,7 @@ definePageMeta({
 const { items, calculateTotals, removeItem, updateQuantity, clear, placeOrder, loadCart } = useCart()
 const { isDealer, dealer } = useDealer()
 const { getIsAuthenticated, getUser } = useAuth()
+const { push: pushToast } = useToast()
 
 const isLoading = ref(false)
 const checkoutStep = ref<'cart' | 'review' | 'complete'>('cart')
@@ -143,9 +145,20 @@ const handlePlaceOrder = async () => {
         lastOrder.value = order
       }
       checkoutStep.value = 'complete'
+      const isDealerOrder = userIsDealer.value
+      pushToast({
+        variant: 'success',
+        title: 'Sipariş alındı!',
+        description: isDealerOrder
+          ? `${order.orderNo} numaralı siparişiniz onay bekliyor.`
+          : `${order.orderNo} numaralı siparişiniz tamamlandı.`,
+        duration: 6000,
+      })
     }
   } catch (err) {
-    checkoutError.value = err instanceof Error ? err.message : 'Sipariş oluşturma başarısız oldu'
+    const msg = err instanceof Error ? err.message : 'Sipariş oluşturma başarısız oldu'
+    checkoutError.value = msg
+    pushToast({ variant: 'error', title: 'Sipariş hatası', description: msg, duration: 5000 })
     console.error('Order error:', err)
   } finally {
     isLoading.value = false

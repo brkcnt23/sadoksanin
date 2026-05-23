@@ -3,18 +3,17 @@ import type { Product } from '~/composables/useProducts'
 import { useProducts } from '~/composables/useProducts'
 import { useAuth } from '~/composables/useAuth'
 import { useCart } from '~/composables/useCart'
+import { useToast } from '~/composables/useToast'
 
 const route = useRoute()
 const { load, findBySlug, byBrand } = useProducts()
 const { isAuthenticated } = useAuth()
 const { addItem } = useCart()
-
-const toast = ref('')
+const { push: pushToast } = useToast()
 
 const handleAddToCart = (p: Product) => {
   addItem(p, 1)
-  toast.value = 'Ürün sepete eklendi'
-  setTimeout(() => { toast.value = '' }, 2000)
+  pushToast({ variant: 'success', title: 'Sepete eklendi', description: p.name, duration: 2500 })
 }
 
 const product = ref<Product | null>(null)
@@ -70,10 +69,6 @@ onMounted(async () => {
 
             <p class="text-gray-700 mb-8">{{ product.description }}</p>
 
-            <!-- Toast -->
-            <div v-if="toast" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-              {{ toast }}
-            </div>
 
             <button
               v-if="isAuthenticated"
