@@ -93,4 +93,38 @@ export class PricingService {
   async deleteLogisticsRule(id: string) {
     return this.prisma.logisticsRule.delete({ where: { id } });
   }
+
+  async seedProvinces() {
+    const provinces = [
+      'Adana','Adıyaman','Afyonkarahisar','Ağrı','Amasya','Ankara','Antalya','Artvin','Aydın','Balıkesir',
+      'Bilecik','Bingöl','Bitlis','Bolu','Burdur','Bursa','Çanakkale','Çankırı','Çorum','Denizli',
+      'Diyarbakır','Edirne','Elazığ','Erzincan','Erzurum','Eskişehir','Gaziantep','Giresun','Gümüşhane','Hakkari',
+      'Hatay','Isparta','Mersin','İstanbul','İzmir','Kars','Kastamonu','Kayseri','Kırklareli','Kırşehir',
+      'Kocaeli','Konya','Kütahya','Malatya','Manisa','Kahramanmaraş','Mardin','Muğla','Muş','Nevşehir',
+      'Niğde','Ordu','Rize','Sakarya','Samsun','Siirt','Sinop','Sivas','Tekirdağ','Tokat',
+      'Trabzon','Tunceli','Şanlıurfa','Uşak','Van','Yozgat','Zonguldak','Aksaray','Bayburt','Karaman',
+      'Kırıkkale','Batman','Şırnak','Bartın','Ardahan','Iğdır','Yalova','Karabük','Kilis','Osmaniye','Düzce',
+    ];
+    const items: { province: string; surcharge: number; description: string }[] = [];
+
+    for (const p of provinces) {
+      // Base: 150-300 TL randomly
+      const surcharge = Math.round((150 + Math.random() * 150) * 100) / 100;
+      items.push({ province: p, surcharge, description: `${p} lojistik ek ücreti` });
+    }
+
+    // Upsert all
+    let added = 0;
+    for (const item of items) {
+      await this.prisma.provincePricingSurcharge.upsert({
+        where: { province: item.province },
+        create: item,
+        update: { surcharge: item.surcharge },
+      });
+      added++;
+    }
+
+    this.logger.log(`Seeded ${added} province pricing surcharges`);
+    return { provinces: added };
+  }
 }

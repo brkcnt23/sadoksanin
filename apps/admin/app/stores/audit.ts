@@ -39,6 +39,7 @@ export const useAuditStore = defineStore('audit', {
   getters: {
     distinctActions: (s) => Array.from(new Set(s.items.map((e) => e.action))).sort(),
     distinctEntities: (s) => Array.from(new Set(s.items.map((e) => e.entity))).sort(),
+    filtered: (s) => s.items,
   },
 
   actions: {

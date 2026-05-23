@@ -65,4 +65,11 @@ export class PricingController {
   async deleteLogistics(@Param('id') id: string) {
     return this.pricingService.deleteLogisticsRule(id);
   }
+
+  @Post('seed-provinces')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async seedProvinces() {
+    return this.pricingService.seedProvinces();
+  }
 }

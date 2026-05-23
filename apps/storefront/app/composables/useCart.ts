@@ -236,12 +236,22 @@ export const useCart = () => {
 
   const getOrder = (orderId: string) => orders.value.find(o => o.id === orderId)
 
+  const loadOrders = async () => {
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        const { orders: apiOrders } = await api.get<{ orders: Order[]; total: number }>('/orders')
+        orders.value = apiOrders
+      } catch { /* keep local */ }
+    }
+  }
+
   return {
     items: readonly(items),
     orders: readonly(orders),
     addItem, removeItem, updateQuantity, clear,
     calculateTotals, placeOrder,
-    loadCart, mergeLocalToServer,
+    loadCart, loadOrders, mergeLocalToServer,
     getUserOrders, getOrder,
   }
 }
