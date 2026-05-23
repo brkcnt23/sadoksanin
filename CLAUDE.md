@@ -553,11 +553,21 @@ docker compose -f docker-compose.dev.yml up
 - **Storefront:** Sepette ödeme kaynağı seçimi
 
 ### E-ticaret Altyapı Eksikleri (Bu hafta)
-1. Sipariş COMPLETED endpoint + trackingNumber/cargoCompany
-2. Sepet API'ye taşıma (localStorage → DB)
-3. Adres defteri (Address model + CRUD)
-4. Kategori/Marka entity (ayrı tablo)
-5. Kargo takip sistemi
+1. ✅ Sipariş COMPLETED endpoint + completedAt (fc8e149)
+2. ✅ Kategori/Marka entity — ayrı tablo, admin CRUD, 9 kat + 19 marka seed (ec2f215)
+3. ✅ Adres defteri — Address model, auth controller CRUD, hesabim sayfası
+4. Sepet API'ye taşıma (localStorage → DB)
+5. Kargo takip sistemi (lojistik altında)
+6. Bayi risk/yaşlandırma/performans raporları
+
+### Yapılanlar (Session #2 - 23 Mayıs gece)
+- Admin blank page fix: siparisler.vue eksik `<td>` tag'i
+- approveOrder bug fix: bayi totalOrders/totalRevenue/cariBalance güncellenmiyordu
+- markCompleted metodu + completedAt migration
+- Full cycle integration test: 19/19 (bayi kaydı → sipariş → onay → sevk → tamamlanma)
+- Category + Brand entity: 2 yeni model, CRUD, seed, route fix
+- Address book: Address model, auth CRUD, hesabim sayfası adres yönetimi
+- Testler: 47/47 passing (4 suite)
 
 ### Bayi Raporları (Bu hafta)
 1. Risk raporu — kredi kullanım oranı, iptal/iadde sıklığı, sipariş düzeni

@@ -177,6 +177,65 @@ export class AuthService {
     return { message: 'Şifreniz başarıyla değiştirildi.' };
   }
 
+  // ─── Address Book ──────────────────────────────────────────────────────
+
+  async listAddresses(userId: string) {
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createAddress(
+    userId: string,
+    data: { title: string; address: string; city: string; district?: string; isDefault?: boolean },
+  ) {
+    if (data.isDefault) {
+      await this.prisma.address.updateMany({ where: { userId }, data: { isDefault: false } });
+    }
+    const count = await this.prisma.address.count({ where: { userId } });
+    return this.prisma.address.create({
+      data: {
+        userId,
+        title: data.title,
+        address: data.address,
+        city: data.city,
+        district: data.district,
+        isDefault: data.isDefault ?? count === 0,
+      },
+    });
+  }
+
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    data: { title?: string; address?: string; city?: string; district?: string; isDefault?: boolean },
+  ) {
+    const addr = await this.prisma.address.findUnique({ where: { id: addressId } });
+    if (!addr || addr.userId !== userId) throw new BadRequestException('Adres bulunamadı');
+
+    if (data.isDefault) {
+      await this.prisma.address.updateMany({ where: { userId }, data: { isDefault: false } });
+    }
+    return this.prisma.address.update({ where: { id: addressId }, data });
+  }
+
+  async deleteAddress(userId: string, addressId: string) {
+    const addr = await this.prisma.address.findUnique({ where: { id: addressId } });
+    if (!addr || addr.userId !== userId) throw new BadRequestException('Adres bulunamadı');
+
+    const deleted = await this.prisma.address.delete({ where: { id: addressId } });
+
+    // If deleted was the default, make another one default
+    if (deleted.isDefault) {
+      const next = await this.prisma.address.findFirst({ where: { userId }, orderBy: { createdAt: 'asc' } });
+      if (next) {
+        await this.prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
+      }
+    }
+    return deleted;
+  }
+
   private generateToken(user: any) {
     const payload = {
       sub: user.id,

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Patch, UseGuards, Request, Get } from '@nestjs/common';
+import { Controller, Post, Body, Patch, Delete, Param, UseGuards, Request, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -41,5 +41,39 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword(@Body() body: { token: string; password: string }) {
     return this.authService.resetPassword(body.token, body.password);
+  }
+
+  // ─── Address Book ────────────────────────────────────────────────────────
+
+  @Get('addresses')
+  @UseGuards(JwtAuthGuard)
+  async listAddresses(@Request() req) {
+    return this.authService.listAddresses(req.user.sub);
+  }
+
+  @Post('addresses')
+  @UseGuards(JwtAuthGuard)
+  async createAddress(
+    @Request() req,
+    @Body() body: { title: string; address: string; city: string; district?: string; isDefault?: boolean },
+  ) {
+    return this.authService.createAddress(req.user.sub, body);
+  }
+
+  @Patch('addresses/:id')
+  @UseGuards(JwtAuthGuard)
+  async updateAddress(
+    @Request() req,
+    @Param('id') addressId: string,
+    @Body() body: { title?: string; address?: string; city?: string; district?: string; isDefault?: boolean },
+  ) {
+    return this.authService.updateAddress(req.user.sub, addressId, body);
+  }
+
+  @Delete('addresses/:id')
+  @UseGuards(JwtAuthGuard)
+  async deleteAddress(@Request() req, @Param('id') addressId: string) {
+    await this.authService.deleteAddress(req.user.sub, addressId);
+    return { success: true };
   }
 }

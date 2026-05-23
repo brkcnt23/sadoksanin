@@ -30,12 +30,32 @@ model User {
   orders    Order[]
   favorites Favorite[]
 
+  // Saved addresses
+  addresses Address[]
+
   // Audit
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   @@index([email])
   @@index([role])
+}
+
+// ───── Address Book ──────────────────────────────────────────────────────────
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   // "Ev", "İş", "Depo" etc.
+  address   String   // Full address line
+  city      String
+  district  String?
+  isDefault Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 enum UserRole {
