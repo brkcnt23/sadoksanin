@@ -1,7 +1,9 @@
 import type { Product } from '~/composables/useProducts'
 import { useApi } from '~/composables/useApi'
+import { useAuth } from '~/composables/useAuth'
 
 export interface CartItem {
+  id?: string
   productId: string
   product: Product
   quantity: number
@@ -21,95 +23,165 @@ export interface Order {
   paymentMethod?: string
 }
 
+const STORAGE_KEY = 'cart.items'
+
 export const useCart = () => {
   const items = useState<CartItem[]>('cart.items', () => [])
   const orders = useState<Order[]>('cart.orders', () => [])
 
-  // Load from localStorage on mount
-  const loadCart = () => {
-    if (process.client) {
-      const stored = localStorage.getItem('cart.items')
-      if (stored) {
-        try {
-          items.value = JSON.parse(stored)
-        } catch {
-          items.value = []
-        }
+  const { isAuthenticated } = useAuth()
+  let merged = false
+
+  // Auto-merge local cart when user logs in
+  if (import.meta.client) {
+    watch(isAuthenticated, async (authed) => {
+      if (authed && !merged) {
+        merged = true
+        await mergeLocalToServer()
+        items.value = await fetchServerCart()
       }
-    }
+      if (!authed) merged = false
+    })
   }
 
-  // Save to localStorage whenever items change
-  const saveCart = () => {
+  // ─── Helpers ──────────────────────────────────────────────────────────
+
+  const loadLocalCart = (): CartItem[] => {
     if (process.client) {
-      localStorage.setItem('cart.items', JSON.stringify(items.value))
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+      } catch { return [] }
+    }
+    return []
+  }
+
+  const saveLocalCart = (cart: CartItem[]) => {
+    if (process.client) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cart))
     }
   }
 
-  // Add item to cart
-  const addItem = (product: Product, quantity = 1) => {
-    const existing = items.value.find(item => item.productId === product.id)
+  const fetchServerCart = async (): Promise<CartItem[]> => {
+    try {
+      const api = useApi()
+      const serverItems = await api.get<any[]>('/cart')
+      return serverItems.map((i: any) => ({
+        id: i.id,
+        productId: i.productId,
+        product: i.product,
+        quantity: i.quantity,
+        addedAt: i.addedAt,
+      }))
+    } catch { return [] }
+  }
 
+  // ─── Init / Load ─────────────────────────────────────────────────────
+
+  const loadCart = async () => {
+    if (isAuthenticated.value) {
+      items.value = await fetchServerCart()
+    } else {
+      items.value = loadLocalCart()
+    }
+  }
+
+  // ─── Merge local → server on login ────────────────────────────────────
+
+  const mergeLocalToServer = async () => {
+    const local = loadLocalCart()
+    if (local.length === 0) return
+    try {
+      const api = useApi()
+      await api.post('/cart/merge', {
+        items: local.map(i => ({ productId: i.productId, quantity: i.quantity })),
+      })
+      saveLocalCart([])
+    } catch { /* keep local if merge fails */ }
+  }
+
+  // ─── Operations ──────────────────────────────────────────────────────
+
+  const addItem = async (product: Product, quantity = 1) => {
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        await api.post('/cart/add', { productId: product.id, quantity })
+        items.value = await fetchServerCart()
+        return
+      } catch { /* fallthrough to local */ }
+    }
+
+    // Local fallback
+    const existing = items.value.find(i => i.productId === product.id)
     if (existing) {
       existing.quantity += quantity
     } else {
       items.value.push({
-        productId: product.id,
-        product,
-        quantity,
+        productId: product.id, product, quantity,
         addedAt: new Date().toISOString(),
       })
     }
-
-    saveCart()
+    saveLocalCart(items.value)
   }
 
-  // Remove item from cart
-  const removeItem = (productId: string) => {
-    const idx = items.value.findIndex(item => item.productId === productId)
-    if (idx > -1) {
-      items.value.splice(idx, 1)
-      saveCart()
+  const removeItem = async (productId: string) => {
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        await api.delete(`/cart/${productId}`)
+        items.value = await fetchServerCart()
+        return
+      } catch { /* fallthrough */ }
     }
+
+    const idx = items.value.findIndex(i => i.productId === productId)
+    if (idx > -1) { items.value.splice(idx, 1); saveLocalCart(items.value) }
   }
 
-  // Update quantity
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = async (productId: string, quantity: number) => {
+    if (quantity <= 0) return removeItem(productId)
+
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        await api.patch(`/cart/${productId}`, { quantity })
+        items.value = await fetchServerCart()
+        return
+      } catch { /* fallthrough */ }
+    }
+
     const item = items.value.find(i => i.productId === productId)
-    if (item) {
-      if (quantity <= 0) {
-        removeItem(productId)
-      } else {
-        item.quantity = quantity
-        saveCart()
-      }
+    if (item) { item.quantity = quantity; saveLocalCart(items.value) }
+  }
+
+  const clear = async () => {
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        await api.delete('/cart')
+      } catch { /* ignore */ }
     }
-  }
-
-  // Clear cart
-  const clear = () => {
     items.value = []
-    saveCart()
+    saveLocalCart([])
   }
 
-  // Calculate cart totals
+  // ─── Totals ──────────────────────────────────────────────────────────
+
   const calculateTotals = (dealerSurchargePerItem?: number) => {
-    const subtotal = items.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-
+    const subtotal = items.value.reduce((sum, i) => sum + i.product.basePrice * i.quantity, 0)
     const dealerSurcharge = dealerSurchargePerItem
-      ? items.value.reduce((sum, item) => sum + dealerSurchargePerItem * item.quantity, 0)
-      : 0
-
+      ? items.value.reduce((sum, i) => sum + dealerSurchargePerItem * i.quantity, 0) : 0
     return {
       subtotal,
       dealerSurcharge,
       total: subtotal + dealerSurcharge,
       itemCount: items.value.length,
-      quantity: items.value.reduce((sum, item) => sum + item.quantity, 0),
+      quantity: items.value.reduce((sum, i) => sum + i.quantity, 0),
     }
   }
 
-  // Place order — sends to API (matches CreateOrderDto)
+  // ─── Place Order ─────────────────────────────────────────────────────
+
   const placeOrder = async (payload: {
     customerType: 'B2C' | 'B2B'
     shippingCity: string
@@ -119,18 +191,15 @@ export const useCart = () => {
     notes?: string
     paymentMethod?: string
   }) => {
-    if (items.value.length === 0) {
-      return null
-    }
+    if (items.value.length === 0) return null
 
     try {
       const api = useApi()
-
       const orderData = {
-        items: items.value.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.product.price,
+        items: items.value.map(i => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitPrice: i.product.basePrice,
           taxRate: 0.2,
         })),
         customerType: payload.customerType,
@@ -143,14 +212,8 @@ export const useCart = () => {
       }
 
       const response = await api.post<Order>('/orders', orderData)
-
       orders.value.push(response)
-      if (process.client) {
-        localStorage.setItem('cart.orders', JSON.stringify(orders.value))
-      }
-
-      clear()
-
+      await clear()
       return response
     } catch (err) {
       console.error('Order creation failed:', err)
@@ -158,38 +221,27 @@ export const useCart = () => {
     }
   }
 
-  // Load orders from localStorage
-  const loadOrders = () => {
-    if (process.client) {
-      const stored = localStorage.getItem('cart.orders')
-      if (stored) {
-        try {
-          orders.value = JSON.parse(stored)
-        } catch {
-          orders.value = []
-        }
-      }
+  // ─── Orders (from API if authenticated) ──────────────────────────────
+
+  const getUserOrders = async () => {
+    if (isAuthenticated.value) {
+      try {
+        const api = useApi()
+        const { orders: apiOrders } = await api.get<{ orders: Order[] }>('/orders')
+        return apiOrders
+      } catch { /* fallback */ }
     }
+    return orders.value
   }
 
-  // Get user's orders
-  const getUserOrders = () => orders.value
-
-  // Get single order
   const getOrder = (orderId: string) => orders.value.find(o => o.id === orderId)
 
   return {
     items: readonly(items),
     orders: readonly(orders),
-    addItem,
-    removeItem,
-    updateQuantity,
-    clear,
-    calculateTotals,
-    placeOrder,
-    loadCart,
-    loadOrders,
-    getUserOrders,
-    getOrder,
+    addItem, removeItem, updateQuantity, clear,
+    calculateTotals, placeOrder,
+    loadCart, mergeLocalToServer,
+    getUserOrders, getOrder,
   }
 }

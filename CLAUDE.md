@@ -555,8 +555,8 @@ docker compose -f docker-compose.dev.yml up
 ### E-ticaret Altyapı Eksikleri (Bu hafta)
 1. ✅ Sipariş COMPLETED endpoint + completedAt (fc8e149)
 2. ✅ Kategori/Marka entity — ayrı tablo, admin CRUD, 9 kat + 19 marka seed (ec2f215)
-3. ✅ Adres defteri — Address model, auth controller CRUD, hesabim sayfası
-4. Sepet API'ye taşıma (localStorage → DB)
+3. ✅ Adres defteri — Address model, auth controller CRUD, hesabim sayfası (de8f8d5)
+4. ✅ Sepet API — CartItem model, cart CRUD, useCart API sync, auto-merge
 5. Kargo takip sistemi (lojistik altında)
 6. Bayi risk/yaşlandırma/performans raporları
 
@@ -567,6 +567,8 @@ docker compose -f docker-compose.dev.yml up
 - Full cycle integration test: 19/19 (bayi kaydı → sipariş → onay → sevk → tamamlanma)
 - Category + Brand entity: 2 yeni model, CRUD, seed, route fix
 - Address book: Address model, auth CRUD, hesabim sayfası adres yönetimi
+- Server-side cart: CartItem model, cart CRUD (add/update/remove/clear/merge),
+  useCart API sync, auto-merge local→server on login
 - Testler: 47/47 passing (4 suite)
 
 ### Bayi Raporları (Bu hafta)
