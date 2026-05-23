@@ -51,12 +51,12 @@ export const useCatalog = () => {
     try {
       const api = useApi()
       const [catRes, brandRes] = await Promise.all([
-        api.get<{ categories: string[] }>('/products/filters/categories'),
-        api.get<{ brands: string[] }>('/products/filters/brands'),
+        api.get<any[]>('/products/categories'),
+        api.get<any[]>('/products/brands'),
       ])
 
-      const catNames: string[] = catRes.categories || []
-      const brandNames: string[] = brandRes.brands || []
+      const catNames: string[] = Array.isArray(catRes) ? catRes.map((c: any) => c.name) : (catRes.categories || [])
+      const brandNames: string[] = Array.isArray(brandRes) ? brandRes.map((b: any) => b.name) : (brandRes.brands || [])
 
       const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toLocaleUpperCase('tr-TR'))
 

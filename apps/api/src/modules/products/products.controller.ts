@@ -1,17 +1,6 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  UseInterceptors,
-  UploadedFile,
-  Res,
-  BadRequestException,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query,
+  UseGuards, UseInterceptors, UploadedFile, Res, BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -26,10 +15,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
-  /**
-   * List visible products with filters
-   * Public endpoint - no auth required
-   */
+  // ═══════════════════════════════════════════════════════════════════
+  // PUBLIC ENDPOINTS (no auth)
+  // ═══════════════════════════════════════════════════════════════════
+
   @Get()
   async listProducts(
     @Query('category') category?: string,
@@ -39,56 +28,107 @@ export class ProductsController {
     @Query('offset') offset?: string,
   ) {
     return this.productsService.listProducts(
-      category,
-      brand,
-      search,
-      parseInt(limit || '50'),
-      parseInt(offset || '0'),
+      category, brand, search,
+      parseInt(limit || '50'), parseInt(offset || '0'),
     );
   }
 
-  /**
-   * Get product details
-   * Public endpoint
-   */
-  @Get(':productId')
-  async getProduct(@Param('productId') productId: string) {
-    return this.productsService.getProduct(productId);
-  }
+  // NOTE: specific named routes MUST come before :productId wildcard
 
-  /**
-   * Get all categories
-   * Public endpoint
-   */
-  @Get('filters/categories')
+  @Get('categories')
   async getCategories() {
-    const categories = await this.productsService.getCategories();
-    return { categories };
+    return this.productsService.getCategories();
   }
 
-  /**
-   * Get all brands
-   * Public endpoint
-   */
-  @Get('filters/brands')
+  @Get('brands')
   async getBrands() {
-    const brands = await this.productsService.getBrands();
-    return { brands };
+    return this.productsService.getBrands();
   }
 
-  /**
-   * Get stock status for a product
-   * Public endpoint
-   */
   @Get('stock/:productId/status')
   async getStockStatus(@Param('productId') productId: string) {
     const status = await this.productsService.getStockStatus(productId);
     return { productId, status };
   }
 
-  /**
-   * Admin: Get all products including hidden ones
-   */
+  @Get(':productId')
+  async getProduct(@Param('productId') productId: string) {
+    return this.productsService.getProduct(productId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ADMIN: Category CRUD
+  // ═══════════════════════════════════════════════════════════════════
+
+  @Post('categories')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async createCategory(@Body() body: { name: string; description?: string; imageUrl?: string; order?: number }) {
+    return this.productsService.createCategory(body);
+  }
+
+  @Patch('categories/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateCategory(
+    @Param('id') id: string,
+    @Body() body: { name?: string; description?: string; imageUrl?: string; order?: number },
+  ) {
+    return this.productsService.updateCategory(id, body);
+  }
+
+  @Delete('categories/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async deleteCategory(@Param('id') id: string) {
+    await this.productsService.deleteCategory(id);
+    return { success: true };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ADMIN: Brand CRUD
+  // ═══════════════════════════════════════════════════════════════════
+
+  @Post('brands')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async createBrand(@Body() body: { name: string; description?: string; logoUrl?: string }) {
+    return this.productsService.createBrand(body);
+  }
+
+  @Patch('brands/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateBrand(
+    @Param('id') id: string,
+    @Body() body: { name?: string; description?: string; logoUrl?: string },
+  ) {
+    return this.productsService.updateBrand(id, body);
+  }
+
+  @Delete('brands/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async deleteBrand(@Param('id') id: string) {
+    await this.productsService.deleteBrand(id);
+    return { success: true };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ADMIN: One-time seed categories/brands from existing products
+  // ═══════════════════════════════════════════════════════════════════
+
+  @Post('seed-categories-brands')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async seedCategoriesAndBrands() {
+    return this.productsService.seedCategoriesAndBrands();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ADMIN: Product management
+  // ═══════════════════════════════════════════════════════════════════
+
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -97,14 +137,10 @@ export class ProductsController {
     @Query('offset') offset?: string,
   ) {
     return this.productsService.getAllProducts(
-      parseInt(limit || '50'),
-      parseInt(offset || '0'),
+      parseInt(limit || '50'), parseInt(offset || '0'),
     );
   }
 
-  /**
-   * Admin: Toggle product visibility
-   */
   @Post(':productId/visibility')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -115,9 +151,6 @@ export class ProductsController {
     return this.productsService.toggleVisibility(productId, body.visible);
   }
 
-  /**
-   * Admin: Toggle product purchasability
-   */
   @Post(':productId/purchasable')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -128,9 +161,6 @@ export class ProductsController {
     return this.productsService.togglePurchasable(productId, body.purchasable);
   }
 
-  /**
-   * Admin: Update stock thresholds
-   */
   @Post(':productId/stock-thresholds')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -138,16 +168,9 @@ export class ProductsController {
     @Param('productId') productId: string,
     @Body() body: { minimumStock: number; middleStock?: number },
   ) {
-    return this.productsService.updateStockThresholds(
-      productId,
-      body.minimumStock,
-      body.middleStock,
-    );
+    return this.productsService.updateStockThresholds(productId, body.minimumStock, body.middleStock);
   }
 
-  /**
-   * Admin: Create a new product
-   */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -155,9 +178,6 @@ export class ProductsController {
     return this.productsService.createProduct(dto);
   }
 
-  /**
-   * Admin: Update an existing product
-   */
   @Patch(':productId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -168,9 +188,6 @@ export class ProductsController {
     return this.productsService.updateProduct(productId, dto);
   }
 
-  /**
-   * Admin: Delete a product
-   */
   @Delete(':productId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -179,9 +196,6 @@ export class ProductsController {
     return { success: true };
   }
 
-  /**
-   * Admin: Export all products as Excel
-   */
   @Get('admin/export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -192,24 +206,16 @@ export class ProductsController {
     res.send(buffer);
   }
 
-  /**
-   * Admin: Bulk price update by category or brand
-   */
   @Post('admin/bulk-price')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   async bulkPriceUpdate(@Body() body: {
-    target: 'category' | 'brand';
-    targetValue: string;
-    type: 'percentage' | 'fixed';
-    value: number;
+    target: 'category' | 'brand'; targetValue: string;
+    type: 'percentage' | 'fixed'; value: number;
   }) {
     return this.productsService.bulkPriceUpdate(body);
   }
 
-  /**
-   * Admin: Import products from Excel
-   */
   @Post('admin/import')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -219,7 +225,9 @@ export class ProductsController {
     return this.productsService.importProducts(file.buffer);
   }
 
-  // ─── Variations ───────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  // Variations
+  // ═══════════════════════════════════════════════════════════════════
 
   @Get(':productId/variations')
   async getVariations(@Param('productId') productId: string) {

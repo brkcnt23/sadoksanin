@@ -103,14 +103,45 @@ enum DealerStatus {
   REJECTED
 }
 
+// ───── Categories ─────────────────────────────────────────────────────────────
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  order       Int       @default(0) // Sıralama
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ───── Brands ─────────────────────────────────────────────────────────────────
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  logoUrl     String?
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 // ───── Products (from Netsis) ────────────────────────────────────────────────
 model Product {
   id                String       @id @default(cuid())
   netsisCode        String       @unique // Master ID from Netsis
   sku               String       @unique
   name              String
-  brand             String
-  category          String
+  brand             String       // Denormalized for fast reads (sync from Brand)
+  category          String       // Denormalized for fast reads (sync from Category)
+  brandId           String?
+  brandRel          Brand?       @relation(fields: [brandId], references: [id])
+  categoryId        String?
+  categoryRel       Category?    @relation(fields: [categoryId], references: [id])
   description       String?
 
   // Visual assets (used in proforma PDF, product cards, etc.)
@@ -157,6 +188,8 @@ model Product {
   @@index([netsisCode])
   @@index([sku])
   @@index([category])
+  @@index([brandId])
+  @@index([categoryId])
   @@index([syncStatus])
 }
 

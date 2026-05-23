@@ -103,29 +103,127 @@ export class ProductsService {
   }
 
   /**
-   * Get all categories
+   * Seed categories and brands from existing product strings (one-time migration)
    */
-  async getCategories() {
-    const categories = await this.prisma.product.findMany({
-      where: { visible: true },
+  async seedCategoriesAndBrands() {
+    // Extract unique categories from products
+    const catRows = await this.prisma.product.findMany({
       select: { category: true },
       distinct: ['category'],
     });
+    const categories = catRows.map((c) => c.category).filter(Boolean);
+    for (const name of categories) {
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      await this.prisma.category.upsert({
+        where: { name },
+        update: {},
+        create: { name, slug },
+      });
+    }
 
-    return categories.map((c) => c.category).filter(Boolean);
-  }
-
-  /**
-   * Get all brands
-   */
-  async getBrands() {
-    const brands = await this.prisma.product.findMany({
-      where: { visible: true },
+    // Extract unique brands, skip brands named "Genel" or empty
+    const brandRows = await this.prisma.product.findMany({
       select: { brand: true },
       distinct: ['brand'],
     });
+    const brands = brandRows.map((b) => b.brand).filter(Boolean);
+    for (const name of brands) {
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      await this.prisma.brand.upsert({
+        where: { name },
+        update: {},
+        create: { name, slug },
+      });
+    }
 
-    return brands.map((b) => b.brand).filter(Boolean);
+    // Link products to their category/brand via ID
+    const allCategories = await this.prisma.category.findMany();
+    const allBrands = await this.prisma.brand.findMany();
+
+    for (const cat of allCategories) {
+      await this.prisma.product.updateMany({
+        where: { category: cat.name },
+        data: { categoryId: cat.id },
+      });
+    }
+    for (const brand of allBrands) {
+      await this.prisma.product.updateMany({
+        where: { brand: brand.name },
+        data: { brandId: brand.id },
+      });
+    }
+
+    return { categories: allCategories.length, brands: allBrands.length };
+  }
+
+  /**
+   * Get all categories from the Category model
+   */
+  async getCategories() {
+    return this.prisma.category.findMany({
+      orderBy: { order: 'asc' },
+      include: { _count: { select: { products: true } } },
+    });
+  }
+
+  /**
+   * Get all brands from the Brand model
+   */
+  async getBrands() {
+    return this.prisma.brand.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { products: true } } },
+    });
+  }
+
+  // ─── Category CRUD ────────────────────────────────────────────────────
+
+  async createCategory(dto: { name: string; description?: string; imageUrl?: string; order?: number }) {
+    const slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return this.prisma.category.create({ data: { ...dto, slug } });
+  }
+
+  async updateCategory(id: string, dto: { name?: string; description?: string; imageUrl?: string; order?: number }) {
+    const data: any = { ...dto };
+    if (dto.name) data.slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // Sync denormalized category name on products
+    if (dto.name) {
+      const cat = await this.prisma.category.findUnique({ where: { id } });
+      if (cat) {
+        await this.prisma.product.updateMany({ where: { categoryId: id }, data: { category: dto.name } });
+      }
+    }
+    return this.prisma.category.update({ where: { id }, data });
+  }
+
+  async deleteCategory(id: string) {
+    // Unlink products first
+    await this.prisma.product.updateMany({ where: { categoryId: id }, data: { categoryId: null } });
+    return this.prisma.category.delete({ where: { id } });
+  }
+
+  // ─── Brand CRUD ──────────────────────────────────────────────────────
+
+  async createBrand(dto: { name: string; description?: string; logoUrl?: string }) {
+    const slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return this.prisma.brand.create({ data: { ...dto, slug } });
+  }
+
+  async updateBrand(id: string, dto: { name?: string; description?: string; logoUrl?: string }) {
+    const data: any = { ...dto };
+    if (dto.name) data.slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (dto.name) {
+      const brand = await this.prisma.brand.findUnique({ where: { id } });
+      if (brand) {
+        await this.prisma.product.updateMany({ where: { brandId: id }, data: { brand: dto.name } });
+      }
+    }
+    return this.prisma.brand.update({ where: { id }, data });
+  }
+
+  async deleteBrand(id: string) {
+    await this.prisma.product.updateMany({ where: { brandId: id }, data: { brandId: null } });
+    return this.prisma.brand.delete({ where: { id } });
   }
 
   /**

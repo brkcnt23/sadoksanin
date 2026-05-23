@@ -6,8 +6,14 @@ const mockProductService = {
   getProduct: jest.fn().mockResolvedValue({
     id: 'p-1', name: 'Test Seramik', category: 'Seramik', basePrice: 320,
   }),
-  getCategories: jest.fn().mockResolvedValue(['Seramik', 'Vitrifiye']),
-  getBrands: jest.fn().mockResolvedValue(['AKGÜN', 'ISVEA']),
+  getCategories: jest.fn().mockResolvedValue([
+    { id: 'cat-1', name: 'Seramik', slug: 'seramik', _count: { products: 5 } },
+    { id: 'cat-2', name: 'Vitrifiye', slug: 'vitrifiye', _count: { products: 3 } },
+  ]),
+  getBrands: jest.fn().mockResolvedValue([
+    { id: 'br-1', name: 'AKGÜN', slug: 'akgun', _count: { products: 2 } },
+    { id: 'br-2', name: 'ISVEA', slug: 'isvea', _count: { products: 4 } },
+  ]),
   createProduct: jest.fn(),
   updateProduct: jest.fn(),
   deleteProduct: jest.fn(),
@@ -44,16 +50,21 @@ describe('ProductsController', () => {
   });
 
   describe('getCategories', () => {
-    it('should return distinct categories', async () => {
+    it('should return categories with product counts', async () => {
       const result = await controller.getCategories();
-      expect(result).toEqual({ categories: ['Seramik', 'Vitrifiye'] });
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Seramik');
+      expect(result[0].slug).toBe('seramik');
+      expect(result[0]._count.products).toBe(5);
     });
   });
 
   describe('getBrands', () => {
-    it('should return distinct brands', async () => {
+    it('should return brands with product counts', async () => {
       const result = await controller.getBrands();
-      expect(result).toEqual({ brands: ['AKGÜN', 'ISVEA'] });
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('AKGÜN');
+      expect(result[1].name).toBe('ISVEA');
     });
   });
 });
