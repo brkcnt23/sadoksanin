@@ -5,7 +5,7 @@
 export default defineNuxtRouteMiddleware(() => {
   if (!import.meta.client) return
 
-  const token = localStorage.getItem('auth-token')
+  const token = localStorage.getItem('user-token')
   if (!token) {
     return navigateTo('/giris')
   }

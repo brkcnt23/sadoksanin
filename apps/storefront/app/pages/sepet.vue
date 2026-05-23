@@ -152,8 +152,12 @@ const handlePlaceOrder = async () => {
         description: isDealerOrder
           ? `${order.orderNo} numaralı siparişiniz onay bekliyor.`
           : `${order.orderNo} numaralı siparişiniz tamamlandı.`,
-        duration: 6000,
+        duration: 4000,
       })
+      // Auto-redirect after short delay
+      setTimeout(() => {
+        navigateTo(isDealerOrder ? '/bayi' : '/siparislerim')
+      }, 2500)
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Sipariş oluşturma başarısız oldu'

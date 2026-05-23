@@ -69,17 +69,20 @@ async function bulkReject() {
   selectedIds.value = new Set()
 }
 
-const orderStatusBadge = (s: OrderStatus) => {
-  const m: Record<OrderStatus, { variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'; label: string }> = {
-    'pending-approval': { variant: 'warning', label: 'Onay Bekliyor' },
+const orderStatusBadge = (s: string) => {
+  const key = (s || '').toLowerCase()
+  const m: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'; label: string }> = {
+    'pending_approval': { variant: 'warning', label: 'Onay Bekliyor' },
     approved: { variant: 'info', label: 'Onaylandı' },
     preparing: { variant: 'info', label: 'Hazırlanıyor' },
     shipped: { variant: 'purple', label: 'Sevk Edildi' },
     completed: { variant: 'success', label: 'Tamamlandı' },
     cancelled: { variant: 'neutral', label: 'İptal' },
     rejected: { variant: 'danger', label: 'Reddedildi' },
+    returned: { variant: 'neutral', label: 'İade' },
+    return_requested: { variant: 'warning', label: 'İade Talebi' },
   }
-  return m[s]
+  return m[key] || { variant: 'neutral' as const, label: s || 'Bilinmiyor' }
 }
 
 const approve = async (o: Order) => {

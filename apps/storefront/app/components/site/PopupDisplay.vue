@@ -66,7 +66,7 @@ async function fetchPopup() {
   try {
     const data = await $fetch<PopupData[]>('/api/admin/popups/active', {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('auth-token') ?? ''}`,
+        Authorization: `Bearer ${localStorage.getItem('user-token') ?? ''}`,
       },
     })
     if (Array.isArray(data) && data.length > 0) {
