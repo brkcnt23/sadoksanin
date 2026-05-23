@@ -16,7 +16,7 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   // Login route is always reachable; redirect away if already logged in.
-  if (to.path === '/sadoksanadmin') {
+  if (to.path === '/sadoksan-panel') {
     if (isAuthenticated.value) {
       return navigateTo('/')
     }
@@ -25,6 +25,6 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // Everything else requires auth.
   if (!isAuthenticated.value) {
-    return navigateTo('/sadoksanadmin')
+    return navigateTo('/sadoksan-panel')
   }
 })

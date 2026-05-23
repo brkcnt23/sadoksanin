@@ -65,7 +65,7 @@ const activeLabel = computed(() => {
 
 const handleLogout = () => {
   logout()
-  navigateTo('/sadoksanadmin')
+  navigateTo('/sadoksan-panel')
 }
 </script>
 

@@ -1,25 +1,34 @@
-version: '3.9'
+# ============================================================================
+# Production orchestration — Sadoksan ERP
+# Each app has its own multi-stage Dockerfile (apps/*/Dockerfile)
+#
+# Başlatma: docker compose -f docker-compose.prod.yml up -d
+# Durdurma: docker compose -f docker-compose.prod.yml down
+# Log:      docker compose -f docker-compose.prod.yml logs -f
+# Backup:   docker exec sadoksan-postgres-prod pg_dump -U sadoksan sadoksan > backups/backup-$(date +%Y%m%d).sql
+# ============================================================================
 
 services:
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
   # DATABASE LAYER
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
 
   postgres:
     image: postgres:15-alpine
-    container_name: sadoksan-postgres
-    restart: always
+    container_name: sadoksan-postgres-prod
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-sadoksan_prod}
-      POSTGRES_USER: ${DB_USER:-sadoksan}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-sadoksan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sadoksan}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sadoksan}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sadoksan}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,17 +37,17 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "50m"
+        max-file: "5"
 
   redis:
     image: redis:7-alpine
-    container_name: sadoksan-redis
-    restart: always
+    container_name: sadoksan-redis-prod
+    restart: unless-stopped
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -50,155 +59,158 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
+        max-size: "30m"
         max-file: "3"
 
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
   # NODE.JS SERVICES
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
 
   api:
     build:
       context: .
-      dockerfile: Dockerfile.prod
-      target: api
-    container_name: sadoksan-api
-    restart: always
+      dockerfile: apps/api/Dockerfile
+      target: production
+    container_name: sadoksan-api-prod
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${DB_USER:-sadoksan}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-sadoksan_prod}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sadoksan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sadoksan}
       REDIS_URL: redis://redis:6379
       PYTHON_SERVICE_URL: http://python-service:5000
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
       API_PORT: 3001
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      API_HOST: 0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - uploads:/app/uploads
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/auth/me', r => process.exit(r.statusCode === 401 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 40s
     networks:
       - sadoksan-network
+    mem_limit: 512m
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
+        max-size: "50m"
         max-file: "5"
 
   storefront:
     build:
       context: .
-      dockerfile: Dockerfile.prod
-      target: storefront
-    container_name: sadoksan-storefront
-    restart: always
+      dockerfile: apps/storefront/Dockerfile
+      target: production
+    container_name: sadoksan-storefront-prod
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      NITRO_API_BASE: http://api:3001
-      PUBLIC_API_BASE: ${PUBLIC_API_BASE:-https://api.sadoksan.com}
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-https://api.sadoksaninsaat.com.tr}
+      NITRO_PRESET: node-server
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 30s
     networks:
       - sadoksan-network
+    mem_limit: 512m
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
+        max-size: "50m"
         max-file: "5"
 
   admin:
     build:
       context: .
-      dockerfile: Dockerfile.prod
-      target: admin
-    container_name: sadoksan-admin
-    restart: always
+      dockerfile: apps/admin/Dockerfile
+      target: production
+    container_name: sadoksan-admin-prod
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      NITRO_API_BASE: http://api:3001
-      PUBLIC_API_BASE: ${PUBLIC_API_BASE:-https://api.sadoksan.com}
+      ADMIN_API_BASE: ${ADMIN_API_BASE:-http://api:3001}
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "3002:3002"
+      - "127.0.0.1:3002:3002"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3002/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 30s
     networks:
       - sadoksan-network
+    mem_limit: 512m
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
+        max-size: "50m"
         max-file: "5"
 
-  # ============================================================================
-  # PYTHON SERVICE (PDF Generator)
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
+  # PYTHON SERVICE (Proforma PDF Generator)
+  # ═══════════════════════════════════════════════════════════════════════
 
   python-service:
     build:
       context: ./python-service
       dockerfile: Dockerfile
-    container_name: sadoksan-python
-    restart: always
+    container_name: sadoksan-python-prod
+    restart: unless-stopped
     environment:
       FLASK_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
+    command: flask run --host=0.0.0.0 --port=5000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 10s
     networks:
       - sadoksan-network
+    mem_limit: 256m
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
-        max-file: "5"
+        max-size: "30m"
+        max-file: "3"
 
-  # ============================================================================
+  # ═══════════════════════════════════════════════════════════════════════
   # REVERSE PROXY (Nginx)
-  # ============================================================================
+  # SSL terminasyonu burada. sertifikalar ./ssl/ altında.
+  # ═══════════════════════════════════════════════════════════════════════
 
   nginx:
-    image: nginx:1.25-alpine
-    container_name: sadoksan-nginx
-    restart: always
+    image: nginx:1.27-alpine
+    container_name: sadoksan-nginx-prod
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
-      - uploads:/usr/share/nginx/html/uploads:ro
     depends_on:
       - storefront
       - admin
@@ -217,21 +229,13 @@ services:
         max-size: "20m"
         max-file: "5"
 
-# ============================================================================
-# VOLUMES
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════
+# VOLUMES & NETWORKS
+# ═══════════════════════════════════════════════════════════════════════
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  uploads:
-    driver: local
-
-# ============================================================================
-# NETWORKS
-# ============================================================================
 
 networks:
   sadoksan-network:

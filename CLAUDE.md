@@ -598,8 +598,12 @@ docker compose -f docker-compose.dev.yml up
 - GET /api/dealer/risk-score JSON endpoint
 - Kargo takip: Order.trackingNumber + cargoCompany, ship endpoint body'den tracking bilgisi alır
 - Full cycle verified: bayi kaydı → sipariş → onay → proforma → sevk → tamamlanma → rapor
+- Prod hardening: Helmet, rate limiting (auth), CORS env-based, admin URL /sadoksan-panel
+- docker-compose.prod.yml: multi-stage builds, nginx, health checks, 127.0.0.1 binding
+- PostgreSQL backup script: scripts/backup-db.sh (pg_dump, retention, gzip)
+- nginx.prod.conf: SSL termination, rate limiting, security headers, admin path updated
 - Testler: 47/47 passing (4 suite)
-- Toplam: 7 commit, 5 migration, 0 kırık test
+- Toplam: 9 commit, 5 migration, 0 kırık test
 
 ### Bayi Raporları (Bu hafta)
 1. Risk raporu — kredi kullanım oranı, iptal/iadde sıklığı, sipariş düzeni

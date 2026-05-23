@@ -62,8 +62,8 @@ export const useApi = () => {
         if (!isLoginRequest && import.meta.client) {
           localStorage.removeItem('admin-token')
           localStorage.removeItem('admin-user')
-          if (window.location.pathname !== '/sadoksanadmin') {
-            window.location.href = '/sadoksanadmin'
+          if (window.location.pathname !== '/sadoksan-panel') {
+            window.location.href = '/sadoksan-panel'
           }
         }
 
