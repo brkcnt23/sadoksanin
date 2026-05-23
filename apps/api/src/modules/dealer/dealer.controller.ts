@@ -94,7 +94,7 @@ export class DealerController {
   ) {
     try {
       const userId = req.user?.sub || req.user?.id;
-      const validTypes = ['monthly', 'yearly', 'invoice', 'stock', 'detailed'];
+      const validTypes = ['monthly', 'yearly', 'invoice', 'stock', 'detailed', 'risk', 'aging', 'performance'];
 
       if (!validTypes.includes(reportType)) {
         throw new BadRequestException(`Invalid report type. Must be one of: ${validTypes.join(', ')}`);
@@ -119,6 +119,15 @@ export class DealerController {
   @Get('admin/list')
   async adminListAll() {
     return await this.dealerService.adminListAll();
+  }
+
+  /**
+   * GET /api/dealer/risk-score — Bayi risk skoru (JSON)
+   */
+  @Get('risk-score')
+  async getRiskScore(@Request() req) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.dealerService.getRiskScore(userId);
   }
 
   /**
