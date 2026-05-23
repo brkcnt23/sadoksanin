@@ -279,7 +279,7 @@ watch(() => route.fullPath, () => {
           </template>
           <template v-else-if="isAuthenticated">
             <NuxtLink
-              :to="getUser()?.role === 'DEALER' ? '/bayi' : '/hesabim'"
+              :to="(getUser()?.role === 'DEALER' || isDealer) ? '/bayi' : '/hesabim'"
               class="inline-flex btn-outline h-10 px-4 text-xs"
             >
               <Icon name="lucide:user" class="h-4 w-4" />
@@ -389,7 +389,7 @@ watch(() => route.fullPath, () => {
           </template>
           <template v-else-if="isAuthenticated">
             <div class="flex flex-col gap-2 mt-2">
-              <NuxtLink :to="getUser()?.role === 'DEALER' ? '/bayi' : '/hesabim'" class="btn-outline justify-start">
+              <NuxtLink :to="(getUser()?.role === 'DEALER' || isDealer) ? '/bayi' : '/hesabim'" class="btn-outline justify-start">
                 <Icon name="lucide:user" class="h-4 w-4" />
                 {{ getUser()?.name || 'Hesabım' }}
               </NuxtLink>
