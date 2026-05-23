@@ -302,7 +302,32 @@ docker compose -f docker-compose.dev.yml up
 
 ---
 
-**Last Review:** 2026-05-23 | **Status:** E-ticaret altyapısı + bayi raporları inşası
+**Last Review:** 2026-05-23 | **Status:** E-ticaret omurgası tamam, entegrasyonlar API bekliyor
+
+## Full Cycle Durumu
+
+| Adım | Durum |
+|------|-------|
+| Admin ürün CRUD (kategori, marka, görsel, varyasyon) | ✅ |
+| Excel import/export | ✅ |
+| Bayi başvurusu → onay → aktif | ✅ |
+| Ürün kataloğu (kategori/marka filtresi, arama) | ✅ |
+| Favori, sepete ekle (API + localStorage fallback) | ✅ |
+| Sepet → sipariş (B2B PENDING, B2C APPROVED) | ✅ |
+| Stok formülü: displayStock = netsisStock - ACTIVE_rezervasyon | ✅ |
+| Sipariş admin onayı (cari bakiye + bayi istatistik güncellenir) | ✅ |
+| Proforma PDF (Python servisi) | ✅ |
+| Sevk + kargo takip (trackingNumber, cargoCompany) | ✅ |
+| Sipariş tamamlanma (COMPLETED + completedAt) | ✅ |
+| İade talebi → onay → stok geri alımı | ✅ |
+| Bayi raporları (aylık, yıllık, fatura, detay, stok, risk, yaşlandırma, performans) | ✅ |
+| Bayi dashboard + sipariş takibi + cari hareketler | ✅ |
+| Admin dashboard KPI'ları | ✅ |
+| Netsis entegrasyonu (ürün/stok/cari sync) | 🔴 API bekleniyor |
+| Gerçek ödeme (sanal POS, havale) | 🔴 API bekleniyor |
+| E-fatura/irsaliye (Alneo) | 🔴 API bekleniyor |
+| SMTP mailer (nodemailer) | 🔴 Sunucu bekleniyor |
+| Hibrit ödeme (bakiye + açık hesap) | 🟡 Planlandı
 
 ## 2026-05-20 Session — Yapılanlar
 
@@ -572,7 +597,9 @@ docker compose -f docker-compose.dev.yml up
 - Bayi raporları: risk (skor + CSV), yaşlandırma (30/60/90 gün), performans (aylık trend + top ürünler)
 - GET /api/dealer/risk-score JSON endpoint
 - Kargo takip: Order.trackingNumber + cargoCompany, ship endpoint body'den tracking bilgisi alır
+- Full cycle verified: bayi kaydı → sipariş → onay → proforma → sevk → tamamlanma → rapor
 - Testler: 47/47 passing (4 suite)
+- Toplam: 7 commit, 5 migration, 0 kırık test
 
 ### Bayi Raporları (Bu hafta)
 1. Risk raporu — kredi kullanım oranı, iptal/iadde sıklığı, sipariş düzeni
