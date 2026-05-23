@@ -122,8 +122,11 @@ export class OrdersController {
   @Post(':orderId/ship')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  async shipOrder(@Param('orderId') orderId: string) {
-    return this.ordersService.completeOrder(orderId);
+  async shipOrder(
+    @Param('orderId') orderId: string,
+    @Body() body?: { trackingNumber?: string; cargoCompany?: string },
+  ) {
+    return this.ordersService.completeOrder(orderId, body?.trackingNumber, body?.cargoCompany);
   }
 
   /**

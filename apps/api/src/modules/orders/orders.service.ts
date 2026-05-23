@@ -311,7 +311,7 @@ export class OrdersService {
    * Mark order as shipped
    * Release stock reservations when Netsis syncs "shipped" status
    */
-  async completeOrder(orderId: string) {
+  async completeOrder(orderId: string, trackingNumber?: string, cargoCompany?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -337,11 +337,14 @@ export class OrdersService {
       where: { id: orderId },
       data: {
         status: 'SHIPPED',
+        trackingNumber: trackingNumber || undefined,
+        cargoCompany: cargoCompany || undefined,
       },
     });
 
-    this.logger.log(`Order ${orderId} shipped, stock reservations fulfilled`);
-    await this.logStatusChange(orderId, 'SHIPPED', undefined, undefined, undefined);
+    const trackInfo = trackingNumber ? ` (${cargoCompany || 'Kargo'}: ${trackingNumber})` : '';
+    this.logger.log(`Order ${orderId} shipped${trackInfo}, stock reservations fulfilled`);
+    await this.logStatusChange(orderId, 'SHIPPED', trackingNumber ? `${cargoCompany}: ${trackingNumber}` : undefined, undefined, undefined);
     return updated;
   }
 

@@ -308,6 +308,10 @@ model Order {
   eInvoiceStatus    EInvoiceStatus?
   eIrsaliyeNo       String?
 
+  // Shipment tracking
+  trackingNumber    String?
+  cargoCompany      String?
+
   // Promo
   promoCode         String?
   discountAmount    Float     @default(0)
