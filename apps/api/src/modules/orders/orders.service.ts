@@ -244,6 +244,19 @@ export class OrdersService {
     this.logger.log(`Order ${orderId} approved by ${approvingUserId}`);
     await this.logStatusChange(orderId, 'APPROVED', undefined, approvingUserId, undefined);
 
+    // Dealer istatistiklerini güncelle
+    if (order.dealerId) {
+      await this.prisma.dealer.update({
+        where: { id: order.dealerId },
+        data: {
+          totalOrders: { increment: 1 },
+          totalRevenue: { increment: order.total },
+          cariBalance: { increment: order.total },
+          lastOrderAt: new Date(),
+        },
+      });
+    }
+
     // Auto-generate proforma (fire-and-forget)
     this.proformaService.createProformaFromOrder(updated).catch((err) => {
       this.logger.error(`Auto-proforma failed for order ${orderId}: ${err.message}`);
@@ -329,6 +342,35 @@ export class OrdersService {
 
     this.logger.log(`Order ${orderId} shipped, stock reservations fulfilled`);
     await this.logStatusChange(orderId, 'SHIPPED', undefined, undefined, undefined);
+    return updated;
+  }
+
+  /**
+   * Mark order as COMPLETED (delivery confirmed)
+   */
+  async markCompleted(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    if (order.status !== 'SHIPPED') {
+      throw new BadRequestException('Sadece SHIPPED durumundaki siparişler tamamlanabilir');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+      },
+    });
+
+    this.logger.log(`Order ${orderId} completed`);
+    await this.logStatusChange(orderId, 'COMPLETED', undefined, undefined, undefined);
     return updated;
   }
 

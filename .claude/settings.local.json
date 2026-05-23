@@ -27,7 +27,10 @@
       "Bash(Get-ChildItem *)",
       "Bash(Start-Sleep -Seconds 20)",
       "Bash(docker restart sadoksan-api *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(docker restart sadoksan-admin *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[:2] if isinstance\\(d,list\\) else d, indent=2, default=str\\)[:500]\\)\")"
     ]
   }
 }

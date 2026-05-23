@@ -230,6 +230,7 @@ model Order {
   approvedAt        DateTime?
   approvedBy        String?
   rejectionReason   String?
+  completedAt       DateTime?
 
   // E-document tracking
   eInvoiceNo        String?

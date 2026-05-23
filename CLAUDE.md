@@ -302,7 +302,7 @@ docker compose -f docker-compose.dev.yml up
 
 ---
 
-**Last Review:** 2026-05-20 | **Status:** Dashboard + Ödeme + Stok + Varyasyon + Raporlar Tamam
+**Last Review:** 2026-05-23 | **Status:** E-ticaret altyapısı + bayi raporları inşası
 
 ## 2026-05-20 Session — Yapılanlar
 
@@ -357,13 +357,21 @@ docker compose -f docker-compose.dev.yml up
 
 ## Sıradaki İşler (Öncelik Sırası)
 
-1. **Migration** — Docker'ı çalıştırıp `npx prisma migrate dev` ile yeni tabloları oluştur
-2. **Alneo/Albaraka** — E-fatura, e-irsaliye, e-arşiv entegrasyonu (zemin hazır)
-3. **Netsis API** — Canlı stok, cari hesap doğrulama (API bekleniyor)
-4. **Gerçek Ödeme** — Sanal POS, havale bildirimi
-5. **Mailer SMTP** — Nodemailer entegrasyonu ile gerçek email gönderimi
-6. **E2E Testler** — Playwright
-7. **Production Deploy** — Domain, SSL, docker-compose.prod.yml
+### 🔴 Şu an üzerinde çalışılan (2026-05-23)
+1. **E-ticaret altyapı tamamlama** — Sepet API, adres defteri, sipariş akışı, kargo takip
+2. **Bayi raporları** — Risk, yaşlandırma, performans, sipariş özet
+3. **Kategori/Marka entity** — Ayrı tablo, admin yönetimi
+
+### 🟡 API bekleniyor (şimdilik durduruldu)
+4. **Gerçek Ödeme** — Sanal POS, havale bildirimi (Iyzico/PayTR API)
+5. **Netsis API** — Canlı stok, cari hesap doğrulama
+6. **SMTP Mailer** — Nodemailer (sunucu + domain alınınca)
+
+### 🔵 Sonra
+7. **Hibrit ödeme (Cari + Bakiye)** — Dealer.balance, BalanceTransaction, güvenlikli ödeme akışı
+8. **Alneo E-fatura** — E-fatura, e-irsaliye, e-arşiv
+9. **E2E Testler** — Playwright
+10. **Production Deploy** — Domain, SSL, docker-compose.prod.yml
 
 ---
 
@@ -519,3 +527,40 @@ docker compose -f docker-compose.dev.yml up
 | **P2** | Netsis entegrasyonu | 5-10 gün |
 | **P3** | Performans optimizasyonu | 3-5 gün |
 | **P3** | Monitoring | 2-3 gün |
+
+---
+
+## 2026-05-23 Session — E-ticaret Altyapısı + Bayi Raporları
+
+### Commit: `3a80834` — 100 dosya, 20,166 ekleme
+- 7 yeni backend modülü: audit, cms, discounts, mailer, notifications, popup, pricing
+- 7 migration: discounts, site_content, payment_fields, popup_notify, product_images_gallery, order_status_history, return_status
+- Admin: crm.vue, indirimler.vue, tüm store'lar API'ye bağlandı
+- Storefront: popup display, auth middleware, şifre sıfırlama akışı
+- Test: 28/28 geçiyor
+- TS fix: orders.service.ts null → undefined
+
+### Docker Durumu
+- 6/6 servis healthy: postgres, redis, api, storefront, admin, python
+- postgres/redis ayağa kalkmıyordu → docker compose up -d postgres redis ile düzeldi
+
+### Hibrit Ödeme Sistemi (Planlandı, sonra yapılacak)
+- **Model:** Dealer'a `balance` (prepaid) + mevcut `creditLimit` (açık hesap)
+- **BalanceTransaction:** Tüm bakiye hareketleri (TOPUP/DEDUCTION/REFUND)
+- **Order.paymentSource:** CARI / BALANCE / SPLIT
+- **Güvenlik:** Prisma interactive transaction, atomic bakiye/limit kontrolü, açık kapı yok
+- **Admin:** Bayi detay sayfası → bakiye yükleme, limit ayarlama
+- **Storefront:** Sepette ödeme kaynağı seçimi
+
+### E-ticaret Altyapı Eksikleri (Bu hafta)
+1. Sipariş COMPLETED endpoint + trackingNumber/cargoCompany
+2. Sepet API'ye taşıma (localStorage → DB)
+3. Adres defteri (Address model + CRUD)
+4. Kategori/Marka entity (ayrı tablo)
+5. Kargo takip sistemi
+
+### Bayi Raporları (Bu hafta)
+1. Risk raporu — kredi kullanım oranı, iptal/iadde sıklığı, sipariş düzeni
+2. Yaşlandırma (Aging) — 30/60/90 gün borç dilimleri
+3. Performans raporu — bayi bazlı ciro, trend, ortalama sepet
+4. Sipariş özet raporu — admin için tüm sipariş durumları

@@ -279,6 +279,7 @@ const triggerInvoice = async (o: Order) => {
                   @change="toggleSelect(o.id)"
                 />
               </td>
+              <td class="px-4 py-3">
                 <p class="font-mono text-sm font-medium text-ink-900">{{ o.orderNo }}</p>
                 <StatusBadge
                   :variant="o.customerType === 'B2C' ? 'info' : 'purple'"
