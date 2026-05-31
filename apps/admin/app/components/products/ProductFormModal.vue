@@ -51,6 +51,37 @@ watch(
 const saving = ref(false)
 const error = ref<string | null>(null)
 
+// Cascading category select
+const selectedParent = ref('')
+const subcategories = computed(() => {
+  if (!selectedParent.value) return []
+  const parent = products.allCategories.find((c) => c.name === selectedParent.value)
+  return parent?.children || []
+})
+
+// Initialize selectedParent from existing category value
+watch(
+  () => [props.open, products.allCategories] as const,
+  ([isOpen, categories]) => {
+    if (isOpen && categories.length > 0 && props.product?.category) {
+      // Find which parent contains this category
+      for (const parent of categories) {
+        if (parent.name === props.product.category) {
+          selectedParent.value = parent.name
+          return
+        }
+        if (parent.children?.some((c) => c.name === props.product.category)) {
+          selectedParent.value = parent.name
+          return
+        }
+      }
+    } else if (isOpen && !props.product) {
+      selectedParent.value = ''
+    }
+  },
+  { immediate: true },
+)
+
 const save = async () => {
   if (!form.value.name.trim() || !form.value.sku.trim()) {
     error.value = 'Ürün adı ve SKU zorunludur'
@@ -152,23 +183,32 @@ const save = async () => {
         </div>
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1">Marka</label>
-          <input
+          <select
             v-model="form.brand"
-            type="text"
-            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Marka Seçin</option>
+            <option v-for="b in products.allBrands" :key="b" :value="b">{{ b }}</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1">Kategori</label>
-          <input
+          <select
+            v-model="selectedParent"
+            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
+            @change="form.category = ''"
+          >
+            <option value="">Ana Kategori Seçin</option>
+            <option v-for="c in products.allCategories" :key="c.id" :value="c.name">{{ c.name }}</option>
+          </select>
+          <select
+            v-if="selectedParent && subcategories.length > 0"
             v-model="form.category"
-            type="text"
-            list="cat-list"
-            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <datalist id="cat-list">
-            <option v-for="c in products.categories" :key="c" :value="c" />
-          </datalist>
+            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Alt Kategori Seçin</option>
+            <option v-for="child in subcategories" :key="child.id" :value="child.name">{{ child.name }}</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1">Birim</label>

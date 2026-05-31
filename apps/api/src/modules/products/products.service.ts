@@ -161,8 +161,15 @@ export class ProductsService {
    */
   async getCategories() {
     return this.prisma.category.findMany({
+      where: { parentId: null },
       orderBy: { order: 'asc' },
-      include: { _count: { select: { products: true } } },
+      include: {
+        _count: { select: { products: true } },
+        children: {
+          orderBy: { order: 'asc' },
+          include: { _count: { select: { products: true } } },
+        },
+      },
     });
   }
 

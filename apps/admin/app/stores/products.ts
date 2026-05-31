@@ -135,6 +135,13 @@ const FALLBACK_PRODUCTS: Product[] = [
   },
 ]
 
+interface CategoryNode {
+  id: string
+  name: string
+  slug: string
+  children?: CategoryNode[]
+}
+
 interface State {
   items: Product[]
   loading: boolean
@@ -151,6 +158,8 @@ interface State {
   page: number
   pageSize: number
   error: string | null
+  allCategories: CategoryNode[]
+  allBrands: string[]
 }
 
 export const useProductsStore = defineStore('products', {
@@ -164,9 +173,25 @@ export const useProductsStore = defineStore('products', {
     page: 1,
     pageSize: 25,
     error: null,
+    allCategories: [] as CategoryNode[],
+    allBrands: [] as string[],
   }),
 
   getters: {
+    // Hierarchical flat list for filters: "Parent > Child"
+    categoryOptions: (s) => {
+      const flat: string[] = []
+      for (const parent of s.allCategories) {
+        if (parent.children?.length) {
+          for (const child of parent.children) {
+            flat.push(`${parent.name} > ${child.name}`)
+          }
+        } else {
+          flat.push(parent.name)
+        }
+      }
+      return flat
+    },
     categories: (s) => Array.from(new Set(s.items.map((p) => p.category))).sort(),
 
     filtered(s): Product[] {
@@ -221,6 +246,25 @@ export const useProductsStore = defineStore('products', {
   },
 
   actions: {
+    async fetchCategories() {
+      try {
+        const api = useApi()
+        this.allCategories = await api.get<any[]>('/products/categories')
+      } catch (e) {
+        console.warn('Failed to fetch categories:', e)
+      }
+    },
+
+    async fetchBrands() {
+      try {
+        const api = useApi()
+        const brands = await api.get<any[]>('/products/brands')
+        this.allBrands = brands.map((b: any) => b.name)
+      } catch (e) {
+        console.warn('Failed to fetch brands:', e)
+      }
+    },
+
     async load() {
       if (this.loaded) return
 
@@ -229,6 +273,9 @@ export const useProductsStore = defineStore('products', {
 
       try {
         const api = useApi()
+        // Fetch categories and brands in parallel with products
+        await Promise.all([this.fetchCategories(), this.fetchBrands()])
+
         // Try to fetch from API; fallback to mock data if unavailable
         try {
           const response = await api.get<{ products: Product[]; total: number }>('/products/admin/all', {
