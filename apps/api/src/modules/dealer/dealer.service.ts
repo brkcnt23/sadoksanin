@@ -1,11 +1,12 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class DealerService {
   private readonly logger = new Logger(DealerService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private mailerService: MailerService) {}
 
   /**
    * List all active dealers (for admin dropdowns)
@@ -602,7 +603,7 @@ export class DealerService {
     if (!dealer) throw new NotFoundException('Dealer not found');
     if (dealer.status !== 'PENDING') throw new BadRequestException('Sadece PENDING durumundaki bayiler onaylanabilir');
 
-    return this.prisma.dealer.update({
+    const updated = await this.prisma.dealer.update({
       where: { id: dealerId },
       data: {
         status: 'ACTIVE',
@@ -611,6 +612,10 @@ export class DealerService {
         approvedBy: adminUserId,
       },
     });
+    // Fire-and-forget email
+    const user = await this.prisma.user.findUnique({ where: { id: updated.userId }, select: { email: true } });
+    if (user) this.mailerService.sendDealerApproved(user.email, updated.company).catch(() => {});
+    return updated;
   }
 
   /**

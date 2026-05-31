@@ -87,6 +87,10 @@ const revenueChart = computed(() => {
   return days.map((d) => ({ ...d, pct: (d.revenue / maxRev) * 100 }))
 })
 
+const criticalStock = computed(() => products.items.filter((p) => p.displayStock <= (p.minimumStock || 5)).length)
+const lowStock = computed(() => products.items.filter((p) => (p as any).middleStock && p.displayStock > (p.minimumStock || 0) && p.displayStock <= (p as any).middleStock).length)
+const pendingDealers = computed(() => dealers.items.filter((d) => (d as any).status === 'PENDING' || (d as any).status === 'pending').length)
+
 // ── Recent audit feed ──
 const auditFeed = ref<any[]>([])
 async function loadAuditFeed() {
@@ -144,7 +148,7 @@ const formatTimeAgo = (d: string) => {
 <template>
   <div class="space-y-6">
     <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <StatCard
         label="Toplam Sipariş"
         :value="orders.items.length"
@@ -174,6 +178,12 @@ const formatTimeAgo = (d: string) => {
         :value="`${products.lowStockCount + products.outOfStockCount}`"
         icon="lucide:alert-circle"
         color="red"
+      />
+      <StatCard
+        label="Bayi Başvurusu"
+        :value="pendingDealers"
+        icon="lucide:user-plus"
+        color="orange"
       />
     </div>
 

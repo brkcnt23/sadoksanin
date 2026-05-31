@@ -47,6 +47,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  netsisPendingQuantity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   minimumStock?: number;
 
   @IsOptional()

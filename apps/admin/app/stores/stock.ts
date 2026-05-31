@@ -1,8 +1,24 @@
 /**
- * Stock store — Netsis sync, reservations via API.
- * Critical formula: displayStock = netsisStock - sum(active reservations)
+ * Stock store — Netsis sync, reservations, stock movements via API.
+ * Formula: displayStock = netsisStock - netsisPendingQuantity - active reservations
  */
 import { defineStore } from 'pinia'
+
+interface StockMovement {
+  id: string
+  productId: string
+  type: string
+  quantity: number
+  oldStock: number
+  newStock: number
+  userId?: string
+  user?: { email: string; name: string }
+  product?: { sku: string; name: string; unit: string }
+  referenceType?: string
+  referenceId?: string
+  note?: string
+  createdAt: string
+}
 
 interface StockReservation {
   id: string
@@ -25,6 +41,7 @@ interface StockSyncStatus {
 
 interface State {
   reservations: StockReservation[]
+  movements: StockMovement[]
   syncStatus: StockSyncStatus
   loaded: boolean
 }
@@ -32,6 +49,7 @@ interface State {
 export const useStockStore = defineStore('stock', {
   state: (): State => ({
     reservations: [],
+    movements: [],
     syncStatus: {
       lastSyncAt: null,
       lastSyncDuration: 0,
@@ -54,12 +72,10 @@ export const useStockStore = defineStore('stock', {
       try {
         const { useApi } = await import('~/composables/useApi')
         const api = useApi()
-        // Fetch existing reservations via orders API
-        // Sync status from netsis
         const status = await api.get<StockSyncStatus>('/netsis/status/stock')
         this.syncStatus = status
       } catch {
-        /* silent — not critical if netsis isn't configured */
+        /* silent */
       }
       this.loaded = true
     },
@@ -68,13 +84,41 @@ export const useStockStore = defineStore('stock', {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
       this.syncStatus = { ...this.syncStatus, status: 'running' }
-
       try {
         const result = await api.post<StockSyncStatus>('/netsis/sync/stock')
         this.syncStatus = result
       } catch {
         this.syncStatus = { ...this.syncStatus, status: 'error', errors: 1 }
       }
+    },
+
+    async fetchMovements(productId: string, params?: { type?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      const result = await api.get<{ movements: StockMovement[]; total: number }>('/api/admin/stock/movements', {
+        productId,
+        ...(params || {}),
+      } as any)
+      this.movements = result.movements
+      return result
+    },
+
+    async manualEntry(productId: string, quantity: number, note: string) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      return api.post<StockMovement>('/api/admin/stock/entry', { productId, quantity, note })
+    },
+
+    async manualExit(productId: string, quantity: number, type: string, note: string) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      return api.post<StockMovement>('/api/admin/stock/exit', { productId, quantity, type, note })
+    },
+
+    async countAdjust(productId: string, actualCount: number, note: string) {
+      const { useApi } = await import('~/composables/useApi')
+      const api = useApi()
+      return api.post<StockMovement>('/api/admin/stock/count-adjust', { productId, actualCount, note })
     },
   },
 })

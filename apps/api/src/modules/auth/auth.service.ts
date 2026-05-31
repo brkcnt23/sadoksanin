@@ -22,7 +22,7 @@ export class AuthService {
       throw new BadRequestException('Email already registered');
     }
 
-    const role = dto.role || 'CUSTOMER';
+    const role = dto.role || 'DEALER';
 
     // Validate dealer-specific fields
     if (role === 'DEALER') {

@@ -351,8 +351,9 @@ export class ProductsService {
         taxRate: dto.taxRate ?? 0.2,
         unit: dto.unit || 'Adet',
         netsisStock: dto.netsisStock ?? 0,
+        netsisPendingQuantity: dto.netsisPendingQuantity ?? 0,
         reservedStock: 0,
-        displayStock: dto.netsisStock ?? 0,
+        displayStock: (dto.netsisStock ?? 0) - (dto.netsisPendingQuantity ?? 0),
         minimumStock: dto.minimumStock ?? 0,
         middleStock: dto.middleStock ?? null,
         visible: dto.visible ?? true,
@@ -386,7 +387,7 @@ export class ProductsService {
     const data: any = {};
     const fields: (keyof UpdateProductDto)[] = [
       'name', 'description', 'brand', 'category', 'basePrice', 'taxRate',
-      'unit', 'netsisCode', 'sku', 'netsisStock', 'minimumStock',
+      'unit', 'netsisCode', 'sku', 'netsisStock', 'netsisPendingQuantity', 'minimumStock',
       'middleStock', 'visible', 'purchasable', 'imageUrl', 'images', 'weight',
     ];
 
@@ -394,9 +395,11 @@ export class ProductsService {
       if (dto[f] !== undefined) data[f] = dto[f];
     }
 
-    // Update display stock when netsisStock changes
-    if (dto.netsisStock !== undefined) {
-      data.displayStock = dto.netsisStock - product.reservedStock;
+    // Recalc display stock when netsisStock or netsisPendingQuantity changes
+    if (dto.netsisStock !== undefined || dto.netsisPendingQuantity !== undefined) {
+      const netsisStock = dto.netsisStock !== undefined ? dto.netsisStock : product.netsisStock;
+      const netsisPending = dto.netsisPendingQuantity !== undefined ? dto.netsisPendingQuantity : product.netsisPendingQuantity;
+      data.displayStock = netsisStock - netsisPending - product.reservedStock;
     }
 
     const updated = await this.prisma.product.update({
@@ -429,11 +432,11 @@ export class ProductsService {
       orderBy: { category: 'asc' },
     });
 
-    const headers = ['SKU', 'Ürün Adı', 'Marka', 'Kategori', 'Birim Fiyat', 'KDV Oranı', 'Birim', 'Netsis Stok', 'Min Stok', 'Orta Stok', 'Görünür', 'Satılabilir', 'Açıklama', 'Görsel URL'];
+    const headers = ['SKU', 'Ürün Adı', 'Marka', 'Kategori', 'Birim Fiyat', 'KDV Oranı', 'Birim', 'Netsis Stok', 'Netsis Bekleyen', 'Min Stok', 'Orta Stok', 'Görünür', 'Satılabilir', 'Açıklama', 'Görsel URL'];
     const csvEscape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
     const rows = products.map((p) =>
-      [p.sku, p.name, p.brand, p.category, p.basePrice, p.taxRate, p.unit, p.netsisStock, p.minimumStock, p.middleStock ?? '', p.visible ? 'Evet' : 'Hayır', p.purchasable ? 'Evet' : 'Hayır', p.description ?? '', p.imageUrl ?? '']
+      [p.sku, p.name, p.brand, p.category, p.basePrice, p.taxRate, p.unit, p.netsisStock, p.netsisPendingQuantity, p.minimumStock, p.middleStock ?? '', p.visible ? 'Evet' : 'Hayır', p.purchasable ? 'Evet' : 'Hayır', p.description ?? '', p.imageUrl ?? '']
         .map(csvEscape).join(','),
     );
 
@@ -477,6 +480,7 @@ export class ProductsService {
           taxRate: parseFloat(val('KDV Oranı')) || 0.2,
           unit: val('Birim') || 'Adet',
           netsisStock: parseInt(val('Netsis Stok')) || 0,
+          netsisPendingQuantity: parseInt(val('Netsis Bekleyen')) || 0,
           description: val('Açıklama'),
           imageUrl: val('Görsel URL'),
         };
@@ -493,7 +497,7 @@ export class ProductsService {
               netsisCode: sku,
               ...data,
               reservedStock: 0,
-              displayStock: data.netsisStock,
+              displayStock: (data.netsisStock || 0) - (data.netsisPendingQuantity || 0),
               minimumStock: 0,
               visible: true,
               purchasable: true,

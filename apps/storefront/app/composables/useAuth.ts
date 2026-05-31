@@ -13,7 +13,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'CUSTOMER' | 'DEALER' | 'ADMIN' | 'SUPER_ADMIN'
+  role: 'DEALER' | 'ADMIN' | 'SUPER_ADMIN'
 }
 
 interface LoginResponse {
@@ -28,7 +28,7 @@ interface RegisterPayload {
   phone?: string
   city?: string
   address?: string
-  role?: 'CUSTOMER' | 'DEALER'
+  role?: 'DEALER'
   company?: string
   contactPerson?: string
   taxNo?: string

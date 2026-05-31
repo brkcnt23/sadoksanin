@@ -1,7 +1,6 @@
 // Shared types for Sciveto ERP
 
 export enum UserRole {
-  CUSTOMER = 'CUSTOMER',
   DEALER = 'DEALER',
   ADMIN = 'ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',

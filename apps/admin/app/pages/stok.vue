@@ -57,6 +57,51 @@ const reservationBadge = (s: 'active' | 'released' | 'fulfilled') => {
   }
   return m[s]
 }
+
+// ─── Ürün Stok Tablosu State ──────────────────────────────────────────
+const stockSearch = ref('')
+const stockCatFilter = ref('')
+const stockStatusFilter = ref<'all' | 'in-stock' | 'low' | 'out'>('all')
+const stockPage = ref(1)
+const pageSize = 25
+
+const stockFiltered = computed(() => {
+  let list = products.items
+  const q = stockSearch.value.toLowerCase()
+  if (q) list = list.filter((p: any) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+  if (stockCatFilter.value) list = list.filter((p: any) => p.category === stockCatFilter.value)
+  if (stockStatusFilter.value !== 'all') {
+    list = list.filter((p: any) => {
+      const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
+      if (stockStatusFilter.value === 'in-stock') return status.status === 'green'
+      if (stockStatusFilter.value === 'low') return status.status === 'orange'
+      return status.status === 'red'
+    })
+  }
+  return list
+})
+
+const stockPaginated = computed(() => {
+  const start = (stockPage.value - 1) * pageSize
+  return stockFiltered.value.slice(start, start + pageSize)
+})
+
+const stockTotalPages = computed(() => Math.max(1, Math.ceil(stockFiltered.value.length / pageSize)))
+
+// ─── Modal/Drawer State ───────────────────────────────────────────────
+const showMovementDrawer = ref(false)
+const drawerProduct = ref<any>(null)
+const showManualModal = ref<'entry' | 'exit' | null>(null)
+const showCountAdjust = ref(false)
+
+const openMovements = (product: any) => {
+  drawerProduct.value = product
+  showMovementDrawer.value = true
+}
+
+const onModalSaved = () => {
+  stockPage.value = 1
+}
 </script>
 
 <template>
@@ -220,5 +265,121 @@ const reservationBadge = (s: 'active' | 'released' | 'fulfilled') => {
         <EmptyState v-if="reservations.length === 0" icon="lucide:lock-open" title="Rezervasyon yok" />
       </div>
     </div>
+
+    <!-- Stok Durumu Tablosu -->
+    <div class="bg-white rounded-xl border border-ink-200">
+      <div class="px-5 py-4 border-b border-ink-200 flex items-center justify-between flex-wrap gap-3">
+        <h3 class="font-semibold text-ink-900 flex items-center gap-2">
+          <Icon name="lucide:boxes" class="w-4 h-4 text-primary-600" />
+          Stok Durumu
+        </h3>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button @click="showManualModal = 'entry'" class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center gap-1.5">
+            <Icon name="lucide:plus" class="w-3.5 h-3.5" /> Stok Girişi
+          </button>
+          <button @click="showManualModal = 'exit'" class="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-1.5">
+            <Icon name="lucide:minus" class="w-3.5 h-3.5" /> Stok Çıkışı
+          </button>
+          <button @click="showCountAdjust = true" class="px-3 py-1.5 text-sm font-medium text-ink-700 bg-ink-100 hover:bg-ink-200 rounded-md flex items-center gap-1.5">
+            <Icon name="lucide:scale" class="w-3.5 h-3.5" /> Sayım Düzelt
+          </button>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-b border-ink-100 flex items-center gap-3 flex-wrap">
+        <input v-model="stockSearch" type="text" placeholder="SKU veya ürün adı ara..."
+          class="px-3 py-1.5 border border-ink-300 rounded-md text-sm w-56" />
+        <select v-model="stockCatFilter" class="px-2.5 py-1.5 border border-ink-300 rounded-md text-sm">
+          <option value="">Tüm Kategoriler</option>
+          <option v-for="c in products.categories" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <select v-model="stockStatusFilter" class="px-2.5 py-1.5 border border-ink-300 rounded-md text-sm">
+          <option value="all">Tüm Durumlar</option>
+          <option value="in-stock">Stokta Var</option>
+          <option value="low">Düşük Stok</option>
+          <option value="out">Stokta Yok</option>
+        </select>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-ink-50 border-b border-ink-200 text-left">
+            <tr>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">SKU</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Ürün</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Kategori</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Birim</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Netsis</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Bekleyen</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Rezerve</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Display</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Durum</th>
+              <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Aksiyon</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-ink-100">
+            <tr v-for="p in stockPaginated" :key="p.id" class="hover:bg-ink-50">
+              <td class="px-5 py-3 text-sm font-mono text-ink-700">{{ p.sku }}</td>
+              <td class="px-5 py-3 text-sm text-ink-900 max-w-xs truncate">{{ p.name }}</td>
+              <td class="px-5 py-3 text-sm text-ink-600">{{ p.category }}</td>
+              <td class="px-5 py-3 text-sm text-ink-600">{{ p.unit }}</td>
+              <td class="px-5 py-3 text-sm font-semibold text-ink-900">{{ formatNumber(p.netsisStock) }}</td>
+              <td class="px-5 py-3 text-sm text-ink-600">{{ formatNumber(p.netsisPendingQuantity) }}</td>
+              <td class="px-5 py-3 text-sm text-ink-600">{{ formatNumber(p.reservedStock) }}</td>
+              <td class="px-5 py-3 text-sm font-bold text-ink-900">{{ formatNumber(p.displayStock) }}</td>
+              <td class="px-5 py-3">
+                <span :class="['inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
+                  getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock).status === 'green' ? 'bg-green-100 text-green-700' :
+                  getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock).status === 'orange' ? 'bg-orange-100 text-orange-700' :
+                  'bg-red-100 text-red-700']">
+                  {{ getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock).label }}
+                </span>
+              </td>
+              <td class="px-5 py-3">
+                <button @click="openMovements(p)" class="px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 rounded-md">
+                  Hareketler
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <EmptyState v-if="stockFiltered.length === 0" icon="lucide:boxes" title="Ürün bulunamadı" />
+      </div>
+
+      <div v-if="stockTotalPages > 1" class="px-5 py-3 border-t border-ink-100 flex items-center justify-between">
+        <span class="text-xs text-ink-500">{{ stockFiltered.length }} ürün · {{ stockTotalPages }} sayfa</span>
+        <div class="flex items-center gap-1">
+          <button :disabled="stockPage <= 1" @click="stockPage--"
+            class="px-2 py-1 text-sm border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">Geri</button>
+          <span class="px-2 text-sm text-ink-700">{{ stockPage }} / {{ stockTotalPages }}</span>
+          <button :disabled="stockPage >= stockTotalPages" @click="stockPage++"
+            class="px-2 py-1 text-sm border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">İleri</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals & Drawers -->
+    <StockMovementDrawer
+      v-if="showMovementDrawer && drawerProduct"
+      :product-id="drawerProduct.id"
+      :product-name="drawerProduct.name"
+      :product-sku="drawerProduct.sku"
+      :current-stock="drawerProduct.displayStock"
+      :unit="drawerProduct.unit"
+      @close="showMovementDrawer = false"
+    />
+
+    <ManualStockModal
+      v-if="showManualModal"
+      :mode="showManualModal"
+      @close="showManualModal = null"
+      @saved="onModalSaved"
+    />
+
+    <CountAdjustModal
+      v-if="showCountAdjust"
+      @close="showCountAdjust = false"
+      @saved="onModalSaved"
+    />
   </div>
 </template>

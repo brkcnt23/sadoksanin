@@ -21,9 +21,28 @@ const mockPrisma: any = {
     findMany: jest.fn(),
     updateMany: jest.fn(),
     aggregate: jest.fn(),
+    update: jest.fn(),
+  },
+  stockMovement: {
+    create: jest.fn().mockResolvedValue({}),
   },
   logisticsRule: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  promoCode: {
+    update: jest.fn(),
+  },
+  user: {
+    findUnique: jest.fn(),
+  },
+  dealer: {
+    update: jest.fn(),
+  },
+  bankTransfer: {
+    create: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
   },
 };
 
@@ -33,6 +52,10 @@ const mockPromoService: any = {
 const mockProformaService: any = {
   createProformaFromOrder: jest.fn().mockResolvedValue(undefined),
 };
+const mockMailerService: any = {
+  sendOrderApproved: jest.fn().mockResolvedValue(undefined),
+  sendOrderStatusUpdate: jest.fn().mockResolvedValue(undefined),
+};
 
 const { OrdersService } = require('../src/modules/orders/orders.service');
 
@@ -41,7 +64,7 @@ describe('OrdersService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new OrdersService(mockPrisma, mockPromoService, mockProformaService);
+    service = new OrdersService(mockPrisma, mockPromoService, mockProformaService, mockMailerService);
   });
 
   describe('createOrder', () => {
@@ -58,15 +81,14 @@ describe('OrdersService', () => {
     });
 
     it('should throw if insufficient stock', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 1 });
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 1, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 0 } });
       await expect(service.createOrder(validDto, 'user-1')).rejects.toThrow(BadRequestException);
     });
 
     it('should create B2C order as APPROVED', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 2 } });
-      mockPrisma.logisticsRule.findMany.mockResolvedValue([]);
       mockPrisma.order.create.mockResolvedValue({
         id: 'order-1', orderNo: 'SDK-2026-00001', status: 'APPROVED',
         subtotal: 640, tax: 128, total: 768,
@@ -80,9 +102,8 @@ describe('OrdersService', () => {
     });
 
     it('should create B2B order as PENDING_APPROVAL', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 50 });
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 50, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 5 } });
-      mockPrisma.logisticsRule.findMany.mockResolvedValue([]);
       mockPrisma.order.create.mockResolvedValue({
         id: 'order-2', orderNo: 'SDK-2026-00002', status: 'PENDING_APPROVAL',
         subtotal: 640, tax: 128, total: 768,
@@ -96,7 +117,7 @@ describe('OrdersService', () => {
     });
 
     it('should set payment fields when paymentMethod provided', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Test', netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 0 } });
       mockPrisma.logisticsRule.findMany.mockResolvedValue([]);
       let createdData: any = null;
@@ -114,8 +135,8 @@ describe('OrdersService', () => {
 
     it('should recalc display stock after reservation', async () => {
       mockPrisma.product.findUnique
-        .mockResolvedValueOnce({ id: 'prod-1', name: 'Test', netsisStock: 10 }) // stock check
-        .mockResolvedValueOnce({ id: 'prod-1', netsisStock: 10 }); // recalc
+        .mockResolvedValueOnce({ id: 'prod-1', name: 'Test', netsisStock: 10, netsisPendingQuantity: 0 }) // stock check
+        .mockResolvedValueOnce({ id: 'prod-1', netsisStock: 10, netsisPendingQuantity: 0 }); // recalc
       mockPrisma.stockReservation.aggregate
         .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // stock check
         .mockResolvedValueOnce({ _sum: { quantity: 2 } }); // recalc
@@ -184,7 +205,7 @@ describe('OrdersService', () => {
       mockPrisma.stockReservation.findMany.mockResolvedValue([{ productId: 'prod-1' }]);
       mockPrisma.stockReservation.updateMany.mockResolvedValue({});
       mockPrisma.order.update.mockResolvedValue({ id: 'order-1', status: 'REJECTED' });
-      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 0 } });
       mockPrisma.product.update.mockResolvedValue({});
 
@@ -202,7 +223,7 @@ describe('OrdersService', () => {
       mockPrisma.stockReservation.findMany.mockResolvedValue([{ productId: 'prod-1' }]);
       mockPrisma.stockReservation.updateMany.mockResolvedValue({});
       mockPrisma.order.update.mockResolvedValue({ id: 'order-1', status: 'CANCELLED' });
-      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 0 } });
       mockPrisma.product.update.mockResolvedValue({});
 
@@ -217,7 +238,7 @@ describe('OrdersService', () => {
       mockPrisma.stockReservation.findMany.mockResolvedValue([{ productId: 'prod-1' }]);
       mockPrisma.stockReservation.updateMany.mockResolvedValue({});
       mockPrisma.order.update.mockResolvedValue({ id: 'order-1', status: 'SHIPPED' });
-      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 0 } });
       mockPrisma.product.update.mockResolvedValue({});
 
@@ -230,18 +251,25 @@ describe('OrdersService', () => {
   });
 
   describe('getAvailableStock', () => {
-    it('should return netsisStock minus active reservations', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', netsisStock: 100 });
+    it('should return netsisStock minus pending minus active reservations', async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', netsisStock: 100, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 25 } });
       const result = await service.getAvailableStock('prod-1');
       expect(result).toBe(75);
     });
 
     it('should return 0 if reserved exceeds stock', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', netsisStock: 10 });
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', netsisStock: 10, netsisPendingQuantity: 0 });
       mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 30 } });
       const result = await service.getAvailableStock('prod-1');
       expect(result).toBe(0);
+    });
+
+    it('should account for netsisPendingQuantity', async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', netsisStock: 100, netsisPendingQuantity: 20 });
+      mockPrisma.stockReservation.aggregate.mockResolvedValue({ _sum: { quantity: 30 } });
+      const result = await service.getAvailableStock('prod-1');
+      expect(result).toBe(50);
     });
   });
 });

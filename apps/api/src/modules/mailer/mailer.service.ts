@@ -66,6 +66,39 @@ Sadöksan İnşaat`;
     });
   }
 
+  // ─── Order Status Notifications ──────────────────────────────────────
+
+  async sendOrderCreated(email: string, name: string, orderNo: string, total: number) {
+    const subject = `Siparişiniz Alındı — ${orderNo}`;
+    const body = `Merhaba ${name},\n\nSiparişiniz başarıyla oluşturuldu.\nSipariş No: ${orderNo}\nTutar: ${total.toFixed(2)} TL\n\nSiparişiniz incelendikten sonra onaylanacaktır.\n\nSaygılarımızla,\nSadöksan İnşaat`;
+    return this.send({ to: email, subject, body });
+  }
+
+  async sendOrderApproved(email: string, name: string, orderNo: string) {
+    const subject = `Siparişiniz Onaylandı — ${orderNo}`;
+    const body = `Merhaba ${name},\n\n${orderNo} numaralı siparişiniz onaylanmıştır.\nSiparişiniz hazırlanıp kargoya verilecektir.\n\nSaygılarımızla,\nSadöksan İnşaat`;
+    return this.send({ to: email, subject, body });
+  }
+
+  async sendOrderShipped(email: string, name: string, orderNo: string, trackingNo?: string, cargoCompany?: string) {
+    const subject = `Siparişiniz Kargoya Verildi — ${orderNo}`;
+    const trackInfo = trackingNo ? `\nKargo Takip No: ${trackingNo}${cargoCompany ? ` (${cargoCompany})` : ''}` : '';
+    const body = `Merhaba ${name},\n\n${orderNo} numaralı siparişiniz kargoya verilmiştir.${trackInfo}\n\nSaygılarımızla,\nSadöksan İnşaat`;
+    return this.send({ to: email, subject, body });
+  }
+
+  async sendOrderCancelled(email: string, name: string, orderNo: string, reason?: string) {
+    const subject = `Sipariş İptali — ${orderNo}`;
+    const body = `Merhaba ${name},\n\n${orderNo} numaralı siparişiniz iptal edilmiştir.${reason ? `\nSebep: ${reason}` : ''}\n\nSaygılarımızla,\nSadöksan İnşaat`;
+    return this.send({ to: email, subject, body });
+  }
+
+  async sendDealerApproved(email: string, companyName: string) {
+    const subject = 'Bayi Başvurunuz Onaylandı';
+    const body = `Merhaba ${companyName} yetkilisi,\n\nBayi başvurunuz onaylanmıştır. Hesabınıza giriş yaparak sipariş vermeye başlayabilirsiniz.\n\nSaygılarımızla,\nSadöksan İnşaat`;
+    return this.send({ to: email, subject, body });
+  }
+
   /**
    * Find users with abandoned carts (carts modified > N hours ago, no recent orders).
    * Returns list of users who might need a reminder.
@@ -83,7 +116,7 @@ Sadöksan İnşaat`;
       `SELECT u.email, u.name, MAX(o."createdAt") as last_order
        FROM "User" u
        LEFT JOIN "Order" o ON o."customerId" = u.id
-       WHERE u.role = 'CUSTOMER'
+       WHERE u.role = 'DEALER'
        GROUP BY u.id
        HAVING MAX(o."createdAt") IS NULL OR MAX(o."createdAt") < $1
        LIMIT 50`,

@@ -21,6 +21,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
 
+    "isolatedModules": true,
     "strict": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,

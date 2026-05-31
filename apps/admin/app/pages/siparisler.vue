@@ -498,6 +498,15 @@ const triggerInvoice = async (o: Order) => {
         </div>
       </template>
     </Modal>
+
+    <!-- Order Detail Drawer -->
+    <OrderDetailDrawer
+      v-if="detail"
+      :order="detail"
+      :order-id="detail.id"
+      @close="detail = null"
+      @action="detail = null; orders.load()"
+    />
     </template>
   </div>
 </template>

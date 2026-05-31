@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Param,
   Body,
   UseGuards,
@@ -142,6 +143,52 @@ export class OrdersController {
   }
 
   /**
+   * Customer: Submit bank transfer receipt
+   */
+  @Post(':orderId/bank-transfer')
+  async submitBankTransfer(
+    @Param('orderId') orderId: string,
+    @Body() body: { bank: string; amount: number; senderName: string; note?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.submitBankTransfer(orderId, body, req.user.sub);
+  }
+
+  /**
+   * Admin: List pending bank transfers
+   */
+  @Get('admin/bank-transfers')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async listBankTransfers(@Query('status') status?: string) {
+    return this.ordersService.listBankTransfers(status);
+  }
+
+  /**
+   * Admin: Approve bank transfer → mark order as paid
+   */
+  @Post(':orderId/bank-transfer/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async approveBankTransfer(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.approveBankTransfer(orderId, req.user.sub);
+  }
+
+  /**
+   * Admin: Reject bank transfer
+   */
+  @Post(':orderId/bank-transfer/reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async rejectBankTransfer(
+    @Param('orderId') orderId: string,
+    @Body() body: { reason: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.rejectBankTransfer(orderId, body.reason, req.user.sub);
+  }
+
+  /**
    * Customer/dealer: Request return on a completed order
    */
   @Post(':orderId/return')
@@ -161,6 +208,33 @@ export class OrdersController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   async approveReturn(@Param('orderId') orderId: string, @Request() req: any) {
     return this.ordersService.approveReturn(orderId, req.user.sub);
+  }
+
+  /**
+   * Admin: Update order status
+   */
+  @Patch(':orderId/status')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateStatus(
+    @Param('orderId') orderId: string,
+    @Body() body: { status: string },
+  ) {
+    return this.ordersService.updateStatus(orderId, body.status);
+  }
+
+  /**
+   * Admin: Add note to order
+   */
+  @Post(':orderId/notes')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async addNote(
+    @Param('orderId') orderId: string,
+    @Body() body: { note: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.addNote(orderId, body.note, req.user.sub, req.user.email);
   }
 
   /**

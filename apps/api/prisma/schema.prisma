@@ -18,9 +18,9 @@ model User {
   email     String     @unique
   password  String // bcrypted
   name      String
-  role      UserRole   @default(CUSTOMER)
+  role      UserRole   @default(DEALER)
 
-  // B2C customer data
+  // Dealer/customer data (B2B-only system)
   phone     String?
   address   String?
   city      String?
@@ -35,6 +35,10 @@ model User {
 
   // Saved addresses
   addresses Address[]
+
+  // Stock movements
+  stockMovements StockMovement[]
+  bankTransfers  BankTransfer[]
 
   // Audit
   createdAt DateTime   @default(now())
@@ -76,8 +80,7 @@ model CartItem {
 }
 
 enum UserRole {
-  CUSTOMER  // B2C customer
-  DEALER    // B2B dealer/reseller
+  DEALER    // B2B dealer (B2B-only system)
   ADMIN
   SUPER_ADMIN
 }
@@ -123,7 +126,8 @@ model Dealer {
   rejectionReason   String?
 
   // Relationships
-  orders            Order[]
+  orders             Order[]
+  balanceTransactions BalanceTransaction[]
 
   // Audit
   createdAt         DateTime    @default(now())
@@ -196,10 +200,11 @@ model Product {
   dimensions        String?
 
   // Stock (from Netsis, updated hourly)
-  netsisStock       Int          @default(0)
-  reservedStock     Int          @default(0) // Sum of pending orders
-  displayStock      Int          @default(0) // calculated: netsis - reserved
-  lastNetsisSync    DateTime     @default(now())
+  netsisStock           Int          @default(0)
+  netsisPendingQuantity Int          @default(0) // Netsis'te bekleyen (faturası kesilmemiş)
+  reservedStock         Int          @default(0) // Sum of pending orders
+  displayStock          Int          @default(0) // netsisStock - netsisPendingQuantity - reservedStock
+  lastNetsisSync        DateTime     @default(now())
 
   // Stock thresholds
   minimumStock      Int          @default(0) // Red alert threshold
@@ -218,6 +223,7 @@ model Product {
   favorites         Favorite[]
   cartItems         CartItem[]
   stockReservations StockReservation[]
+  stockMovements    StockMovement[]
 
   // Audit
   createdAt         DateTime     @default(now())
@@ -303,10 +309,13 @@ model Order {
   rejectionReason   String?
   completedAt       DateTime?
 
-  // E-document tracking
+  // E-document tracking (Alneo entegratör)
   eInvoiceNo        String?
   eInvoiceStatus    EInvoiceStatus?
+  eArchiveNo        String?
+  eArchiveStatus    EInvoiceStatus?
   eIrsaliyeNo       String?
+  edocumentLogs     EdocumentLog[]
 
   // Shipment tracking
   trackingNumber    String?
@@ -322,9 +331,12 @@ model Order {
 
   // Notes
   notes             String?
+  adminNotes        Json?     // [{ note, userId, userEmail, createdAt }]
 
   // Stock reservation
   stockReservations StockReservation[]
+  balanceTransactions BalanceTransaction[]
+  bankTransfers      BankTransfer[]
   statusHistory     OrderStatusHistory[]
 
   // Audit
@@ -385,6 +397,27 @@ model OrderLine {
 
   @@index([orderId])
   @@index([productId])
+}
+
+// ───── Bank Transfer ─────────────────────────────────────────────────────────
+model BankTransfer {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  bank            String
+  amount          Float
+  senderName      String
+  note            String?
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([status])
 }
 
 // ───── Order Status History ────────────────────────────────────────────────────
@@ -512,6 +545,46 @@ model ProductCurrencyPrice {
   @@index([productId])
 }
 
+// ───── Dealer Balance (Açık Hesap) ──────────────────────────────────────────
+model BalanceTransaction {
+  id            String   @id @default(cuid())
+  dealerId      String
+  dealer        Dealer   @relation(fields: [dealerId], references: [id])
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  type          String   // "DEBIT" (borç/alış), "CREDIT" (ödeme/tahsilat), "ADJUSTMENT"
+  amount        Float    // pozitif her zaman
+  balanceBefore Float
+  balanceAfter  Float
+  description   String?
+  referenceType String?  // "Order", "Payment", "Manual"
+  referenceId   String?
+  createdAt     DateTime @default(now())
+
+  @@index([dealerId])
+  @@index([createdAt])
+}
+
+// ───── E-Document Log (e-Fatura, e-Arşiv, e-İrsaliye) ───────────────────────
+model EdocumentLog {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id])
+  documentType    String    // "EINVOICE", "EARCHIVE", "EIRSALIYE"
+  status          String    @default("PENDING") // PENDING, SUBMITTED, ACCEPTED, REJECTED
+  externalId      String?   // Entegratörün verdiği belge no
+  externalUuid    String?   // Entegratörün verdiği UUID
+  requestPayload  Json?
+  responsePayload Json?
+  errorMessage    String?
+  submittedAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([status])
+}
+
 // ───── Settings ──────────────────────────────────────────────────────────────
 model SiteSettings {
   id                    String    @id @default("main") // Single record
@@ -519,6 +592,15 @@ model SiteSettings {
   maintenanceMode       Boolean   @default(false)
   maintenanceMessage    String?
   maintenanceAllowAdmins Boolean  @default(true)
+
+  // Integration placeholders (API anahtarları gelince doldurulacak)
+  alneoApiUrl           String?
+  alneoApiKey           String?
+  albarakaApiUrl        String?
+  albarakaMerchantId    String?
+  netsisApiUrl          String?
+  netsisUsername        String?
+  whatsappNumber        String?
 
   updatedAt             DateTime  @updatedAt
 }
@@ -695,6 +777,33 @@ enum PopupAudience {
   SPECIFIC_DEALER
 }
 
+// ───── SEO Redirects ────────────────────────────────────────────────────────
+model SeoRedirect {
+  id        String   @id @default(cuid())
+  oldUrl    String   @unique
+  newUrl    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([oldUrl])
+}
+
+// ───── CMS Pages ────────────────────────────────────────────────────────────
+model CmsPage {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String   @db.Text // HTML rich text
+  isActive    Boolean  @default(true)
+  seoTitle    String?
+  seoMeta     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
 // ───── Notify Requests (Back-in-stock) ────────────────────────────────────────
 model NotifyRequest {
   id          String   @id @default(cuid())
@@ -732,4 +841,36 @@ model AuditLog {
   @@index([entity])
   @@index([entityId])
   @@index([action])
+}
+
+// ───── Stock Movements (append-only audit log) ───────────────────────────────
+model StockMovement {
+  id            String             @id @default(cuid())
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id])
+  type          StockMovementType
+  quantity      Int                // delta: pozitif=giriş, negatif=çıkış
+  oldStock      Int                // işlem öncesi netsisStock
+  newStock      Int                // işlem sonrası netsisStock
+  userId        String?
+  user          User?              @relation(fields: [userId], references: [id])
+  referenceType String?            // "Order", "Return", "Manual", "CountAdjust"
+  referenceId   String?            // Order ID, Return ID vs
+  note          String?
+  createdAt     DateTime           @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+enum StockMovementType {
+  MANUAL_ENTRY
+  MANUAL_EXIT
+  ORDER_RESERVE
+  ORDER_FULFILL
+  ORDER_CANCEL
+  RETURN_RESTOCK
+  COUNT_ADJUST
+  DAMAGE_LOSS
 }

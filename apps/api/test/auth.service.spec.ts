@@ -24,18 +24,22 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('should create a CUSTOMER user and return a token', async () => {
+    it('should create a DEALER user and return a token (default role)', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.dealer.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({
-        id: 'user-1', email: 'test@test.com', name: 'Test', role: 'CUSTOMER',
+        id: 'user-1', email: 'test@test.com', name: 'Test', role: 'DEALER',
       });
 
       const result = await authService.register({
         email: 'test@test.com', password: '123456', name: 'Test',
+        company: 'Test Ltd', contactPerson: 'Test Person',
+        cariNo: '120.01.0001', taxNo: '1234567890', city: 'Istanbul',
       });
 
       expect(result.access_token).toBe('test-jwt-token');
-      expect(result.user.role).toBe('CUSTOMER');
+      expect(result.user.role).toBe('DEALER');
+      expect(mockPrisma.dealer.create).toHaveBeenCalledTimes(1);
     });
 
     it('should throw if email already exists', async () => {
@@ -93,7 +97,7 @@ describe('AuthService', () => {
       const hash = await bcrypt.hash('asd123', 10);
 
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', email: 'test@test.com', password: hash, name: 'Test', role: 'CUSTOMER',
+        id: 'user-1', email: 'test@test.com', password: hash, name: 'Test', role: 'DEALER',
       });
 
       const result = await authService.login({ email: 'test@test.com', password: 'asd123' });
@@ -105,7 +109,7 @@ describe('AuthService', () => {
       const hash = await bcrypt.hash('asd123', 10);
 
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', email: 'test@test.com', password: hash, name: 'Test', role: 'CUSTOMER',
+        id: 'user-1', email: 'test@test.com', password: hash, name: 'Test', role: 'DEALER',
       });
 
       await expect(
@@ -126,7 +130,7 @@ describe('AuthService', () => {
     it('should update user profile fields', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' });
       mockPrisma.user.update.mockResolvedValue({
-        id: 'user-1', name: 'Updated', email: 't@t.com', role: 'CUSTOMER',
+        id: 'user-1', name: 'Updated', email: 't@t.com', role: 'DEALER',
         phone: '0555', city: 'Istanbul', address: 'New St',
       });
 

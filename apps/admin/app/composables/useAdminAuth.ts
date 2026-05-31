@@ -13,7 +13,7 @@ export interface AdminUser {
   id: string
   email: string
   name: string
-  role: 'ADMIN' | 'SUPER_ADMIN' | 'DEALER' | 'CUSTOMER'
+  role: 'ADMIN' | 'SUPER_ADMIN' | 'DEALER'
 }
 
 interface LoginResponse {
@@ -53,7 +53,7 @@ export const useAdminAuth = () => {
       const result = await api.post<LoginResponse>('/auth/login', { email, password })
 
       // Reject non-admin roles at the gate. The admin panel must not accept
-      // CUSTOMER/DEALER tokens even if the credentials are valid backend-side.
+      // DEALER tokens even if the credentials are valid backend-side.
       if (result.user.role !== 'ADMIN' && result.user.role !== 'SUPER_ADMIN') {
         return { success: false, error: 'Bu hesabın admin paneline erişim yetkisi yok.' }
       }

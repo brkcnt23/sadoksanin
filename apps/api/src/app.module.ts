@@ -17,6 +17,8 @@ import { PopupModule } from './modules/popup/popup.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { StockModule } from './modules/stock/stock.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -41,8 +43,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     PricingModule,
     AuditModule,
     NotificationsModule,
+    StockModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}

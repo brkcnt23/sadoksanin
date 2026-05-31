@@ -153,7 +153,7 @@ const handleSubmit = async () => {
       email: formData.value.email,
       password: formData.value.sifre,
       phone: formData.value.telefon,
-      role: 'CUSTOMER',
+      role: 'DEALER',
     })
 
     if (result.success) {

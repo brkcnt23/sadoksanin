@@ -35,17 +35,6 @@ async function main() {
   });
   console.log(`  ✅ SuperAdmin: ${superAdmin.email}`);
 
-  // ─── B2C test user ─────────────────────────────────────────────────────────
-  const customer = await prisma.user.upsert({
-    where: { email: 'musteri@test.com' },
-    update: {},
-    create: {
-      email: 'musteri@test.com', password: pw, name: 'Ahmet Yılmaz',
-      role: 'CUSTOMER', phone: '05321112233', city: 'İstanbul', address: 'Bağdat Cd. No:45 Kadıköy',
-    },
-  });
-  console.log(`  ✅ B2C Müşteri: ${customer.email}`);
-
   // ─── Dashboard demo dealers (bayi@test.com, erzurum@test.com) ─────────────
 
   const erzUser = await prisma.user.upsert({
@@ -225,7 +214,10 @@ async function main() {
   console.log('  ✅ SiteSettings');
 
   // ─── Mock Orders for demo dealers ──────────────────────────────────────────
-  // Only create if no orders exist yet for the test dealer
+  const testDealer = await prisma.dealer.findFirst({ where: { cariNo: '120.01.0001' } });
+  const testUser = await prisma.user.findFirst({ where: { email: 'bayi@test.com' } });
+  if (!testDealer || !testUser) { console.log('  ⚠️ Test dealer/user bulunamadı, mock siparişler atlanıyor'); return; }
+
   const existingOrders = await prisma.order.count({ where: { dealerId: testDealer.id } });
   if (existingOrders === 0) {
     console.log('\n📦 Mock siparişler oluşturuluyor...');

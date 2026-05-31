@@ -3,6 +3,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PromoService } from '../promo/promo.service';
 import { ProformaService } from '../proforma/proforma.service';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class OrdersService {
@@ -12,6 +13,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private promoService: PromoService,
     private proformaService: ProformaService,
+    private mailerService: MailerService,
   ) {}
 
   /**
@@ -148,16 +150,21 @@ export class OrdersService {
         },
       });
       await this.recalcDisplayStock(item.productId);
+      await this.logStockMovement(item.productId, 'ORDER_RESERVE', item.quantity, 'Order', order.id, customerId, `Sipariş ${orderNo}`);
     }
 
     this.logger.log(`Order ${order.id} created with ${items.length} items`);
     await this.logStatusChange(order.id, order.status, undefined, customerId, undefined);
+    // Fire-and-forget email notification
+    const customer = await this.prisma.user.findUnique({ where: { id: customerId }, select: { email: true, name: true } });
+    if (customer) this.mailerService.sendOrderCreated(customer.email, customer.name, orderNo, total).catch(() => {});
     return order;
   }
 
   /**
-   * Recalculate Product.displayStock = netsisStock - ACTIVE reservations
-   * Must be called after every reservation status change
+   * Recalculate Product.displayStock
+   * Formula: netsisStock - netsisPendingQuantity - ACTIVE reservations
+   * netsisPendingQuantity: Netsis'te bekleyen (faturası kesilmemiş) miktar
    */
   private async recalcDisplayStock(productId: string) {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
@@ -168,7 +175,7 @@ export class OrdersService {
       _sum: { quantity: true },
     });
     const reserved = reservations._sum.quantity || 0;
-    const displayStock = Math.max(0, product.netsisStock - reserved);
+    const displayStock = Math.max(0, product.netsisStock - product.netsisPendingQuantity - reserved);
 
     await this.prisma.product.update({
       where: { id: productId },
@@ -177,8 +184,7 @@ export class OrdersService {
   }
 
   /**
-   * Get available stock (Netsis stock - active reservations)
-   * Used to prevent overselling
+   * Get available stock (netsisStock - netsisPendingQuantity - active reservations)
    */
   async getAvailableStock(productId: string): Promise<number> {
     const product = await this.prisma.product.findUnique({
@@ -189,19 +195,13 @@ export class OrdersService {
       throw new NotFoundException(`Product ${productId} not found`);
     }
 
-    // Get total active reserved stock
     const reservations = await this.prisma.stockReservation.aggregate({
-      where: {
-        productId,
-        status: 'ACTIVE',
-      },
-      _sum: {
-        quantity: true,
-      },
+      where: { productId, status: 'ACTIVE' },
+      _sum: { quantity: true },
     });
 
     const reserved = reservations._sum.quantity || 0;
-    return Math.max(0, product.netsisStock - reserved);
+    return Math.max(0, product.netsisStock - product.netsisPendingQuantity - reserved);
   }
 
   /**
@@ -243,6 +243,8 @@ export class OrdersService {
 
     this.logger.log(`Order ${orderId} approved by ${approvingUserId}`);
     await this.logStatusChange(orderId, 'APPROVED', undefined, approvingUserId, undefined);
+    const cust = await this.prisma.user.findUnique({ where: { id: order.customerId }, select: { email: true, name: true } });
+    if (cust) this.mailerService.sendOrderApproved(cust.email, cust.name, order.orderNo).catch(() => {});
 
     // Dealer istatistiklerini güncelle
     if (order.dealerId) {
@@ -284,7 +286,7 @@ export class OrdersService {
     // Release all stock reservations
     const reservations = await this.prisma.stockReservation.findMany({
       where: { orderId, status: 'ACTIVE' },
-      select: { productId: true },
+      select: { productId: true, quantity: true },
     });
     await this.prisma.stockReservation.updateMany({
       where: { orderId },
@@ -292,6 +294,7 @@ export class OrdersService {
     });
     for (const r of reservations) {
       await this.recalcDisplayStock(r.productId);
+      await this.logStockMovement(r.productId, 'ORDER_CANCEL', r.quantity, 'Order', orderId, rejectingUserId, `Ret: ${reason}`);
     }
 
     const updated = await this.prisma.order.update({
@@ -323,7 +326,7 @@ export class OrdersService {
     // Release all active stock reservations (become fulfilled)
     const reservations = await this.prisma.stockReservation.findMany({
       where: { orderId, status: 'ACTIVE' },
-      select: { productId: true },
+      select: { productId: true, quantity: true },
     });
     await this.prisma.stockReservation.updateMany({
       where: { orderId, status: 'ACTIVE' },
@@ -331,6 +334,7 @@ export class OrdersService {
     });
     for (const r of reservations) {
       await this.recalcDisplayStock(r.productId);
+      await this.logStockMovement(r.productId, 'ORDER_FULFILL', r.quantity, 'Order', orderId, undefined, `Sevk: ${order.orderNo}`);
     }
 
     const updated = await this.prisma.order.update({
@@ -345,6 +349,8 @@ export class OrdersService {
     const trackInfo = trackingNumber ? ` (${cargoCompany || 'Kargo'}: ${trackingNumber})` : '';
     this.logger.log(`Order ${orderId} shipped${trackInfo}, stock reservations fulfilled`);
     await this.logStatusChange(orderId, 'SHIPPED', trackingNumber ? `${cargoCompany}: ${trackingNumber}` : undefined, undefined, undefined);
+    const cust2 = await this.prisma.user.findUnique({ where: { id: order.customerId }, select: { email: true, name: true } });
+    if (cust2) this.mailerService.sendOrderShipped(cust2.email, cust2.name, order.orderNo, trackingNumber, cargoCompany).catch(() => {});
     return updated;
   }
 
@@ -392,7 +398,7 @@ export class OrdersService {
     // Release all active reservations
     const reservations = await this.prisma.stockReservation.findMany({
       where: { orderId, status: 'ACTIVE' },
-      select: { productId: true },
+      select: { productId: true, quantity: true },
     });
     await this.prisma.stockReservation.updateMany({
       where: { orderId, status: 'ACTIVE' },
@@ -400,6 +406,7 @@ export class OrdersService {
     });
     for (const r of reservations) {
       await this.recalcDisplayStock(r.productId);
+      await this.logStockMovement(r.productId, 'ORDER_CANCEL', r.quantity, 'Order', orderId, undefined, `İptal: ${reason}`);
     }
 
     const updated = await this.prisma.order.update({
@@ -412,12 +419,49 @@ export class OrdersService {
 
     this.logger.log(`Order ${orderId} cancelled: ${reason}`);
     await this.logStatusChange(orderId, 'CANCELLED', reason, undefined, undefined);
+    const cust3 = await this.prisma.user.findUnique({ where: { id: order.customerId }, select: { email: true, name: true } });
+    if (cust3) this.mailerService.sendOrderCancelled(cust3.email, cust3.name, order.orderNo, reason).catch(() => {});
     return updated;
   }
 
   /**
    * Mock payment — always succeeds, no real API call
    */
+  async submitBankTransfer(orderId: string, body: { bank: string; amount: number; senderName: string; note?: string }, userId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Sipariş bulunamadı');
+
+    const bt = await this.prisma.bankTransfer.create({
+      data: { orderId, bank: body.bank, amount: body.amount, senderName: body.senderName, note: body.note, userId, status: 'PENDING' },
+    });
+    this.logger.log(`Bank transfer submitted for order ${orderId} by ${userId}`);
+    return bt;
+  }
+
+  async listBankTransfers(status?: string) {
+    const where: any = {};
+    if (status) where.status = status;
+    return this.prisma.bankTransfer.findMany({
+      where,
+      include: { order: { select: { orderNo: true, total: true } }, user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async approveBankTransfer(orderId: string, adminId: string) {
+    const bt = await this.prisma.bankTransfer.findFirst({ where: { orderId, status: 'PENDING' } });
+    if (!bt) throw new NotFoundException('Bekleyen havale bildirimi bulunamadı');
+    await this.prisma.bankTransfer.update({ where: { id: bt.id }, data: { status: 'APPROVED', approvedBy: adminId, approvedAt: new Date() } });
+    await this.prisma.order.update({ where: { id: orderId }, data: { paymentStatus: 'PAID' } });
+    return { success: true };
+  }
+
+  async rejectBankTransfer(orderId: string, reason: string, adminId: string) {
+    const bt = await this.prisma.bankTransfer.findFirst({ where: { orderId, status: 'PENDING' } });
+    if (!bt) throw new NotFoundException('Bekleyen havale bildirimi bulunamadı');
+    return this.prisma.bankTransfer.update({ where: { id: bt.id }, data: { status: 'REJECTED', approvedBy: adminId, rejectionReason: reason } });
+  }
+
   async payOrder(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException(`Order ${orderId} not found`);
@@ -498,6 +542,31 @@ export class OrdersService {
     return order;
   }
 
+  async updateStatus(orderId: string, status: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Sipariş bulunamadı');
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: status as any },
+    });
+    await this.logStatusChange(orderId, status, undefined, undefined, undefined);
+    return updated;
+  }
+
+  async addNote(orderId: string, note: string, userId: string, userEmail: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Sipariş bulunamadı');
+
+    const existingNotes = (order as any).adminNotes || [];
+    const newNote = { note, userId, userEmail, createdAt: new Date().toISOString() };
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { adminNotes: [...existingNotes, newNote] } as any,
+    });
+    return newNote;
+  }
+
   async requestReturn(orderId: string, reason: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Sipariş bulunamadı');
@@ -534,6 +603,7 @@ export class OrdersService {
         data: { netsisStock: { increment: r.quantity } },
       });
       await this.recalcDisplayStock(r.productId);
+      await this.logStockMovement(r.productId, 'RETURN_RESTOCK', r.quantity, 'Return', orderId, adminId, `İade onay: ${order.orderNo}`);
     }
 
     const updated = await this.prisma.order.update({
@@ -562,5 +632,29 @@ export class OrdersService {
     return this.prisma.orderStatusHistory.create({
       data: { orderId, status, note, actorId, actorEmail },
     });
+  }
+
+  private async logStockMovement(
+    productId: string,
+    type: string,
+    quantity: number,
+    referenceType: string,
+    referenceId: string,
+    userId?: string,
+    note?: string,
+  ) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) return;
+    const oldStock = product.netsisStock;
+    // netsisStock only changes for RETURN_RESTOCK (physical return to inventory).
+    // ORDER_RESERVE / ORDER_FULFILL / ORDER_CANCEL only affect reservations,
+    // not the physical netsisStock which is synced from Netsis ERP.
+    const newStock =
+      type === 'RETURN_RESTOCK' ? oldStock + quantity
+      : oldStock;
+
+    await this.prisma.stockMovement.create({
+      data: { productId, type: type as any, quantity, oldStock, newStock, userId, referenceType, referenceId, note },
+    }).catch(err => this.logger.error(`StockMovement log failed: ${err.message}`));
   }
 }

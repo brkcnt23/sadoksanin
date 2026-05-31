@@ -16,6 +16,21 @@ const handleAddToCart = (p: Product) => {
   pushToast({ variant: 'success', title: 'Sepete eklendi', description: p.name, duration: 2500 })
 }
 
+const runtimeConfig = useRuntimeConfig()
+const whatsAppPhone = runtimeConfig.public.whatsAppPhone || ''
+
+const whatsAppNotifyUrl = (p: Product) => {
+  const productUrl = `https://${typeof window !== 'undefined' ? window.location.host : ''}/urunler/${p.slug}`
+  const msg = `Merhaba, stokta olmayan şu ürün geldiğinde bilgi almak istiyorum:\nÜrün: ${p.name}\nStok Kodu: ${p.sku || p.id}\nLink: ${productUrl}`
+  return `https://wa.me/${whatsAppPhone}?text=${encodeURIComponent(msg)}`
+}
+
+const whatsAppOrderUrl = (p: Product) => {
+  const productUrl = `https://${typeof window !== 'undefined' ? window.location.host : ''}/urunler/${p.slug}`
+  const msg = `Merhaba, şu ürün hakkında bilgi almak istiyorum:\nÜrün: ${p.name}\nStok Kodu: ${p.sku || p.id}\nLink: ${productUrl}`
+  return `https://wa.me/${whatsAppPhone}?text=${encodeURIComponent(msg)}`
+}
+
 const product = ref<Product | null>(null)
 const relatedProducts = ref<Product[]>([])
 
@@ -70,24 +85,52 @@ onMounted(async () => {
             <p class="text-gray-700 mb-8">{{ product.description }}</p>
 
 
+            <!-- Sepete Ekle (stok varsa) -->
             <button
-              v-if="isAuthenticated"
+              v-if="isAuthenticated && product.inStock"
               @click="handleAddToCart(product)"
               class="w-full bg-accent-500 text-white py-3 rounded-lg font-bold mb-4"
             >
               Sepete Ekle
             </button>
+
+            <!-- Gelince Haber Ver (stok yoksa, WhatsApp tanımlıysa) -->
+            <a
+              v-if="isAuthenticated && !product.inStock && whatsAppPhone"
+              :href="whatsAppNotifyUrl(product)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full bg-green-600 text-white py-3 rounded-lg font-bold mb-4 block text-center hover:bg-green-700"
+            >
+              Gelince Haber Ver (WhatsApp)
+            </a>
+
+            <!-- Stok yok ama WhatsApp tanımlı değil -->
+            <p
+              v-if="isAuthenticated && !product.inStock && !whatsAppPhone"
+              class="w-full bg-ink-100 text-ink-500 py-3 rounded-lg font-bold mb-4 block text-center text-sm"
+            >
+              Stokta Yok
+            </p>
+
             <NuxtLink
-              v-else
+              v-else-if="!isAuthenticated"
               to="/giris"
               class="w-full bg-ink-100 text-ink-700 py-3 rounded-lg font-bold mb-4 block text-center"
             >
               Sepete Eklemek İçin Giriş Yapın
             </NuxtLink>
 
-            <button class="w-full border-2 border-gray-300 py-3 rounded-lg font-bold">
-              WhatsApp Siparişi
-            </button>
+            <!-- WhatsApp Sipariş (sadece numara tanımlıysa) -->
+            <a
+              v-if="whatsAppPhone"
+              :href="whatsAppOrderUrl(product)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full border-2 border-green-600 text-green-700 py-3 rounded-lg font-bold mb-4 block text-center hover:bg-green-50"
+            >
+              WhatsApp ile Sipariş Ver
+            </a>
           </div>
         </div>
 

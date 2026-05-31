@@ -326,13 +326,9 @@ const handleClearCart = () => {
                 </span>
               </div>
 
-              <p v-if="isDealer" class="text-xs text-ink-600 mt-2">
+              <p class="text-xs text-ink-600 mt-2">
                 <Icon name="lucide:info" class="h-3 w-3 inline mr-1" />
                 Bayi Modu: Sipariş onay beklemede
-              </p>
-              <p v-else class="text-xs text-ink-600 mt-2">
-                <Icon name="lucide:info" class="h-3 w-3 inline mr-1" />
-                Müşteri Modu: Hemen sipariş tamamlanır
               </p>
             </div>
 

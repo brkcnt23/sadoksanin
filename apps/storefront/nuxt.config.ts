@@ -10,9 +10,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001',
+      whatsAppPhone: process.env.WHATSAPP_PHONE || '',
     },
   },
   app: {
+    baseURL: process.env.NUXT_APP_BASE_URL || '/',
     head: {
       htmlAttrs: { lang: 'tr' },
       title: 'Sadoksan — İnşaat',

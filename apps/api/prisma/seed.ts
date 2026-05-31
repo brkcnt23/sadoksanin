@@ -10,7 +10,6 @@
  * Defaults (DEV ONLY — change before any prod deploy):
  *   admin@admin.com / asd123      (UserRole.ADMIN)
  *   bayi@test.com  / asd123       (UserRole.DEALER, linked Dealer ACTIVE)
- *   test@test.com  / asd123       (UserRole.CUSTOMER)
  */
 import 'dotenv/config';
 import * as path from 'node:path';
@@ -48,22 +47,6 @@ async function main() {
     },
   });
   console.log(`✓ Admin user: ${admin.email} (${admin.id})`);
-
-  // ─── B2C customer ────────────────────────────────────────────────────────
-  const customer = await prisma.user.upsert({
-    where: { email: 'test@test.com' },
-    update: { password: passwordHash, role: 'CUSTOMER' },
-    create: {
-      email: 'test@test.com',
-      password: passwordHash,
-      name: 'Ahmet Yılmaz',
-      role: 'CUSTOMER',
-      phone: '0539 654 17 20',
-      city: 'İstanbul',
-      address: 'Test Caddesi No: 5',
-    },
-  });
-  console.log(`✓ Customer user: ${customer.email} (${customer.id})`);
 
   // ─── B2B dealer ──────────────────────────────────────────────────────────
   const dealerUser = await prisma.user.upsert({

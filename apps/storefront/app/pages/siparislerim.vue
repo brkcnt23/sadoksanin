@@ -100,7 +100,7 @@ onMounted(loadOrders)
         <aside class="lg:col-span-1">
           <nav class="space-y-2">
             <NuxtLink
-              to="/hesabim"
+              to="/bayi"
               class="block px-4 py-3 rounded-lg text-primary-900 hover:bg-ink-50 transition-colors"
             >
               <Icon name="lucide:user" class="inline h-4 w-4 mr-2" />

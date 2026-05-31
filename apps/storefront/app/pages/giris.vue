@@ -120,8 +120,8 @@ const handleForgotPassword = () => {
 
       <!-- Demo Credentials -->
       <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p class="text-xs font-semibold text-blue-900 mb-2">Demo Kimlik Bilgileri:</p>
-        <p class="text-xs text-blue-800">Email: <code class="font-mono font-bold">test@test.com</code></p>
+        <p class="text-xs font-semibold text-blue-900 mb-2">Demo Bayi Girişi:</p>
+        <p class="text-xs text-blue-800">Email: <code class="font-mono font-bold">bayi@test.com</code></p>
         <p class="text-xs text-blue-800">Şifre: <code class="font-mono font-bold">asd123</code></p>
       </div>
 

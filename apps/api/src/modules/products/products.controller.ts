@@ -225,6 +225,28 @@ export class ProductsController {
     return this.productsService.importProducts(file.buffer);
   }
 
+  @Post('admin/upload-image')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+      if (allowed.includes(file.mimetype)) cb(null, true);
+      else cb(new BadRequestException('Sadece JPEG, PNG, WebP, AVIF formatları kabul edilir'), false);
+    },
+  }))
+  async uploadImage(@UploadedFile() image: any) {
+    if (!image) throw new BadRequestException('Görsel dosyası gerekli');
+    const filename = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${image.originalname.split('.').pop()}`;
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const uploadDir = path.join(process.cwd(), '..', '..', 'uploads');
+    await fs.mkdir(path.join(uploadDir, 'products'), { recursive: true });
+    await fs.writeFile(path.join(uploadDir, filename), image.buffer);
+    return { url: `/uploads/${filename}` };
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // Variations
   // ═══════════════════════════════════════════════════════════════════

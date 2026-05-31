@@ -13,6 +13,13 @@ export default defineNuxtConfig({
       sizeLimitKb: 512,
     },
   },
+  app: {
+    baseURL: process.env.NUXT_APP_BASE_URL || '/',
+    head: {
+      title: 'Sadöksan Yönetim Paneli',
+      htmlAttrs: { lang: 'tr' },
+    },
+  },
   runtimeConfig: {
     public: {
       apiBase: process.env.ADMIN_API_BASE || 'http://localhost:3001',
@@ -22,12 +29,6 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     typeCheck: false, // Use IDE + pnpm type-check instead.
-  },
-  app: {
-    head: {
-      title: 'Sadöksan Yönetim Paneli',
-      htmlAttrs: { lang: 'tr' },
-    },
   },
   // HMR + watch config'i environment'a göre farklılaştırılmış:
   // - Docker (IN_DOCKER=true)  → explicit polling + dış WS portu (24679 host map'li)
