@@ -317,6 +317,31 @@ export class ProductsService {
   }
 
   /**
+   * Public: Get featured products for homepage
+   */
+  async getFeaturedProducts(limit = 12) {
+    return this.prisma.product.findMany({
+      where: { isFeatured: true, isVisible: true },
+      include: { variations: true },
+      take: limit,
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Admin: Toggle product featured status
+   */
+  async toggleFeatured(productId: string, featured: boolean) {
+    const product = await this.prisma.product.update({
+      where: { id: productId },
+      data: { isFeatured: featured },
+    });
+
+    this.logger.log(`Product ${productId} featured set to ${featured}`);
+    return product;
+  }
+
+  /**
    * Admin: Update stock thresholds
    */
   async updateStockThresholds(

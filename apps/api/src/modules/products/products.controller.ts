@@ -45,6 +45,11 @@ export class ProductsController {
     return this.productsService.getBrands();
   }
 
+  @Get('featured')
+  async getFeatured(@Query('limit') limit?: string) {
+    return this.productsService.getFeaturedProducts(parseInt(limit || '12'));
+  }
+
   @Get('stock/:productId/status')
   async getStockStatus(@Param('productId') productId: string) {
     const status = await this.productsService.getStockStatus(productId);
@@ -159,6 +164,16 @@ export class ProductsController {
     @Body() body: { purchasable: boolean },
   ) {
     return this.productsService.togglePurchasable(productId, body.purchasable);
+  }
+
+  @Post(':productId/featured')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async toggleFeatured(
+    @Param('productId') productId: string,
+    @Body() body: { featured: boolean },
+  ) {
+    return this.productsService.toggleFeatured(productId, body.featured);
   }
 
   @Post(':productId/stock-thresholds')
