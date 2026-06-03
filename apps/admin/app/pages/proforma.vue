@@ -612,8 +612,9 @@ const tabs = [
 ]
 
 const getTabCount = (tabId: string): number => {
-  if (tabId === 'all') return allProformas.value.length
-  return allProformas.value.filter(p => p.status === tabId).length
+  const list = Array.isArray(allProformas.value) ? allProformas.value : []
+  if (tabId === 'all') return list.length
+  return list.filter(p => p.status === tabId).length
 }
 
 const blankItem = (): NewProformaItem => ({
@@ -646,7 +647,8 @@ const productSearchResults = ref<ProductSearchResult[]>([])
 let productSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const filteredProformas = computed(() => {
-  return allProformas.value.filter(p => {
+  const list = Array.isArray(allProformas.value) ? allProformas.value : []
+  return list.filter(p => {
     const matchesSearch = !searchQuery.value ||
       p.proformaNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       p.customerName.toLowerCase().includes(searchQuery.value.toLowerCase())
