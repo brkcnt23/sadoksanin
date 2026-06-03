@@ -26,6 +26,10 @@ async function bootstrap() {
     }),
   );
 
+  // Global API prefix — all controllers inherit /api
+  // Nginx preserves the prefix, so both internal and external calls work
+  app.setGlobalPrefix('api');
+
   // CORS — prod domain'leri env'den, dev fallback localhost
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
@@ -40,7 +44,7 @@ async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
     const rateLimit = (await import('express-rate-limit')).default;
     app.use(
-      '/auth/login',
+      '/api/auth/login',
       rateLimit({
         windowMs: 15 * 60 * 1000, // 15 dk
         max: 10, // 10 deneme

@@ -50,7 +50,7 @@ export interface ProductSearchResult {
 
 export const useProformaApi = () => {
   const config = useRuntimeConfig()
-  const apiBase = `${config.public.apiBase}/api`
+  const apiBase = String(config.public.apiBase).replace(/\/+$/, '')
 
   /** Build Authorization header from the admin token cookie/localStorage. */
   const authHeaders = (): Record<string, string> => {

@@ -49,9 +49,9 @@ export const useDealersStore = defineStore('dealers', {
     async load() {
       try {
   const api = useApi()
-        const data = await api.get<any[]>('/api/dealer/admin/list')
+        const data = await api.get<any[]>('/dealer/admin/list')
         // Map API response to admin Dealer type
-        this.items = data.map((d: any) => ({
+        this.items = (data || []).map((d: any) => ({
           id: d.id,
           name: d.company || d.name,
           contactPerson: d.contactPerson || d.contactName,
@@ -103,7 +103,7 @@ export const useDealersStore = defineStore('dealers', {
     async validateCari(cariNo: string): Promise<{ valid: boolean; reason?: string; balance?: number }> {
       try {
   const api = useApi()
-        return await api.post('/api/dealer/validate-cari', { cariNo })
+        return await api.post('/dealer/validate-cari', { cariNo })
       } catch {
         // Fallback to mock validation
         if (/^120\.01\.\d{4}$/.test(cariNo)) {
@@ -116,7 +116,7 @@ export const useDealersStore = defineStore('dealers', {
     async approve(id: string, adminId: string) {
       try {
   const api = useApi()
-        await api.patch(`/api/dealer/${id}/approve`)
+        await api.patch(`/dealer/${id}/approve`)
         await this.load() // Reload from API
       } catch (err) {
         // Fallback: local update
@@ -132,7 +132,7 @@ export const useDealersStore = defineStore('dealers', {
     async reject(id: string, adminId: string, reason: string) {
       try {
   const api = useApi()
-        await api.patch(`/api/dealer/${id}/reject`, { reason })
+        await api.patch(`/dealer/${id}/reject`, { reason })
         await this.load()
       } catch (err) {
         const d = this.findById(id)

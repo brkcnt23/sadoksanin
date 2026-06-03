@@ -76,7 +76,7 @@ const statusBadge = (s: DealerStatus) => {
     <div class="bg-white rounded-xl border border-ink-200 p-4">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="relative">
-          <Icon name="lucide:search" class="absolute left-3 top-1/2 -tranink-y-1/2 w-4 h-4 text-ink-400" />
+          <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
           <input
             :value="dealers.search"
             @input="dealers.setSearch(($event.target as HTMLInputElement).value)"

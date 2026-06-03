@@ -13,13 +13,24 @@ interface ApiOptions {
 export const useApi = () => {
   const buildUrl = (path: string, params?: Record<string, string | number | boolean>): string => {
     const config = useRuntimeConfig()
-    const url = new URL(path, config.public.apiBase)
+    const base = String(config.public.apiBase).replace(/\/+$/, '')
+    const cleanPath = path.startsWith('/') ? path : '/' + path
+
+    // Relative path (e.g. /api) — fetch() resolves against current origin.
+    // Absolute URL — new URL('https://.../api' + '/auth/login') works correctly.
+    const isAbsolute = base.startsWith('http://') || base.startsWith('https://')
+    const fullPath = base + cleanPath
+    const url = isAbsolute ? new URL(fullPath) : fullPath
+
     if (params) {
+      const separator = String(url).includes('?') ? '&' : '?'
+      const searchParams = new URLSearchParams()
       Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value))
+        searchParams.append(key, String(value))
       })
+      return url + separator + searchParams.toString()
     }
-    return url.toString()
+    return url
   }
 
   const request = async <T>(path: string, options: ApiOptions = {}): Promise<T> => {

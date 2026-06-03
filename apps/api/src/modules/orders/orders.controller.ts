@@ -131,7 +131,11 @@ export class OrdersController {
   }
 
   /**
-   * Mock payment — accepts card info, always succeeds (no real API call)
+   * Ödeme — demo test kartı ile tam cycle:
+   *   Kart No: 4111 1111 1111 1111
+   *   SKT: 12/28
+   *   CVV: 123
+   * Bu kartla ödeme yapıldığında sipariş OTOMATİK ONAYLANIR (B2B dahil).
    */
   @Post(':orderId/pay')
   async payOrder(
@@ -139,7 +143,7 @@ export class OrdersController {
     @Body() body: { cardNumber?: string; expiry?: string; cvv?: string; cardHolder?: string },
     @Request() req: any,
   ) {
-    return this.ordersService.payOrder(orderId, req.user.sub);
+    return this.ordersService.payOrder(orderId, req.user.sub, body);
   }
 
   /**

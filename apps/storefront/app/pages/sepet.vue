@@ -116,7 +116,7 @@ const handlePlaceOrder = async () => {
     if (userIsDealer.value && !resolvedDealerId) {
       try {
         const api = useApi()
-        const info = await api.get<any>('/api/dealer/profile')
+        const info = await api.get<any>('/dealer/profile')
         resolvedDealerId = info?.id
       } catch {}
     }

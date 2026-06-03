@@ -15,7 +15,7 @@ import { Response } from 'express';
 import { DealerService } from './dealer.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('api/dealer')
+@Controller('dealer')
 @UseGuards(JwtAuthGuard)
 export class DealerController {
   private readonly logger = new Logger(DealerController.name);

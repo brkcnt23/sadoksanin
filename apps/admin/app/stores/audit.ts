@@ -57,12 +57,12 @@ export const useAuditStore = defineStore('audit', {
           total: number
           page: number
           totalPages: number
-        }>('/api/admin/audit', params)
+        }>('/admin/audit', params)
 
-        this.items = result.items
-        this.total = result.total
-        this.page = result.page
-        this.totalPages = result.totalPages
+        this.items = result?.items || []
+        this.total = result?.total || 0
+        this.page = result?.page || page
+        this.totalPages = result?.totalPages || 1
       } catch {
         // Silent fail
       }
@@ -77,7 +77,7 @@ export const useAuditStore = defineStore('audit', {
       try {
         const { useApi } = await import('~/composables/useApi')
         const api = useApi()
-        await api.post('/api/admin/audit/log', { action, entity, entityId })
+        await api.post('/admin/audit/log', { action, entity, entityId })
       } catch {
         /* non-critical — don't break the caller */
       }

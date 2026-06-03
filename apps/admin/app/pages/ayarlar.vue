@@ -1,4 +1,6 @@
 ﻿<script setup lang="ts">
+const toast = useToast()
+
 definePageMeta({
   layout: 'default',
   middleware: 'auth',
@@ -23,7 +25,7 @@ watch(
 
 const save = () => {
   settings.save({ ...form.value })
-  alert('Ayarlar kaydedildi')
+  toast.push('Ayarlar kaydedildi', 'success')
 }
 
 const toggleMaintenance = () => {
@@ -58,7 +60,7 @@ const toggleMaintenance = () => {
           <span
             :class="[
               'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-              settings.data.maintenanceMode ? 'tranink-x-5' : 'tranink-x-0.5',
+              settings.data.maintenanceMode ? 'translate-x-5' : 'translate-x-0.5',
             ]"
           />
         </button>

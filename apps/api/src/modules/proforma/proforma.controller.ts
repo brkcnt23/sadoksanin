@@ -21,7 +21,7 @@ import { ProformaService } from './proforma.service';
 import { GenerateProformaDto, CreateProformaDraftDto } from './dto/generate-proforma.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('api/proforma')
+@Controller('proforma')
 @UseGuards(JwtAuthGuard)
 export class ProformaController {
   private readonly logger = new Logger(ProformaController.name);

@@ -13,6 +13,15 @@ definePageMeta({
 const forex = useForexStore()
 const products = useProductsStore()
 
+// Pagination for products table
+const forexPage = ref(1)
+const forexPageSize = ref(30)
+const forexPaginated = computed(() => {
+  const start = (forexPage.value - 1) * forexPageSize.value
+  return [...products.items].slice(start, start + forexPageSize.value)
+})
+const forexTotalPages = computed(() => Math.ceil(products.items.length / forexPageSize.value))
+
 onMounted(() => {
   if (!forex.loaded) forex.load()
   if (!products.loaded) products.load()
@@ -311,7 +320,7 @@ const exportProductCurrencyPrices = async () => {
             </tr>
           </thead>
           <tbody class="divide-y divide-ink-100">
-            <tr v-for="product in products.items" :key="product.id" class="hover:bg-ink-50">
+            <tr v-for="product in forexPaginated" :key="product.id" class="hover:bg-ink-50">
               <td class="px-5 py-3 text-sm font-medium text-ink-900">{{ product.name }}</td>
               <td class="px-5 py-3 text-sm text-ink-700">{{ formatPrice(product.basePrice) }}</td>
               <td class="px-5 py-3 text-xs text-ink-600">
@@ -338,99 +347,64 @@ const exportProductCurrencyPrices = async () => {
           </tbody>
         </table>
       </div>
-      <EmptyState v-if="products.items.length === 0" icon="lucide:package" title="Ürün bulunamadı" />
+      <EmptyState v-if="forexPaginated.length === 0 && products.loaded" icon="lucide:package" title="Ürün bulunamadı" />
+    </div>
+
+    <!-- Product pagination -->
+    <div v-if="forexTotalPages > 1" class="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-ink-200">
+      <p class="text-sm text-ink-500">{{ products.items.length }} ürün, sayfa {{ forexPage }}/{{ forexTotalPages }}</p>
+      <div class="flex gap-2">
+        <button @click="forexPage = Math.max(1, forexPage - 1)" :disabled="forexPage <= 1" class="px-3 py-1.5 text-sm border border-ink-200 rounded-md hover:bg-ink-50 disabled:opacity-50">Önceki</button>
+        <button @click="forexPage = Math.min(forexTotalPages, forexPage + 1)" :disabled="forexPage >= forexTotalPages" class="px-3 py-1.5 text-sm border border-ink-200 rounded-md hover:bg-ink-50 disabled:opacity-50">Sonraki</button>
+      </div>
     </div>
 
     <!-- Apply Rate Modal -->
-    <div v-if="showApplyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-ink-900 mb-4">
-          {{ applyModalData.currency }} Kurunu Tüm Ürünlere Uygula
-        </h3>
-        <p class="text-sm text-ink-600 mb-4">
-          Bu döviz kurunu (₺{{ applyModalData.rate.toFixed(2) }}) tüm {{ applyModalData.currency }} cinsinden ürün fiyatlarına
-          uygulayacaksınız.
-        </p>
-        <div class="space-y-3">
-          <input
-            v-model.number="applyModalData.rate"
-            type="number"
-            step="0.01"
-            min="0"
-            label="Kur (TRY)"
-            class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm"
-          />
-          <div class="flex gap-2">
-            <button
-              @click="applyRateToAll"
-              class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"
-            >
-              Uygula
-            </button>
-            <button
-              @click="showApplyModal = false"
-              class="flex-1 px-4 py-2 bg-ink-200 text-ink-700 rounded-lg hover:bg-ink-300 font-medium text-sm"
-            >
-              İptal
-            </button>
-          </div>
-        </div>
+    <Modal :open="showApplyModal" size="sm" title="Kur Tüm Ürünlere Uygula" @close="showApplyModal = false">
+      <div class="p-4 space-y-4">
+        <p class="text-sm text-ink-600">{{ applyModalData.currency }} kurunu (₺{{ applyModalData.rate.toFixed(2) }}) tüm ürünlere uygulayacaksınız.</p>
+        <input v-model.number="applyModalData.rate" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm" />
       </div>
-    </div>
+      <template #footer>
+        <div class="flex justify-end gap-2 p-4 border-t border-ink-100">
+          <button @click="showApplyModal = false" class="px-4 py-2 text-sm text-ink-600 hover:bg-ink-50 rounded-lg">İptal</button>
+          <button @click="applyRateToAll" class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg">Uygula</button>
+        </div>
+      </template>
+    </Modal>
 
     <!-- Currency Pricing Modal -->
-    <div v-if="showCurrencyPricingModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-ink-900 mb-4">Döviz Fiyat Ekle/Düzenle</h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1">Ürün</label>
-            <select v-model="selectedProduct" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
-              <option value="">Seçiniz</option>
-              <option v-for="p in products.items" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1">Döviz Tipi</label>
-            <select v-model="selectedCurrency" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
-              <option v-for="curr in forex.supportedCurrencies" :key="curr" :value="curr">{{ curr }}</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1">Fiyat ({{ selectedCurrency }})</label>
-            <input
-              v-model.number="currencyPrice"
-              type="number"
-              step="0.01"
-              min="0"
-              class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm"
-            />
-          </div>
-
-          <div v-if="convertedPrice !== null" class="p-3 bg-ink-50 rounded-lg">
-            <p class="text-xs text-ink-600">TRY Karşılığı</p>
-            <p class="text-lg font-bold text-ink-900">{{ formatPrice(convertedPrice) }}</p>
-          </div>
-
-          <div class="flex gap-2">
-            <button
-              @click="saveCurrencyPrice"
-              class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm"
-            >
-              Kaydet
-            </button>
-            <button
-              @click="showCurrencyPricingModal = false"
-              class="flex-1 px-4 py-2 bg-ink-200 text-ink-700 rounded-lg hover:bg-ink-300 font-medium text-sm"
-            >
-              İptal
-            </button>
-          </div>
+    <Modal :open="showCurrencyPricingModal" size="md" title="Döviz Fiyat Ekle/Düzenle" @close="showCurrencyPricingModal = false">
+      <div class="p-4 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1">Ürün</label>
+          <select v-model="selectedProduct" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
+            <option value="">Seçiniz</option>
+            <option v-for="p in products.items" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1">Döviz Tipi</label>
+          <select v-model="selectedCurrency" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm bg-white">
+            <option v-for="curr in forex.supportedCurrencies" :key="curr" :value="curr">{{ curr }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1">Fiyat ({{ selectedCurrency }})</label>
+          <input v-model.number="currencyPrice" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm" />
+        </div>
+        <div v-if="convertedPrice !== null" class="p-3 bg-ink-50 rounded-lg">
+          <p class="text-xs text-ink-600">TRY Karşılığı</p>
+          <p class="text-lg font-bold text-ink-900">{{ formatPrice(convertedPrice) }}</p>
         </div>
       </div>
-    </div>
+      <template #footer>
+        <div class="flex justify-end gap-2 p-4 border-t border-ink-100">
+          <button @click="showCurrencyPricingModal = false" class="px-4 py-2 text-sm text-ink-600 hover:bg-ink-50 rounded-lg">İptal</button>
+          <button @click="saveCurrencyPrice" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">Kaydet</button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 

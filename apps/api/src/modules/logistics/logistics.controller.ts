@@ -2,7 +2,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { LogisticsService } from './logistics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('api/logistics')
+@Controller('logistics')
 export class LogisticsController {
   constructor(private logisticsService: LogisticsService) {}
 

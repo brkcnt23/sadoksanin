@@ -462,22 +462,80 @@ export class OrdersService {
     return this.prisma.bankTransfer.update({ where: { id: bt.id }, data: { status: 'REJECTED', approvedBy: adminId, rejectionReason: reason } });
   }
 
-  async payOrder(orderId: string, userId: string) {
+  // Demo test kartı — sunum için, gerçek POS gelince kalkacak
+  private readonly DEMO_CARD = {
+    number: '4111111111111111',
+    expiry: '12/28',
+    cvv: '123',
+    holder: 'Test Kart',
+  };
+
+  private validateDemoCard(cardNumber?: string, expiry?: string, cvv?: string): boolean {
+    const clean = (cardNumber || '').replace(/\s/g, '');
+    if (clean !== this.DEMO_CARD.number) return false;
+    if (expiry && expiry !== this.DEMO_CARD.expiry) return false;
+    if (cvv && cvv !== this.DEMO_CARD.cvv) return false;
+    return true;
+  }
+
+  async payOrder(
+    orderId: string,
+    userId: string,
+    cardDetails?: { cardNumber?: string; expiry?: string; cvv?: string; cardHolder?: string },
+  ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException(`Order ${orderId} not found`);
     if (order.customerId !== userId) throw new BadRequestException('Bu sipariş size ait değil');
+
+    const isDemoCard = this.validateDemoCard(
+      cardDetails?.cardNumber,
+      cardDetails?.expiry,
+      cardDetails?.cvv,
+    );
+
+    // Demo kartla ödeme → B2B siparişler de otomatik onaylanır
+    const newStatus = order.customerType === 'B2C' || isDemoCard
+      ? 'APPROVED'
+      : order.status;
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
         paymentStatus: 'PAID',
-        status: order.customerType === 'B2C' ? 'APPROVED' : order.status,
+        paymentMethod: 'CREDIT_CARD',
+        status: newStatus,
+        approvedAt: newStatus === 'APPROVED' ? new Date() : order.approvedAt,
       },
       include: { lines: { include: { product: true } } },
     });
 
-    this.logger.log(`Order ${orderId} payment successful (mock)`);
-    return updated;
+    // B2B onaylandıysa bayi cari bakiyesini ve istatistiklerini güncelle
+    if (isDemoCard && order.customerType === 'B2B' && order.dealerId) {
+      await this.prisma.dealer.update({
+        where: { id: order.dealerId },
+        data: {
+          cariBalance: { increment: order.total },
+          totalOrders: { increment: 1 },
+          totalRevenue: { increment: order.total },
+          lastOrderAt: new Date(),
+        },
+      });
+    }
+
+    // Status history
+    if (newStatus !== order.status) {
+      await this.logStatusChange(orderId, newStatus, undefined, userId, undefined);
+    }
+
+    this.logger.log(`Order ${orderId} payment ${isDemoCard ? '(demo card)' : '(mock)'}: PAID → ${newStatus}`);
+    return {
+      ...updated,
+      paymentMessage: isDemoCard
+        ? `✅ Demo kart ile ödeme alındı! Sipariş ${newStatus === 'APPROVED' ? 'otomatik onaylandı' : 'güncellendi'}.`
+        : 'Ödeme alındı.',
+      cardLast4: isDemoCard ? '1111' : undefined,
+      autoApproved: isDemoCard,
+    };
   }
 
   /**

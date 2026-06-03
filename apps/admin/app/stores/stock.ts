@@ -95,30 +95,30 @@ export const useStockStore = defineStore('stock', {
     async fetchMovements(productId: string, params?: { type?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      const result = await api.get<{ movements: StockMovement[]; total: number }>('/api/admin/stock/movements', {
+      const result = await api.get<{ movements: StockMovement[]; total: number }>('/admin/stock/movements', {
         productId,
         ...(params || {}),
       } as any)
-      this.movements = result.movements
+      this.movements = result?.movements || []
       return result
     },
 
     async manualEntry(productId: string, quantity: number, note: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      return api.post<StockMovement>('/api/admin/stock/entry', { productId, quantity, note })
+      return api.post<StockMovement>('/admin/stock/entry', { productId, quantity, note })
     },
 
     async manualExit(productId: string, quantity: number, type: string, note: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      return api.post<StockMovement>('/api/admin/stock/exit', { productId, quantity, type, note })
+      return api.post<StockMovement>('/admin/stock/exit', { productId, quantity, type, note })
     },
 
     async countAdjust(productId: string, actualCount: number, note: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      return api.post<StockMovement>('/api/admin/stock/count-adjust', { productId, actualCount, note })
+      return api.post<StockMovement>('/admin/stock/count-adjust', { productId, actualCount, note })
     },
   },
 })

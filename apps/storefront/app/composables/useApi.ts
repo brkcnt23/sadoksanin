@@ -13,7 +13,10 @@ interface ApiOptions {
 export const useApi = () => {
   const buildUrl = (path: string, params?: Record<string, string | number | boolean>): string => {
     const config = useRuntimeConfig()
-    const url = new URL(path, config.public.apiBase)
+    // new URL('/path', 'https://host/api') strips /api — join manually
+    const base = String(config.public.apiBase).replace(/\/+$/, '')
+    const cleanPath = path.startsWith('/') ? path : '/' + path
+    const url = new URL(base + cleanPath)
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.append(key, String(value))

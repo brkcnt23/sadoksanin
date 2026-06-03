@@ -9,6 +9,8 @@ WORKDIR /app
 
 ARG NUXT_APP_BASE_URL=/
 ENV NUXT_APP_BASE_URL=$NUXT_APP_BASE_URL
+ARG ADMIN_API_BASE=/api
+ENV ADMIN_API_BASE=$ADMIN_API_BASE
 
 # Copy root + admin + packages
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./

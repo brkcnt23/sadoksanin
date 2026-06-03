@@ -48,7 +48,7 @@ export const usePopupsStore = defineStore('popups', {
       try {
         const { useApi } = await import('~/composables/useApi')
         const api = useApi()
-        this.items = await api.get<PopupItem[]>('/api/admin/popups')
+        this.items = await api.get<PopupItem[]>('/admin/popups') || []
       } catch {
         // Silent fail — items stay as []
       }
@@ -60,12 +60,12 @@ export const usePopupsStore = defineStore('popups', {
       const api = useApi()
 
       if (input.id) {
-        const updated = await api.patch<PopupItem>(`/api/admin/popups/${input.id}`, input)
+        const updated = await api.patch<PopupItem>(`/admin/popups/${input.id}`, input)
         const idx = this.items.findIndex((p) => p.id === input.id)
         if (idx >= 0) this.items[idx] = updated
         else this.items.unshift(updated)
       } else {
-        const created = await api.post<PopupItem>('/api/admin/popups', input)
+        const created = await api.post<PopupItem>('/admin/popups', input)
         this.items.unshift(created)
       }
     },
@@ -79,7 +79,7 @@ export const usePopupsStore = defineStore('popups', {
     async remove(id: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      await api.delete(`/api/admin/popups/${id}`)
+      await api.delete(`/admin/popups/${id}`)
       this.items = this.items.filter((p) => p.id !== id)
     },
   },

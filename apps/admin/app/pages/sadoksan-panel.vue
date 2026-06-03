@@ -44,7 +44,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center p-4">
+  <div class="min-h-screen bg-gradient-to-br ink-800 flex items-center justify-center p-4">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-10">
       <div class="absolute top-0 -left-40 w-80 h-80 bg-white rounded-full blur-3xl" />
@@ -53,11 +53,11 @@ const handleKeyPress = (e: KeyboardEvent) => {
 
     <!-- Login Card -->
     <div class="relative w-full max-w-md">
-      <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+      <div class="bg-white rounded-xl border border-ink-200 p-8 md:p-12">
         <!-- Logo -->
         <div class="text-center mb-8">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Sadöksan</h1>
-          <p class="text-gray-600">Yönetim Paneli</p>
+          <h1 class="text-3xl font-bold text-ink-900 mb-2">Sadöksan</h1>
+          <p class="text-ink-600">Yönetim Paneli</p>
         </div>
 
         <!-- Error Message -->
@@ -69,7 +69,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
         <form @submit.prevent="handleLogin" class="space-y-4">
           <!-- Email Input -->
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="email" class="block text-sm font-medium text-ink-700 mb-2">
               Email Adresi
             </label>
             <input
@@ -78,7 +78,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
               type="email"
               placeholder="admin@admin.com"
               required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-colors"
+              class="w-full px-4 py-3 border border-ink-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
               @keypress="handleKeyPress"
               :disabled="isLoading"
             />
@@ -86,7 +86,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 
           <!-- Password Input -->
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="password" class="block text-sm font-medium text-ink-700 mb-2">
               Şifre
             </label>
             <input
@@ -95,7 +95,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
               type="password"
               placeholder="••••••••"
               required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-colors"
+              class="w-full px-4 py-3 border border-ink-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
               @keypress="handleKeyPress"
               :disabled="isLoading"
             />
@@ -106,10 +106,10 @@ const handleKeyPress = (e: KeyboardEvent) => {
             <input
               id="remember"
               type="checkbox"
-              class="w-4 h-4 border border-gray-300 rounded focus:ring-primary-600"
+              class="w-4 h-4 border border-ink-300 rounded focus:ring-primary-500"
               :disabled="isLoading"
             />
-            <label for="remember" class="ml-2 text-sm text-gray-600">
+            <label for="remember" class="ml-2 text-sm text-ink-600">
               Beni hatırla
             </label>
           </div>
@@ -118,7 +118,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
           <button
             type="submit"
             :disabled="isLoading"
-            class="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3 rounded-lg hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-gradient-to-r primary-600 text-white font-semibold py-3 rounded-lg hover: transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap' }}
           </button>
@@ -127,15 +127,15 @@ const handleKeyPress = (e: KeyboardEvent) => {
         <!-- Spacer -->
 
         <!-- Dev Info -->
-        <div class="mt-8 p-4 bg-primary-50 border border-primary-200 rounded-lg">
-          <p class="text-xs text-primary-700 font-medium mb-2">Geliştirme Hesabı:</p>
+        <div class="mt-8 p-4 bg-ink-50 border border-ink-200 rounded-lg">
+          <p class="text-xs text-ink-700 font-medium mb-2">Geliştirme Hesabı:</p>
           <p class="text-xs text-primary-600 font-mono">admin@admin.com</p>
           <p class="text-xs text-primary-600 font-mono">asd123</p>
         </div>
 
         <!-- Footer -->
         <div class="mt-8 text-center">
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-ink-600">
             © 2026 Sadöksan. Tüm Hakları Saklıdır.
           </p>
         </div>

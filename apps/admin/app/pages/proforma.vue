@@ -1,17 +1,17 @@
 ﻿<template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4">
+  <div class="min-h-screen bg-ink-50 py-8 px-4">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-8">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Proforma Yönetimi</h1>
-          <p class="text-gray-600 mt-2">Proforma faturalarını oluştur ve yönet</p>
+          <h1 class="text-3xl font-bold text-ink-900">Proforma Yönetimi</h1>
+          <p class="text-ink-600 mt-2">Proforma faturalarını oluştur ve yönet</p>
         </div>
         <button
           @click="showCreateForm = true"
           class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
         >
-          <span>➕</span> Yeni Proforma
+          <Icon name="lucide:plus" class="w-4 h-4" /> Yeni Proforma
         </button>
       </div>
 
@@ -21,13 +21,13 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading && allProformas.length === 0" class="bg-white rounded-lg shadow p-8 text-center">
-        <p class="text-gray-600">Proformalar yükleniyor...</p>
+      <div v-if="loading && allProformas.length === 0" class="bg-white rounded-xl border border-ink-200 p-8 text-center">
+        <p class="text-ink-600">Proformalar yükleniyor...</p>
       </div>
 
       <!-- Tabs -->
-      <div v-if="!loading || allProformas.length > 0" class="bg-white rounded-lg shadow mb-6">
-        <div class="flex border-b border-gray-200">
+      <div v-if="!loading || allProformas.length > 0" class="bg-white rounded-xl border border-ink-200 mb-6">
+        <div class="flex border-b border-ink-200">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -36,7 +36,7 @@
               'flex-1 py-4 px-6 font-medium text-center transition-all',
               activeTab === tab.id
                 ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-gray-600 hover:text-gray-900'
+                : 'text-ink-600 hover:text-ink-900'
             ]"
           >
             {{ tab.label }} ({{ getTabCount(tab.id) }})
@@ -51,11 +51,11 @@
               v-model="searchQuery"
               type="text"
               placeholder="Proforma No, Müşteri Adı..."
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              class="flex-1 px-4 py-2 border border-ink-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <select
               v-model="filterStatus"
-              class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              class="px-4 py-2 border border-ink-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">Tüm Durumlar</option>
               <option value="draft">Taslak</option>
@@ -67,23 +67,23 @@
           <!-- Tablo -->
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
-              <thead class="bg-gray-100 border-b border-gray-200">
+              <thead class="bg-ink-100 border-b border-ink-200">
                 <tr>
-                  <th class="px-4 py-3 text-left font-medium text-gray-700">Proforma No</th>
-                  <th class="px-4 py-3 text-left font-medium text-gray-700">Müşteri</th>
-                  <th class="px-4 py-3 text-left font-medium text-gray-700">Şablon</th>
-                  <th class="px-4 py-3 text-left font-medium text-gray-700">Tarih</th>
-                  <th class="px-4 py-3 text-right font-medium text-gray-700">Tutar</th>
-                  <th class="px-4 py-3 text-left font-medium text-gray-700">Durum</th>
-                  <th class="px-4 py-3 text-center font-medium text-gray-700">İşlemler</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Proforma No</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Müşteri</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Şablon</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Tarih</th>
+                  <th class="px-4 py-3 text-right font-medium text-ink-700">Tutar</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Durum</th>
+                  <th class="px-4 py-3 text-center font-medium text-ink-700">İşlemler</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="proforma in filteredProformas" :key="proforma.id" class="border-b border-gray-100 hover:bg-gray-50">
-                  <td class="px-4 py-3 font-medium text-gray-900">{{ proforma.proformaNumber }}</td>
-                  <td class="px-4 py-3 text-gray-600">
+                <tr v-for="proforma in filteredProformas" :key="proforma.id" class="border-b border-ink-100 hover:bg-ink-50">
+                  <td class="px-4 py-3 font-medium text-ink-900">{{ proforma.proformaNumber }}</td>
+                  <td class="px-4 py-3 text-ink-600">
                     <div>{{ proforma.customerName }}</div>
-                    <div class="text-xs text-gray-400">{{ proforma.customerCity }}</div>
+                    <div class="text-xs text-ink-400">{{ proforma.customerCity }}</div>
                   </td>
                   <td class="px-4 py-3">
                     <span :class="[
@@ -95,8 +95,8 @@
                       {{ proforma.templateType }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-gray-600">{{ formatDate(new Date(proforma.generatedAt)) }}</td>
-                  <td class="px-4 py-3 text-right font-medium text-gray-900">{{ formatCurrency(Number(proforma.totalAmount)) }}</td>
+                  <td class="px-4 py-3 text-ink-600">{{ formatDate(new Date(proforma.generatedAt)) }}</td>
+                  <td class="px-4 py-3 text-right font-medium text-ink-900">{{ formatCurrency(Number(proforma.totalAmount)) }}</td>
                   <td class="px-4 py-3">
                     <span :class="[
                       'px-3 py-1 rounded-full text-xs font-medium',
@@ -114,7 +114,7 @@
                         class="text-primary-600 hover:text-primary-800 text-sm font-medium"
                         title="Görüntüle"
                       >
-                        👁️
+                        <Icon name="lucide:eye" class="w-4 h-4" />
                       </button>
                       <button
                         v-if="proforma.status === 'draft'"
@@ -122,7 +122,7 @@
                         class="text-amber-600 hover:text-amber-800 text-sm font-medium"
                         title="Düzenle"
                       >
-                        ✏️
+                        <Icon name="lucide:edit-2" class="w-4 h-4" />
                       </button>
                       <button
                         v-if="proforma.status === 'draft'"
@@ -130,14 +130,14 @@
                         class="text-green-600 hover:text-green-800 text-sm font-medium"
                         title="Gönder"
                       >
-                        📤
+                        <Icon name="lucide:send" class="w-4 h-4" />
                       </button>
                       <button
                         @click="downloadProformaHandler(proforma.id)"
                         class="text-purple-600 hover:text-purple-800 text-sm font-medium"
                         title="İndir"
                       >
-                        📥
+                        <Icon name="lucide:download" class="w-4 h-4" />
                       </button>
                       <button
                         v-if="proforma.status !== 'accepted'"
@@ -145,13 +145,13 @@
                         class="text-red-600 hover:text-red-800 text-sm font-medium"
                         title="Sil"
                       >
-                        🗑️
+                        <Icon name="lucide:trash-2" class="w-4 h-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
-                <tr v-if="filteredProformas.length === 0" class="border-b border-gray-100">
-                  <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                <tr v-if="filteredProformas.length === 0" class="border-b border-ink-100">
+                  <td colspan="7" class="px-4 py-8 text-center text-ink-500">
                     Proforma bulunamadı
                   </td>
                 </tr>
@@ -161,13 +161,13 @@
 
           <!-- Pagination -->
           <div class="flex items-center justify-between mt-6">
-            <p class="text-sm text-gray-600">
+            <p class="text-sm text-ink-600">
               Toplam: <strong>{{ allProformas.length }}</strong> proforma
             </p>
             <div class="flex gap-2">
-              <button class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100">← Önceki</button>
+              <button class="px-3 py-1 border border-ink-300 rounded hover:bg-ink-100">← Önceki</button>
               <button class="px-3 py-1 border border-primary-500 bg-primary-50 text-primary-600 rounded">1</button>
-              <button class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100">Sonraki →</button>
+              <button class="px-3 py-1 border border-ink-300 rounded hover:bg-ink-100">Sonraki →</button>
             </div>
           </div>
         </div>
@@ -175,9 +175,9 @@
 
       <!-- Detay Görüntüleme Modalı -->
       <div v-if="showDetailModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
           <!-- Modal Header -->
-          <div class="sticky top-0 bg-gradient-to-r from-gray-700 to-gray-800 text-white px-6 py-4 flex items-center justify-between z-10">
+          <div class="sticky top-0 bg-ink-700 text-white px-6 py-4 flex items-center justify-between z-10">
             <div>
               <h2 class="text-xl font-bold">{{ selectedProforma?.proformaNumber }}</h2>
               <p class="text-sm opacity-80">{{ formatDate(new Date(selectedProforma?.generatedAt)) }}</p>
@@ -185,7 +185,7 @@
             <button @click="closeDetailModal" class="text-2xl hover:opacity-80">&times;</button>
           </div>
 
-          <div v-if="detailLoading" class="p-8 text-center text-gray-500">Yükleniyor...</div>
+          <div v-if="detailLoading" class="p-8 text-center text-ink-500">Yükleniyor...</div>
 
           <div v-else-if="selectedProforma" class="p-6 space-y-6">
             <!-- Status & Template -->
@@ -208,39 +208,39 @@
 
             <!-- Müşteri Bilgileri -->
             <div class="grid grid-cols-2 gap-6">
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">Müşteri Bilgileri</h3>
+              <div class="bg-ink-50 p-4 rounded-lg">
+                <h3 class="text-sm font-semibold text-ink-700 mb-2">Müşteri Bilgileri</h3>
                 <p class="text-sm font-medium">{{ selectedProforma.customerName }}</p>
-                <p class="text-sm text-gray-600">{{ selectedProforma.customerAddress || 'Adres belirtilmemiş' }}</p>
-                <p class="text-sm text-gray-600">{{ selectedProforma.customerCity }}</p>
-                <p class="text-sm text-gray-600" v-if="selectedProforma.customerPhone">{{ selectedProforma.customerPhone }}</p>
-                <p class="text-sm text-gray-600" v-if="selectedProforma.customerEmail">{{ selectedProforma.customerEmail }}</p>
+                <p class="text-sm text-ink-600">{{ selectedProforma.customerAddress || 'Adres belirtilmemiş' }}</p>
+                <p class="text-sm text-ink-600">{{ selectedProforma.customerCity }}</p>
+                <p class="text-sm text-ink-600" v-if="selectedProforma.customerPhone">{{ selectedProforma.customerPhone }}</p>
+                <p class="text-sm text-ink-600" v-if="selectedProforma.customerEmail">{{ selectedProforma.customerEmail }}</p>
               </div>
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">Firma Bilgileri</h3>
+              <div class="bg-ink-50 p-4 rounded-lg">
+                <h3 class="text-sm font-semibold text-ink-700 mb-2">Firma Bilgileri</h3>
                 <p class="text-sm font-medium">{{ selectedProforma.companyName }}</p>
-                <p class="text-sm text-gray-600">{{ selectedProforma.companyAddress || 'Adres belirtilmemiş' }}</p>
-                <p class="text-sm text-gray-600" v-if="selectedProforma.companyPhone">{{ selectedProforma.companyPhone }}</p>
-                <p class="text-sm text-gray-600" v-if="selectedProforma.companyEmail">{{ selectedProforma.companyEmail }}</p>
+                <p class="text-sm text-ink-600">{{ selectedProforma.companyAddress || 'Adres belirtilmemiş' }}</p>
+                <p class="text-sm text-ink-600" v-if="selectedProforma.companyPhone">{{ selectedProforma.companyPhone }}</p>
+                <p class="text-sm text-ink-600" v-if="selectedProforma.companyEmail">{{ selectedProforma.companyEmail }}</p>
               </div>
             </div>
 
             <!-- Ürünler Tablosu -->
             <div>
-              <h3 class="text-sm font-semibold text-gray-700 mb-2">Ürünler</h3>
+              <h3 class="text-sm font-semibold text-ink-700 mb-2">Ürünler</h3>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm border border-gray-200 rounded-lg">
-                  <thead class="bg-gray-100">
+                <table class="w-full text-sm border border-ink-200 rounded-lg">
+                  <thead class="bg-ink-100">
                     <tr>
-                      <th class="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
-                      <th class="px-3 py-2 text-left font-medium text-gray-700">Açıklama</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-700">Adet</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-700">Birim Fiyat</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-700">Tutar</th>
+                      <th class="px-3 py-2 text-left font-medium text-ink-700">SKU</th>
+                      <th class="px-3 py-2 text-left font-medium text-ink-700">Açıklama</th>
+                      <th class="px-3 py-2 text-right font-medium text-ink-700">Adet</th>
+                      <th class="px-3 py-2 text-right font-medium text-ink-700">Birim Fiyat</th>
+                      <th class="px-3 py-2 text-right font-medium text-ink-700">Tutar</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="item in selectedProforma.items" :key="item.id" class="border-t border-gray-100">
+                    <tr v-for="item in selectedProforma.items" :key="item.id" class="border-t border-ink-100">
                       <td class="px-3 py-2 font-mono text-xs">{{ item.sku }}</td>
                       <td class="px-3 py-2">{{ item.description }}</td>
                       <td class="px-3 py-2 text-right">{{ item.quantity }}</td>
@@ -253,7 +253,7 @@
             </div>
 
             <!-- Toplam -->
-            <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="bg-ink-50 p-4 rounded-lg">
               <div class="flex justify-between text-sm">
                 <span>Ara Toplam:</span>
                 <span>{{ formatCurrency(Number(selectedProforma.subtotal)) }}</span>
@@ -266,15 +266,15 @@
                 <span>Vergi:</span>
                 <span>{{ formatCurrency(Number(selectedProforma.tax)) }}</span>
               </div>
-              <div class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-gray-300">
+              <div class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-ink-300">
                 <span>Toplam:</span>
                 <span class="text-primary-600">{{ formatCurrency(Number(selectedProforma.totalAmount)) }}</span>
               </div>
             </div>
 
             <!-- PDF Preview -->
-            <div v-if="pdfBlobUrl" class="border border-gray-200 rounded-lg overflow-hidden">
-              <h3 class="text-sm font-semibold text-gray-700 px-4 pt-4">PDF Önizleme</h3>
+            <div v-if="pdfBlobUrl" class="border border-ink-200 rounded-lg overflow-hidden">
+              <h3 class="text-sm font-semibold text-ink-700 px-4 pt-4">PDF Önizleme</h3>
               <iframe :src="pdfBlobUrl" class="w-full" style="height: 500px; border: none;" />
             </div>
             <div v-else class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg text-sm">
@@ -282,7 +282,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex gap-3 justify-end pt-4 border-t border-gray-200">
+            <div class="flex gap-3 justify-end pt-4 border-t border-ink-200">
               <button
                 v-if="selectedProforma.status === 'draft'"
                 @click="sendProformaHandler(selectedProforma.id); closeDetailModal()"
@@ -298,7 +298,7 @@
               </button>
               <button
                 @click="closeDetailModal"
-                class="px-4 py-2 border border-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50"
+                class="px-4 py-2 border border-ink-300 rounded-lg font-medium text-sm hover:bg-ink-50"
               >
                 Kapat
               </button>
@@ -309,18 +309,18 @@
 
       <!-- Oluşturma Formu Modal -->
       <div v-if="showCreateForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
           <!-- Modal Header -->
           <div class="sticky top-0 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-4 flex items-center justify-between">
             <h2 class="text-xl font-bold">Yeni Proforma Oluştur</h2>
-            <button @click="showCreateForm = false" class="text-2xl hover:opacity-80">✕</button>
+            <button @click="showCreateForm = false" class="text-2xl hover:opacity-80"><Icon name="lucide:x" class="w-5 h-5" /></button>
           </div>
 
           <!-- Modal Content -->
           <div class="p-6 space-y-6">
             <!-- Şablon Seçimi -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Şablon Türü</label>
+              <label class="block text-sm font-medium text-ink-700 mb-3">Şablon Türü</label>
               <div class="grid grid-cols-2 gap-4">
                 <button
                   @click="newProforma.templateType = 'LOCAL'"
@@ -328,10 +328,10 @@
                     'p-4 border-2 rounded-lg text-center font-medium transition-all',
                     newProforma.template === 'LOCAL'
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-ink-200 hover:border-ink-300'
                   ]"
                 >
-                  🏠 Yerel (LOCAL)
+                  Yerel (LOCAL)
                 </button>
                 <button
                   @click="newProforma.templateType = 'INTERNATIONAL'"
@@ -339,18 +339,18 @@
                     'p-4 border-2 rounded-lg text-center font-medium transition-all',
                     newProforma.template === 'INTERNATIONAL'
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-ink-200 hover:border-ink-300'
                   ]"
                 >
-                  🌍 Uluslararası (INTL)
+                  Uluslararası (INTL)
                 </button>
               </div>
             </div>
 
             <!-- Müşteri Seçimi -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Müşteri</label>
-              <select v-model="newProforma.customer" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+              <label class="block text-sm font-medium text-ink-700 mb-2">Müşteri</label>
+              <select v-model="newProforma.customer" class="w-full px-4 py-2 border border-ink-300 rounded-lg focus:ring-2 focus:ring-primary-500">
                 <option value="">Müşteri Seç...</option>
                 <option v-for="dealer in dealers" :key="dealer.id" :value="dealer.company">
                   {{ dealer.company }} — {{ dealer.city }}
@@ -360,23 +360,23 @@
 
             <!-- Ürünler -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Ürünler Ekle</label>
+              <label class="block text-sm font-medium text-ink-700 mb-2">Ürünler Ekle</label>
 
               <!-- Product search bar (autocomplete) -->
               <div class="relative mb-4">
                 <input
                   v-model="productSearchQuery"
                   type="text"
-                  placeholder="🔍 Ürün ara (SKU, isim veya marka) — seçince satıra eklenir"
+                  placeholder="Ürün ara (SKU, isim veya marka) — seçince satıra eklenir"
                   class="w-full px-4 py-2.5 border-2 border-primary-200 rounded-lg text-sm focus:border-primary-500 focus:outline-none"
                   @focus="productSearchOpen = true"
                   @keydown.escape="productSearchOpen = false"
                 />
                 <div
                   v-if="productSearchOpen && (productSearchResults.length > 0 || productSearchLoading || productSearchQuery.trim())"
-                  class="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                  class="absolute z-30 left-0 right-0 mt-1 bg-white border border-ink-200 rounded-lg max-h-64 overflow-y-auto"
                 >
-                  <div v-if="productSearchLoading" class="px-4 py-3 text-sm text-gray-500">
+                  <div v-if="productSearchLoading" class="px-4 py-3 text-sm text-ink-500">
                     Aranıyor…
                   </div>
                   <button
@@ -384,33 +384,33 @@
                     :key="product.id"
                     type="button"
                     @click="addProductFromSearch(product)"
-                    class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-primary-50 border-b border-gray-100 last:border-b-0"
+                    class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-primary-50 border-b border-ink-100 last:border-b-0"
                   >
-                    <div class="w-10 h-10 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                    <div class="w-10 h-10 rounded bg-ink-100 flex-shrink-0 overflow-hidden">
                       <img v-if="product.imageUrl" :src="product.imageUrl" class="w-full h-full object-cover" alt="" />
                     </div>
                     <div class="flex-1 min-w-0">
-                      <div class="text-sm font-medium text-gray-900 truncate">{{ product.name }}</div>
-                      <div class="text-xs text-gray-500">
+                      <div class="text-sm font-medium text-ink-900 truncate">{{ product.name }}</div>
+                      <div class="text-xs text-ink-500">
                         {{ product.sku }} · {{ product.brand }} · {{ formatCurrency(product.basePrice) }}
                       </div>
                     </div>
                   </button>
                   <div
                     v-if="!productSearchLoading && productSearchResults.length === 0 && productSearchQuery.trim()"
-                    class="px-4 py-3 text-sm text-gray-500"
+                    class="px-4 py-3 text-sm text-ink-500"
                   >
                     Eşleşen ürün yok. Aşağıdan manuel ekleyebilirsiniz.
                   </div>
                 </div>
               </div>
 
-              <p class="text-xs text-gray-500 mb-2">
-                💡 Listede yoksa "Manuel Ekle" ile elle giriş yapabilirsiniz. SKU'yu yazıp Tab'a basınca veritabanı görseli otomatik gelir.
+              <p class="text-xs text-ink-500 mb-2">
+                Listede yoksa "Manuel Ekle" ile elle giriş yapabilirsiniz. SKU'yu yazıp Tab'a basınca veritabanı görseli otomatik gelir.
               </p>
 
               <!-- Column header row -->
-              <div class="grid grid-cols-[5rem_1fr_3rem] gap-3 items-center px-3 py-2 bg-gray-100 rounded-t-lg border border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              <div class="grid grid-cols-[5rem_1fr_3rem] gap-3 items-center px-3 py-2 bg-ink-100 rounded-t-lg border border-ink-200 text-xs font-semibold text-ink-600 uppercase tracking-wide">
                 <div>Görsel</div>
                 <div class="grid grid-cols-12 gap-2">
                   <div class="col-span-3">SKU</div>
@@ -421,16 +421,16 @@
                 <div></div>
               </div>
 
-              <div class="space-y-2 border border-t-0 border-gray-200 rounded-b-lg p-2 bg-white">
+              <div class="space-y-2 border border-t-0 border-ink-200 rounded-b-lg p-2 bg-white">
                 <div
                   v-for="(item, idx) in newProforma.items"
                   :key="idx"
-                  class="grid grid-cols-[5rem_1fr_3rem] gap-3 items-start p-2 bg-gray-50 border border-gray-200 rounded-lg"
+                  class="grid grid-cols-[5rem_1fr_3rem] gap-3 items-start p-2 bg-ink-50 border border-ink-200 rounded-lg"
                 >
                   <!-- Image thumbnail + upload -->
                   <div class="flex-shrink-0">
                     <div
-                      class="w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden relative"
+                      class="w-20 h-20 rounded border-2 border-dashed border-ink-300 bg-white flex items-center justify-center overflow-hidden relative"
                     >
                       <img
                         v-if="item.imageUrl"
@@ -438,7 +438,7 @@
                         alt="Ürün görseli"
                         class="w-full h-full object-cover"
                       />
-                      <span v-else class="text-gray-400 text-[10px] text-center px-1">Görsel yok</span>
+                      <span v-else class="text-ink-400 text-[10px] text-center px-1">Görsel yok</span>
                       <button
                         v-if="item.imageUrl"
                         type="button"
@@ -446,13 +446,13 @@
                         class="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 flex items-center justify-center rounded-bl text-xs leading-none hover:bg-red-600"
                         title="Görseli kaldır"
                       >
-                        ✕
+                        <Icon name="lucide:x" class="w-5 h-5" />
                       </button>
                     </div>
                     <label
                       class="block mt-1 text-center text-[11px] text-primary-600 hover:text-primary-800 cursor-pointer"
                     >
-                      📷 {{ item.imageSource === 'manual' ? 'Değiştir' : 'Yükle' }}
+                      {{ item.imageSource === 'manual' ? 'Değiştir' : 'Yükle' }}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -474,21 +474,21 @@
                     <input
                       v-model="item.sku"
                       placeholder="SKU"
-                      class="col-span-3 px-2 py-2 border border-gray-300 rounded text-sm"
+                      class="col-span-3 px-2 py-2 border border-ink-300 rounded text-sm"
                       @blur="onSkuCommit(item)"
                       @keydown.enter.prevent="onSkuCommit(item)"
                     />
                     <input
                       v-model="item.description"
                       placeholder="Açıklama"
-                      class="col-span-5 px-2 py-2 border border-gray-300 rounded text-sm"
+                      class="col-span-5 px-2 py-2 border border-ink-300 rounded text-sm"
                     />
                     <input
                       v-model.number="item.quantity"
                       type="number"
                       min="1"
                       placeholder="Adet"
-                      class="col-span-2 px-2 py-2 border border-gray-300 rounded text-sm text-right"
+                      class="col-span-2 px-2 py-2 border border-ink-300 rounded text-sm text-right"
                     />
                     <input
                       v-model.number="item.price"
@@ -496,7 +496,7 @@
                       step="0.01"
                       min="0"
                       placeholder="Fiyat"
-                      class="col-span-2 px-2 py-2 border border-gray-300 rounded text-sm text-right"
+                      class="col-span-2 px-2 py-2 border border-ink-300 rounded text-sm text-right"
                     />
                   </div>
 
@@ -504,10 +504,10 @@
                     type="button"
                     @click="newProforma.items.splice(idx, 1)"
                     :disabled="newProforma.items.length === 1"
-                    class="flex-shrink-0 text-red-600 hover:text-red-800 disabled:text-gray-300 disabled:cursor-not-allowed text-lg self-center"
+                    class="flex-shrink-0 text-red-600 hover:text-red-800 disabled:text-ink-300 disabled:cursor-not-allowed text-lg self-center"
                     title="Satırı sil"
                   >
-                    🗑️
+                    <Icon name="lucide:trash-2" class="w-4 h-4" />
                   </button>
                 </div>
                 <button
@@ -521,7 +521,7 @@
             </div>
 
             <!-- Toplam -->
-            <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="bg-ink-50 p-4 rounded-lg">
               <div class="flex justify-between font-bold text-lg">
                 <span>Toplam:</span>
                 <span class="text-primary-600">{{ formatCurrency(calculateTotal()) }}</span>
@@ -538,7 +538,7 @@
               <button
                 @click="showCreateForm = false"
                 :disabled="loading"
-                class="px-6 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+                class="px-6 py-2 border border-ink-300 rounded-lg font-medium hover:bg-ink-50 disabled:opacity-50"
               >
                 İptal
               </button>
@@ -818,7 +818,7 @@ const loadProformas = async () => {
   error.value = null
   try {
     const data = await getProformas()
-    allProformas.value = data
+    allProformas.value = data || []
   } catch (err: any) {
     error.value = err.message || 'Proformalar yüklenemedi'
     console.error('Error loading proformas:', err)
@@ -867,7 +867,7 @@ const createProformaHandler = async () => {
       items: [blankItem()],
     }
 
-    alert('Proforma taslak olarak kaydedildi')
+    toast.push('Proforma taslak olarak kaydedildi', 'success')
   } catch (err: any) {
     error.value = err.message || 'Proforma oluşturulamadı'
     console.error('Error creating proforma:', err)
@@ -904,7 +904,7 @@ const createAndSendProformaHandler = async () => {
       items: [blankItem()],
     }
 
-    alert('Proforma oluşturuldu ve müşteriye gönderildi')
+    toast.push('Proforma oluşturuldu ve gönderildi', 'success')
   } catch (err: any) {
     error.value = err.message || 'Proforma oluşturulamadı'
     console.error('Error creating and sending proforma:', err)
@@ -951,7 +951,7 @@ const closeDetailModal = () => {
 
 const editProforma = (proforma: any) => {
   console.log('Proforma düzenle:', proforma)
-  alert(`Proforma ${proforma.proformaNumber} düzenleniyor`)
+  toast.push('Düzenleme özelliği henüz eklenmedi', 'info')
 }
 
 const sendProformaHandler = async (id: string) => {
@@ -960,7 +960,7 @@ const sendProformaHandler = async (id: string) => {
   try {
     await sendProforma(id)
     await loadProformas()
-    alert('Proforma müşteriye gönderildi')
+    toast.push('Proforma müşteriye gönderildi', 'success')
   } catch (err: any) {
     error.value = err.message || 'Proforma gönderilemedi'
     console.error('Error sending proforma:', err)
@@ -995,7 +995,7 @@ const deleteProformaHandler = async (id: string) => {
     try {
       await deleteProforma(id)
       await loadProformas()
-      alert('Proforma silindi')
+      toast.push('Proforma silindi', 'success')
     } catch (err: any) {
       error.value = err.message || 'Proforma silinemedi'
       console.error('Error deleting proforma:', err)

@@ -1,6 +1,8 @@
 ﻿<script setup lang="ts">
 import { formatRelative } from '~/utils/storage'
 
+const toast = useToast()
+
 definePageMeta({
   layout: 'default',
   middleware: 'auth',
@@ -19,7 +21,7 @@ onMounted(() => {
 
 const sendForProduct = async (productId: string) => {
   const count = await notifications.sendForProduct(productId)
-  alert(`${count} bildirim gönderildi (${settings.data.whatsappRecipient} & e-posta)`)
+  toast.push(`${count} bildirim gönderildi`, 'success')
 }
 
 const groupedByProduct = computed(() => {

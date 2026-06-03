@@ -164,7 +164,7 @@ const handleClose = () => {
                 <span
                   :class="[
                     'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                    form.active ? 'tranink-x-4' : 'tranink-x-0.5',
+                    form.active ? 'translate-x-4' : 'translate-x-0.5',
                   ]"
                 />
               </button>

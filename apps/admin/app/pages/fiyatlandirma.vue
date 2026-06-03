@@ -6,6 +6,8 @@ import { REGIONS, getRegionNameByProvince } from '~/utils/regions'
 import { exportAllSurchargesToCSV, downloadCSV, parseCSV } from '~/utils/excel'
 import type { LogisticsRule, RegionalPricingSurcharge, ProvincePricingSurcharge } from '~/types'
 
+const toast = useToast()
+
 definePageMeta({
   layout: 'default',
   middleware: 'auth',
@@ -261,7 +263,7 @@ const handleFileImport = (event: Event) => {
       target.value = ''
     } catch (error) {
       console.error('CSV import error:', error)
-      alert('CSV dosyası işlenirken hata oluştu. Lütfen formatı kontrol edin.')
+      toast.push('CSV işlenirken hata oluştu', 'error')
     }
   }
   reader.readAsText(file)

@@ -64,13 +64,13 @@ export const usePricingStore = defineStore('pricing', {
         const { useApi } = await import('~/composables/useApi')
         const api = useApi()
         const [regional, province, logistics] = await Promise.all([
-          api.get<RegionalSurcharge[]>('/api/admin/pricing/regional'),
-          api.get<ProvinceSurcharge[]>('/api/admin/pricing/province'),
-          api.get<LogisticsRuleItem[]>('/api/admin/pricing/logistics'),
+          api.get<RegionalSurcharge[]>('/admin/pricing/regional'),
+          api.get<ProvinceSurcharge[]>('/admin/pricing/province'),
+          api.get<LogisticsRuleItem[]>('/admin/pricing/logistics'),
         ])
-        this.regionalSurcharges = regional
-        this.provinceSurcharges = province
-        this.rules = logistics
+        this.regionalSurcharges = regional || []
+        this.provinceSurcharges = province || []
+        this.rules = logistics || []
       } catch {
         /* silent */
       }
@@ -80,7 +80,7 @@ export const usePricingStore = defineStore('pricing', {
     async upsertRule(input: Partial<LogisticsRuleItem> & { region: string }) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      const created = await api.post<LogisticsRuleItem>('/api/admin/pricing/logistics', input)
+      const created = await api.post<LogisticsRuleItem>('/admin/pricing/logistics', input)
       const idx = this.rules.findIndex((r) => r.id === created.id)
       if (idx >= 0) this.rules[idx] = created
       else this.rules.push(created)
@@ -89,14 +89,14 @@ export const usePricingStore = defineStore('pricing', {
     async removeRule(id: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      await api.delete(`/api/admin/pricing/logistics/${id}`)
+      await api.delete(`/admin/pricing/logistics/${id}`)
       this.rules = this.rules.filter((r) => r.id !== id)
     },
 
     async upsertRegional(input: { regionKey: string; surcharge: number; description?: string; active?: boolean }) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      const created = await api.post<RegionalSurcharge>('/api/admin/pricing/regional', input)
+      const created = await api.post<RegionalSurcharge>('/admin/pricing/regional', input)
       const idx = this.regionalSurcharges.findIndex((r) => r.id === created.id)
       if (idx >= 0) this.regionalSurcharges[idx] = created
       else this.regionalSurcharges.push(created)
@@ -105,14 +105,14 @@ export const usePricingStore = defineStore('pricing', {
     async removeRegional(regionKey: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      await api.delete(`/api/admin/pricing/regional/${regionKey}`)
+      await api.delete(`/admin/pricing/regional/${regionKey}`)
       this.regionalSurcharges = this.regionalSurcharges.filter((r) => r.regionKey !== regionKey)
     },
 
     async upsertProvince(input: { province: string; surcharge: number; description?: string; active?: boolean }) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      const created = await api.post<ProvinceSurcharge>('/api/admin/pricing/province', input)
+      const created = await api.post<ProvinceSurcharge>('/admin/pricing/province', input)
       const idx = this.provinceSurcharges.findIndex((p) => p.id === created.id)
       if (idx >= 0) this.provinceSurcharges[idx] = created
       else this.provinceSurcharges.push(created)
@@ -121,7 +121,7 @@ export const usePricingStore = defineStore('pricing', {
     async removeProvince(province: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      await api.delete(`/api/admin/pricing/province/${province}`)
+      await api.delete(`/admin/pricing/province/${province}`)
       this.provinceSurcharges = this.provinceSurcharges.filter((p) => p.province !== province)
     },
 

@@ -50,7 +50,7 @@ export const useNotificationsStore = defineStore('notifications', {
       try {
         const { useApi } = await import('~/composables/useApi')
         const api = useApi()
-        this.items = await api.get<NotifyItem[]>('/api/admin/notifications')
+        this.items = await api.get<NotifyItem[]>('/admin/notifications') || []
       } catch {
         /* silent */
       }
@@ -65,7 +65,7 @@ export const useNotificationsStore = defineStore('notifications', {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
       const result = await api.post<{ sent: number; total: number }>(
-        `/api/admin/notifications/send/${productId}`,
+        `/admin/notifications/send/${productId}`,
       )
       // Reload to get updated statuses
       await this.load()
@@ -75,7 +75,7 @@ export const useNotificationsStore = defineStore('notifications', {
     async cancel(id: string) {
       const { useApi } = await import('~/composables/useApi')
       const api = useApi()
-      await api.delete(`/api/admin/notifications/${id}`)
+      await api.delete(`/admin/notifications/${id}`)
       const idx = this.items.findIndex((n) => n.id === id)
       if (idx >= 0) this.items[idx] = { ...this.items[idx]!, status: 'cancelled' }
     },

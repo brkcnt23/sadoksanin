@@ -1,251 +1,230 @@
-# ============================================================================
-# Production orchestration — Sadoksan ERP
-# Each app has its own multi-stage Dockerfile (apps/*/Dockerfile)
-#
-# Başlatma: docker compose -f docker-compose.prod.yml up -d
-# Durdurma: docker compose -f docker-compose.prod.yml down
-# Log:      docker compose -f docker-compose.prod.yml logs -f
-# Backup:   docker exec sadoksan-postgres-prod pg_dump -U sadoksan sadoksan > backups/backup-$(date +%Y%m%d).sql
-# ============================================================================
-
+networks:
+  sadoksan-network:
+    driver: bridge
 services:
-  # ═══════════════════════════════════════════════════════════════════════
-  # DATABASE LAYER
-  # ═══════════════════════════════════════════════════════════════════════
-
-  postgres:
-    image: postgres:15-alpine
-    container_name: sadoksan-postgres-prod
-    restart: unless-stopped
+  admin:
+    build:
+      args:
+      - NUXT_APP_BASE_URL=${NUXT_ADMIN_BASE_URL:-/sadoksan-panel/}
+      - ADMIN_API_BASE=${ADMIN_API_BASE:-/api}
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      target: production
+    container_name: sadoksan-admin-prod
+    depends_on:
+      api:
+        condition: service_healthy
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sadoksan}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-sadoksan}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
-    ports:
-      - "127.0.0.1:5432:5432"
+      ADMIN_API_BASE: ${ADMIN_API_BASE:-/api}
+      NITRO_PORT: '3002'
+      NODE_ENV: production
+      PORT: '3002'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sadoksan}"]
-      interval: 10s
+      interval: 30s
+      retries: 3
+      start_period: 30s
+      test:
+      - CMD-SHELL
+      - 'node -e "require(''http'').get(''http://localhost:3002/'', r => process.exit(r.statusCode >= 200 && r.statusCode < 400 ? 0 : 1)).on(''error'', () => process.exit(1))"'
       timeout: 5s
-      retries: 5
-    networks:
-      - sadoksan-network
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "50m"
-        max-file: "5"
-
-  redis:
-    image: redis:7-alpine
-    container_name: sadoksan-redis-prod
+        max-file: '5'
+        max-size: 50m
+    mem_limit: 512m
+    networks:
+    - sadoksan-network
+    ports:
+    - 127.0.0.1:3012:3002
     restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    ports:
-      - "127.0.0.1:6379:6379"
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - sadoksan-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "30m"
-        max-file: "3"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # NODE.JS SERVICES
-  # ═══════════════════════════════════════════════════════════════════════
-
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
       target: production
     container_name: sadoksan-api-prod
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sadoksan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sadoksan}
-      REDIS_URL: redis://redis:6379
-      PYTHON_SERVICE_URL: http://python-service:5000
-      JWT_SECRET: ${JWT_SECRET}
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      API_PORT: 3001
-      API_HOST: 0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - uploads:/app/uploads
-    ports:
-      - "127.0.0.1:3001:3001"
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sadoksan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sadoksan}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+      PYTHON_SERVICE_URL: http://python-service:5000
+      REDIS_URL: redis://redis:6379
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 15s
-      timeout: 5s
       retries: 5
       start_period: 40s
-    networks:
-      - sadoksan-network
-    mem_limit: 512m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-
-  storefront:
-    build:
-      context: .
-      dockerfile: apps/storefront/Dockerfile
-      target: production
-      args:
-        - NUXT_APP_BASE_URL=${NUXT_APP_BASE_URL:-/sadoksan/}
-    container_name: sadoksan-storefront-prod
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-https://smartinnventory.com/api}
-      NITRO_PRESET: node-server
-    depends_on:
-      api:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:3000:3000"
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
-      interval: 30s
+      test:
+      - CMD-SHELL
+      - 'node -e "require(''http'').get(''http://localhost:3001/api/health'', r => process.exit(r.statusCode
+        === 200 ? 0 : 1)).on(''error'', () => process.exit(1))"'
       timeout: 5s
-      retries: 3
-      start_period: 30s
-    networks:
-      - sadoksan-network
-    mem_limit: 512m
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "50m"
-        max-file: "5"
-
-  admin:
-    build:
-      context: .
-      dockerfile: apps/admin/Dockerfile
-      target: production
-      args:
-        - NUXT_APP_BASE_URL=${NUXT_ADMIN_BASE_URL:-/sadoksan-admin/}
-    container_name: sadoksan-admin-prod
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      ADMIN_API_BASE: ${ADMIN_API_BASE:-http://api:3001}
-      PORT: "3002"
-      NITRO_PORT: "3002"
-    depends_on:
-      api:
-        condition: service_healthy
+        max-file: '5'
+        max-size: 50m
+    mem_limit: 512m
+    networks:
+    - sadoksan-network
     ports:
-      - "127.0.0.1:3002:3002"
+    - 127.0.0.1:3010:3001
+    restart: unless-stopped
+    volumes:
+    - uploads:/app/uploads
+  nginx:
+    container_name: sadoksan-nginx-prod
+    depends_on:
+    - storefront
+    - admin
+    - api
+    - python-service
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3002/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
-      timeout: 5s
       retries: 3
-      start_period: 30s
-    networks:
-      - sadoksan-network
-    mem_limit: 512m
+      test:
+      - CMD
+      - nginx
+      - -t
+      timeout: 10s
+    image: nginx:1.27-alpine
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "50m"
-        max-file: "5"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # PYTHON SERVICE (Proforma PDF Generator)
-  # ═══════════════════════════════════════════════════════════════════════
-
+        max-file: '5'
+        max-size: 20m
+    networks:
+    - sadoksan-network
+    ports:
+    - 80:80
+    - 443:443
+    restart: unless-stopped
+    volumes:
+    - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    - ./ssl:/etc/nginx/ssl:ro
+  postgres:
+    container_name: sadoksan-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sadoksan}
+      POSTGRES_INITDB_ARGS: --encoding=UTF8
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-sadoksan}
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-sadoksan}
+      timeout: 5s
+    image: postgres:15-alpine
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 50m
+    networks:
+    - sadoksan-network
+    ports: []
+    restart: unless-stopped
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    - ./backups:/backups
   python-service:
     build:
       context: ./python-service
       dockerfile: Dockerfile
+    command: flask run --host=0.0.0.0 --port=5000
     container_name: sadoksan-python-prod
-    restart: unless-stopped
     environment:
       FLASK_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    ports:
-      - "127.0.0.1:5000:5000"
-    command: flask run --host=0.0.0.0 --port=5000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
-      timeout: 5s
       retries: 3
       start_period: 10s
-    networks:
-      - sadoksan-network
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:5000/health
+      timeout: 5s
+    logging:
+      driver: json-file
+      options:
+        max-file: '3'
+        max-size: 30m
     mem_limit: 256m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "30m"
-        max-file: "3"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # REVERSE PROXY (Nginx)
-  # SSL terminasyonu burada. sertifikalar ./ssl/ altında.
-  # ═══════════════════════════════════════════════════════════════════════
-
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: sadoksan-nginx-prod
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - storefront
-      - admin
-      - api
-      - python-service
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     networks:
-      - sadoksan-network
+    - sadoksan-network
+    ports:
+    - 127.0.0.1:3013:5000
+    restart: unless-stopped
+  redis:
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    container_name: sadoksan-redis-prod
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      timeout: 5s
+    image: redis:7-alpine
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "20m"
-        max-file: "5"
-
-# ═══════════════════════════════════════════════════════════════════════
-# VOLUMES & NETWORKS
-# ═══════════════════════════════════════════════════════════════════════
-
+        max-file: '3'
+        max-size: 30m
+    networks:
+    - sadoksan-network
+    ports: []
+    restart: unless-stopped
+    volumes:
+    - redis_data:/data
+  storefront:
+    build:
+      args:
+      - NUXT_APP_BASE_URL=${NUXT_APP_BASE_URL:-/}
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+      target: production
+    container_name: sadoksan-storefront-prod
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NITRO_PRESET: node-server
+      NODE_ENV: production
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-https://sadoksan.smartinnventory.com/api}
+    healthcheck:
+      interval: 30s
+      retries: 3
+      start_period: 30s
+      test:
+      - CMD-SHELL
+      - 'node -e "require(''http'').get(''http://localhost:3000/'', r => process.exit(r.statusCode >= 200 && r.statusCode < 400 ? 0 : 1)).on(''error'', () => process.exit(1))"'
+      timeout: 5s
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 50m
+    mem_limit: 512m
+    networks:
+    - sadoksan-network
+    ports:
+    - 127.0.0.1:3011:3000
+    restart: unless-stopped
 volumes:
-  postgres_data:
-  redis_data:
-  uploads:
-
-networks:
-  sadoksan-network:
-    driver: bridge
+  postgres_data: null
+  redis_data: null
+  uploads: null

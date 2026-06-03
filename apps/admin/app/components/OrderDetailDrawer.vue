@@ -70,8 +70,8 @@ const vBadge = (v: string) => {
 
 async function doApprove() {
   saving.value = true
-  try { await orders.approve(props.orderId, (orders as any)._userId || ''); emit('action', 'approved'); toast.push?.('Onaylandı', 'success') }
-  catch { toast.push?.('Onaylama başarısız', 'error') }
+  try { await orders.approve(props.orderId, (orders as any)._userId || ''); emit('action', 'approved'); toast.push('Onaylandı', 'success') }
+  catch { toast.push('Onaylama başarısız', 'error') }
   finally { saving.value = false }
 }
 
@@ -79,8 +79,8 @@ async function doReject() {
   const reason = prompt('Red sebebi:')
   if (!reason) return
   saving.value = true
-  try { await orders.reject(props.orderId, (orders as any)._userId || '', reason); emit('action', 'rejected'); toast.push?.('Reddedildi', 'success') }
-  catch { toast.push?.('Reddetme başarısız', 'error') }
+  try { await orders.reject(props.orderId, (orders as any)._userId || '', reason); emit('action', 'rejected'); toast.push('Reddedildi', 'success') }
+  catch { toast.push('Reddetme başarısız', 'error') }
   finally { saving.value = false }
 }
 
@@ -88,18 +88,18 @@ async function doStatusChange(status: string) {
   saving.value = true
   try {
     await api.patch(`/orders/${props.orderId}/status`, { status })
-    emit('action', status); toast.push?.(`Durum: ${statusLabel(status)}`, 'success')
-  } catch { toast.push?.('Durum değiştirilemedi', 'error') }
+    emit('action', status); toast.push(`Durum: ${statusLabel(status)}`, 'success')
+  } catch { toast.push('Durum değiştirilemedi', 'error') }
   finally { saving.value = false }
 }
 
 async function doShip() {
-  if (!trackingNo.value) { toast.push?.('Kargo takip no gerekli', 'error'); return }
+  if (!trackingNo.value) { toast.push('Kargo takip no gerekli', 'error'); return }
   saving.value = true
   try {
     await api.post(`/orders/${props.orderId}/ship`, { trackingNumber: trackingNo.value, cargoCompany: cargoCompany.value || 'Kargo' })
-    emit('action', 'SHIPPED'); toast.push?.('Kargoya verildi', 'success')
-  } catch { toast.push?.('Sevk başarısız', 'error') }
+    emit('action', 'SHIPPED'); toast.push('Kargoya verildi', 'success')
+  } catch { toast.push('Sevk başarısız', 'error') }
   finally { saving.value = false }
 }
 
@@ -107,16 +107,24 @@ async function doCancel() {
   const reason = prompt('İptal sebebi:')
   if (!reason) return
   saving.value = true
-  try { await api.post(`/orders/${props.orderId}/cancel`, { reason }); emit('action', 'CANCELLED'); toast.push?.('İptal edildi', 'success') }
-  catch { toast.push?.('İptal başarısız', 'error') }
+  try { await api.post(`/orders/${props.orderId}/cancel`, { reason }); emit('action', 'CANCELLED'); toast.push('İptal edildi', 'success') }
+  catch { toast.push('İptal başarısız', 'error') }
+  finally { saving.value = false }
+}
+
+async function doEInvoice() {
+  if (!confirm(`E-Fatura talebi gönderilsin mi?`)) return
+  saving.value = true
+  try { await orders.triggerEInvoice(props.orderId); toast.push('E-Fatura talebi gönderildi', 'success'); emit('action', 'einvoice') }
+  catch { toast.push('E-Fatura talebi başarısız', 'error') }
   finally { saving.value = false }
 }
 
 async function doAddNote() {
   if (!adminNote.value.trim()) return
   saving.value = true
-  try { await api.post(`/orders/${props.orderId}/notes`, { note: adminNote.value }); adminNote.value = ''; toast.push?.('Not eklendi', 'success') }
-  catch { toast.push?.('Not eklenemedi', 'error') }
+  try { await api.post(`/orders/${props.orderId}/notes`, { note: adminNote.value }); adminNote.value = ''; toast.push('Not eklendi', 'success') }
+  catch { toast.push('Not eklenemedi', 'error') }
   finally { saving.value = false }
 }
 
@@ -262,6 +270,7 @@ const formatTimeAgo = (d: string) => {
         <button v-if="order.status === 'APPROVED'" @click="doStatusChange('PREPARING')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">Hazırlanıyor</button>
         <button v-if="order.status === 'PREPARING'" @click="doStatusChange('READY_TO_SHIP')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50">Kargoya Hazır</button>
         <button v-if="order.status === 'SHIPPED'" @click="doStatusChange('COMPLETED')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50">Teslim Edildi</button>
+        <button v-if="!order.eInvoiceNo" @click="doEInvoice" :disabled="saving" class="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-md disabled:opacity-50 flex items-center gap-1.5"><Icon name="lucide:file-text" class="w-4 h-4" />E-Fatura</button>
         <button v-if="order.status !== 'CANCELLED' && order.status !== 'COMPLETED'" @click="doCancel" :disabled="saving" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50">İptal Et</button>
       </div>
     </div>

@@ -42,7 +42,8 @@ interface DealerInfo {
 
 export const useDealerApi = () => {
   const config = useRuntimeConfig()
-  const apiBase = `${config.public.apiBase}/api`
+  // config.public.apiBase already ends with /api (e.g. https://sadoksan.smartinnventory.com/api)
+  const apiBase = String(config.public.apiBase).replace(/\/+$/, '')
 
   const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = {}

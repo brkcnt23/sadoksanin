@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
-@Controller('api/admin/pricing')
+@Controller('admin/pricing')
 @UseGuards(JwtAuthGuard)
 export class PricingController {
   constructor(private pricingService: PricingService) {}

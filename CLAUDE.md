@@ -1,7 +1,7 @@
 # CLAUDE Project Context: Sadoksan ERP
 
 **Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
-**Last Updated:** 2026-05-23  
+**Last Updated:** 2026-06-02  
 **Owner:** John (brkcnt6@gmail.com)
 
 ## Tech Stack
@@ -122,6 +122,8 @@ sadoksan/ (monorepo root)
 | Rate limiting | /auth/login: 10 req/15dk (express-rate-limit) | ✅ |
 | Helmet | Security headers (CSP devre dışı — Nuxt SSR) | ✅ |
 | Admin URL | `/sadoksan-panel` (eski `/sadoksanadmin`) | ✅ |
+| Admin API Base | `.env` → `ADMIN_API_BASE="/api"` (relative, build-time) | ✅ |
+| Build args | docker-compose → `${ADMIN_API_BASE:-/api}` → Nuxt bundle | ✅ |
 | PostgreSQL backup | scripts/backup-db.sh (pg_dump, 30 gün retention) | ✅ |
 | Non-root user | apps/*/Dockerfile production stage | ✅ |
 | Health checks | Tüm servislerde | ✅ |
@@ -169,6 +171,30 @@ docker compose -f docker-compose.prod.yml up -d
 ./scripts/backup-db.sh
 # veya
 docker exec sadoksan-postgres-prod pg_dump -U sadoksan sadoksan > backup.sql
+```
+
+## Recent Fixes
+
+### 2026-06-02 — Admin panel Mixed Content (http://api:3001)
+
+**Problem:** Admin panel (`ssr: false` SPA) login sayfasında `Mixed Content: ... requested an insecure resource 'http://api:3001/auth/login'` hatası. HTTPS sayfadan HTTP API çağrısı yapılamıyordu.
+
+**Root Cause:** Admin SPA olduğu için API URL'si build zamanında JS bundle'a gömülüyor. `.env` dosyasında `ADMIN_API_BASE="http://api:3001"` tanımlıydı — bu Docker içinde geçerli ama tarayıcıdan erişilemez. `docker-compose.prod.yml` build arg olarak `${ADMIN_API_BASE:-/api}` geçiyordu, fakat `.env` değeri fallback'i ezip `http://api:3001` yapıyordu.
+
+**Fix:** `.env` → `ADMIN_API_BASE="/api"` (relative path). Tarayıcı bunu mevcut origin'e göre çözümleyip `https://sadoksan.smartinnventory.com/api/...` şeklinde istek atıyor, nginx de `/api` prefix'ini API container'ına proxy'liyor.
+
+**Files changed:**
+- `.env`: `ADMIN_API_BASE="http://api:3001"` → `ADMIN_API_BASE="/api"`
+- Admin container rebuild (build arg değiştiği için)
+
+**⚠️ Gotcha:** `.env` değişikliği tek başına yetmez — admin SPA olduğu için container'ın **rebuild** edilmesi şart. Sadece restart yeterli değil, çünkü değer build-time'da bundle'a gömülüyor.
+
+### Nginx reverse proxy yapısı
+
+```
+Browser (HTTPS) → nginx → /api/* → api:3001 (NestJS)
+                         → /sadoksan-panel/* → admin:3002 (Nuxt SPA)
+                         → /* → storefront:3000 (Nuxt SSR)
 ```
 
 ## Sıradaki İşler (API geldikten sonra)

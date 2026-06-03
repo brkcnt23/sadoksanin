@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
-@Controller('api/admin/stock')
+@Controller('admin/stock')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StockController {
   constructor(private stockService: StockService) {}

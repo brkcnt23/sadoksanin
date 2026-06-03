@@ -95,7 +95,7 @@ const pendingDealers = computed(() => dealers.items.filter((d) => (d as any).sta
 const auditFeed = ref<any[]>([])
 async function loadAuditFeed() {
   try {
-    const result = await api.get<{ items: any[] }>('/api/admin/audit', { limit: 8 })
+    const result = await api.get<{ items: any[] }>('/admin/audit', { limit: 8 })
     auditFeed.value = result.items ?? []
   } catch { /* silent */ }
 }
@@ -183,7 +183,7 @@ const formatTimeAgo = (d: string) => {
         label="Bayi Başvurusu"
         :value="pendingDealers"
         icon="lucide:user-plus"
-        color="orange"
+        color="amber"
       />
     </div>
 

@@ -2,7 +2,7 @@ import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { PromoService } from './promo.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('api/promo')
+@Controller('promo')
 export class PromoController {
   constructor(private promoService: PromoService) {}
 

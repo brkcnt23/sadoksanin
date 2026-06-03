@@ -12,6 +12,7 @@ definePageMeta({
 const products = useProductsStore()
 const stock = useStockStore()
 const api = useApi()
+const toast = useToast()
 
 onMounted(() => {
   if (!products.loaded) products.load()
@@ -70,11 +71,11 @@ async function doBulkPrice() {
   bulkLoading.value = true
   try {
     const result = await api.post('/products/admin/bulk-price', bulkForm.value)
-    alert(`${result.updated} ürün güncellendi`)
+    toast.push(`${result.updated} ürün güncellendi`, 'success')
     showBulkPrice.value = false
     await products.load()
   } catch (e: any) {
-    alert(e.message || 'Hata oluştu')
+    toast.push(e.message || 'Hata oluştu', 'error')
   }
   bulkLoading.value = false
 }
@@ -84,7 +85,7 @@ const exportCsv = async () => {
     await products.exportProducts()
   } catch (err) {
     console.error('Export failed:', err)
-    alert('Dışa aktarma başarısız')
+    toast.push('Dışa aktarma başarısız', 'error')
   }
 }
 
@@ -94,10 +95,10 @@ const importCsv = async (event: Event) => {
   if (!file) return
   try {
     const result = await products.importProducts(file)
-    alert(`${result.created} eklendi, ${result.updated} güncellendi${result.errors.length ? `, ${result.errors.length} hata` : ''}`)
+    toast.push(`${result.created} eklendi, ${result.updated} güncellendi${result.errors.length ? `, ${result.errors.length} hata` : ''}`, 'success')
   } catch (err) {
     console.error('Import failed:', err)
-    alert('İçe aktarma başarısız')
+    toast.push('İçe aktarma başarısız', 'error')
   }
 }
 const getProductImage = (p: any): string => {
@@ -209,7 +210,7 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
       <div class="bg-white rounded-xl border border-ink-200 p-4">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         <div class="lg:col-span-2 relative">
-          <Icon name="lucide:search" class="absolute left-3 top-1/2 -tranink-y-1/2 w-4 h-4 text-ink-400" />
+          <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
           <input
             :value="products.search"
             @input="products.setSearch(($event.target as HTMLInputElement).value)"
@@ -338,7 +339,7 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
                   <span
                     :class="[
                       'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                      p.visible ? 'tranink-x-4' : 'tranink-x-0.5',
+                      p.visible ? 'translate-x-4' : 'translate-x-0.5',
                     ]"
                   />
                 </button>
@@ -356,7 +357,7 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
                   <span
                     :class="[
                       'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                      p.purchasable ? 'tranink-x-4' : 'tranink-x-0.5',
+                      p.purchasable ? 'translate-x-4' : 'translate-x-0.5',
                     ]"
                   />
                 </button>

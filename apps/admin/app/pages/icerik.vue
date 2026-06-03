@@ -28,6 +28,31 @@ const loadHero = async () => {
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const form = ref({ title: '', slug: '', content: '', isActive: true, seoTitle: '', seoMeta: '' })
+const contentTextarea = ref<HTMLTextAreaElement | null>(null)
+
+function wrapSelection(tag: string) {
+  const ta = contentTextarea.value
+  if (!ta) return
+  const s = ta.selectionStart, e = ta.selectionEnd
+  const before = form.value.content.slice(0, s)
+  const selected = form.value.content.slice(s, e)
+  const after = form.value.content.slice(e)
+  const tags: Record<string, [string, string]> = {
+    b: ['<strong>', '</strong>'],
+    i: ['<em>', '</em>'],
+    h2: ['<h2>', '</h2>'],
+    h3: ['<h3>', '</h3>'],
+    a: ['<a href="https://">', '</a>'],
+    ul: ['<ul>\n  <li>', '</li>\n</ul>'],
+    p: ['<p>', '</p>'],
+  }
+  const [open, close] = tags[tag] || ['<' + tag + '>', '</' + tag + '>']
+  form.value.content = before + open + selected + close + after
+  nextTick(() => {
+    ta.focus()
+    ta.setSelectionRange(s + open.length, e + open.length)
+  })
+}
 const saving = ref(false)
 const formError = ref('')
 
@@ -203,7 +228,16 @@ onMounted(() => { load(); loadHero(); loadRedirects() })
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1">İçerik (HTML)</label>
-            <textarea v-model="form.content" rows="12" class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm font-mono resize-y" placeholder="<p>Sayfa içeriği...</p>" />
+            <div class="flex flex-wrap gap-0.5 p-1.5 border border-ink-300 rounded-t-md bg-ink-50">
+              <button @click="wrapSelection('b')" class="px-2 py-1 text-xs font-bold text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Kalın">B</button>
+              <button @click="wrapSelection('i')" class="px-2 py-1 text-xs italic text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="İtalik">I</button>
+              <button @click="wrapSelection('h2')" class="px-2 py-1 text-xs font-semibold text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Başlık 2">H2</button>
+              <button @click="wrapSelection('h3')" class="px-2 py-1 text-xs font-semibold text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Başlık 3">H3</button>
+              <button @click="wrapSelection('a')" class="px-2 py-1 text-xs text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Link">🔗</button>
+              <button @click="wrapSelection('ul')" class="px-2 py-1 text-xs text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Liste">≡</button>
+              <button @click="wrapSelection('p')" class="px-2 py-1 text-xs text-ink-600 hover:bg-white hover:text-ink-900 rounded transition-colors" title="Paragraf">¶</button>
+            </div>
+            <textarea ref="contentTextarea" v-model="form.content" rows="12" class="w-full px-3 py-2 border border-t-0 border-ink-300 rounded-b-md text-sm font-mono resize-y" placeholder="<p>Sayfa içeriği...</p>" />
           </div>
           <div class="grid sm:grid-cols-2 gap-4">
             <div>
