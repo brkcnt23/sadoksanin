@@ -99,6 +99,7 @@ model Product {
   // Site-specific metadata
   isVisible           Boolean  @default(true)  // Admin can hide products
   isPurchasable       Boolean  @default(true)  // Can be visible but not buyable
+  isFeatured          Boolean  @default(false) // Öne çıkan ürün — ana sayfada gösterilir
 
   // Computed display stock (derived from ReservedStock)
   displayStock        Decimal  @default(0) @db.Decimal(10, 2)
@@ -121,6 +122,7 @@ model Product {
   @@index([sku])
   @@index([isVisible])
   @@index([isPurchasable])
+  @@index([isFeatured])
   @@index([netsisCategory])
 }
 
