@@ -19,6 +19,7 @@ export interface Product {
   stockCount: number
   purchasable: boolean
   badges?: string[]
+  isFeatured?: boolean
   sku?: string
   description?: string
 }
@@ -438,6 +439,7 @@ interface ApiProduct {
   displayStock?: number
   visible?: boolean
   purchasable?: boolean
+  isFeatured?: boolean
   imageUrl?: string | null
 }
 
@@ -464,6 +466,7 @@ const mapApiProduct = (p: ApiProduct): Product => ({
   inStock: (p.displayStock ?? 0) > 0,
   stockCount: p.displayStock ?? 0,
   purchasable: p.purchasable ?? true,
+  isFeatured: p.isFeatured ?? false,
   sku: p.sku,
   description: p.description ?? undefined,
 })
@@ -504,7 +507,7 @@ export const useProducts = () => {
 
   const list = () => products.value
 
-  const featured = (limit = 8) => products.value.filter((p) => p.badges?.includes('Premium')).slice(0, limit)
+  const featured = (limit = 8) => products.value.filter((p) => p.isFeatured === true).slice(0, limit)
 
   const byBrand = (brand: string) => products.value.filter((p) => p.brand === brand)
 
