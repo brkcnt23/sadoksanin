@@ -68,6 +68,10 @@ export class UpdateProductDto {
   purchasable?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @IsOptional()
   @IsString()
   imageUrl?: string;
   images?: string;
