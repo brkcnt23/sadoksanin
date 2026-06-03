@@ -284,3 +284,72 @@ Dashboard, Products, Orders, Stock, Dealers, Pricing, Reports, Popups, Settings,
 8. Toast'ların göründüğünü doğrula
 9. Mobile responsive (Chrome DevTools mobile view)
 10. Proforma sayfası: menüden tıkla → liste gelmeli, `.filter` hatası almamalı
+
+---
+
+## 2026-06-03 Oturumu — Proforma Fix + Öne Çıkan Ürünler
+
+### 🔴 Proforma `.filter is not a function` — 2. Fix Denemesi
+
+**Önceki fix (commit 3c4b706):** `getTabCount()` ve `filteredProformas` computed'a `Array.isArray()` null guard eklendi. Admin panel rebuild + restart yapıldı.
+
+**Sorun:** Hata devam etti. İki sebep:
+1. Fix GitHub'a pushlanmamıştı (local origin'den 2 commit ileride)
+2. `allProformas.value = data || []` — API obje dönerse (`{ error: "..." }`) bu guard yetersiz kalıyor
+
+**Yeni fix (commit 546ee39) — Çift katmanlı koruma:**
+
+| Katman | Dosya | Değişiklik |
+|--------|-------|------------|
+| **Composable** | `useProformaApi.ts` → `getProformas()` | `return Array.isArray(data) ? data : []` |
+| **Page** | `proforma.vue` → `loadProformas()` | `data \|\| []` → `Array.isArray(data) ? data : []` |
+
+**Mantık:** API'den ne gelirse gelsin (null, obje, string, hata response'u), `Array.isArray()` kontrolü ile her zaman boş diziye düşülür → `.filter is not a function` hatası İMKANSIZ hale gelir.
+
+**Deploy:** SSH bağlantısı koptuğu için henüz deploy edilemedi. GitHub'a da pushlanamadı (SSH key GitHub'da yok). Commit local'de hazır bekliyor.
+
+### 🔑 SSH Durumu
+
+- **Linux local:** ssh-ed25519 key var, GitHub'a ve sunucuya eklenmesi gerekiyor
+- **GitHub push:** ❌ `git@github.com: Permission denied (publickey)`
+- **Sunucu SSH:** ❌ `root@smartinnventory.com: Permission denied (publickey)`
+- **Çözüm:** Public key'in GitHub (Settings → SSH Keys) ve sunucu (`authorized_keys`) eklenmesi
+
+### 🟡 Öne Çıkan Ürünler (Devam Ediyor)
+
+**Yapılan (sunucuda):**
+- DB'ye `Product.isFeatured` kolonu eklendi
+- 10 ürün öne çıkarıldı
+
+**Yapılacak (local'de):**
+- Prisma schema'ya `isFeatured` ekle
+- API products service/controller → featured endpoint
+- Admin panel → ürünler sayfasında featured toggle
+- Storefront → ana sayfada öne çıkan ürünler bölümü
+
+### ✅ Tamamlanan İşler (local)
+
+| Commit | Açıklama |
+|--------|----------|
+| `546ee39` | Proforma çift katmanlı Array.isArray guard |
+| `de73341` | Prisma schema: Product.isFeatured + index |
+| `71290e7` | API: GET /products/featured + POST /:id/featured |
+| `5f2a83c` | Admin: ürünler tablosuna ⭐ toggle |
+| `faceaa6` | Storefront: useProducts featured() → isFeatured |
+| `c81c43a` | DTO'lara isFeatured eklendi |
+| `8ca44fc` | fix: updateProduct field listesine isFeatured |
+
+**Toplam: 8 dosya değişti, 7 commit (origin'den 8 commit ileride)**
+
+### 🚀 Deploy Bekleyen
+
+SSH anahtarı (`ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAS0MGJ1j5zmSbOnAa8ZYFGosjFL+W7BQaD3CRh/042n brkcnt6@gmail.com`) şuralara eklenmeli:
+1. **GitHub** → Settings → SSH Keys (push için)
+2. **Sunucu** → `~/.ssh/authorized_keys` (deploy için)
+
+Eklendikten sonra:
+```bash
+git push origin main
+# sonra sunucuda:
+cd /sadoksan && git pull && docker compose -f docker-compose.prod.yml up -d --build api admin storefront
+```
