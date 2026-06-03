@@ -420,7 +420,7 @@ export class ProductsService {
     const fields: (keyof UpdateProductDto)[] = [
       'name', 'description', 'brand', 'category', 'basePrice', 'taxRate',
       'unit', 'netsisCode', 'sku', 'netsisStock', 'netsisPendingQuantity', 'minimumStock',
-      'middleStock', 'visible', 'purchasable', 'imageUrl', 'images', 'weight',
+      'middleStock', 'visible', 'purchasable', 'isFeatured', 'imageUrl', 'images', 'weight',
     ];
 
     for (const f of fields) {
