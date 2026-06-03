@@ -365,6 +365,25 @@ export const useProductsStore = defineStore('products', {
       }
     },
 
+    async toggleFeatured(id: string) {
+      const p = this.items.find((x) => x.id === id)
+      if (!p) return
+
+      try {
+        const api = useApi()
+        const updated = await api.post<Product>(`/products/${id}/featured`, {
+          featured: !(p as any).isFeatured,
+        })
+        const idx = this.items.findIndex((x) => x.id === id)
+        if (idx !== -1) {
+          this.items[idx] = updated
+        }
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Güncellenemedi'
+        console.error('Toggle featured failed:', err)
+      }
+    },
+
     async updateStockThresholds(id: string, minimumStock: number, middleStock?: number) {
       try {
         const api = useApi()

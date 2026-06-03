@@ -138,6 +138,15 @@ const toggleProductPurchasable = async (id: string) => {
   }
 }
 
+const toggleProductFeatured = async (id: string) => {
+  updatingIds.value.add(id)
+  try {
+    await products.toggleFeatured(id)
+  } finally {
+    updatingIds.value.delete(id)
+  }
+}
+
 const confirmAndDeleteProduct = (id: string, name: string) => {
   if (window.confirm(`${name} silinsin mi?`)) {
     products.remove(id)
@@ -286,6 +295,7 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase tracking-wider">Sync</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase tracking-wider">Görünür</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase tracking-wider">Satılır</th>
+              <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase tracking-wider">⭐ Öne Çıkan</th>
               <th class="px-4 py-3 w-24"></th>
             </tr>
           </thead>
@@ -358,6 +368,25 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
                     :class="[
                       'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
                       p.purchasable ? 'translate-x-4' : 'translate-x-0.5',
+                    ]"
+                  />
+                </button>
+              </td>
+              <td class="px-4 py-3">
+                <button
+                  @click="toggleProductFeatured(p.id)"
+                  :disabled="selected.has(p.id)"
+                  :class="[
+                    'relative inline-flex h-5 w-9 rounded-full transition-colors',
+                    (p as any).isFeatured ? 'bg-amber-500' : 'bg-ink-300',
+                    selected.has(p.id) && 'opacity-50 cursor-not-allowed',
+                  ]"
+                  :title="(p as any).isFeatured ? 'Öne çıkarmayı kaldır' : 'Öne çıkar'"
+                >
+                  <span
+                    :class="[
+                      'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                      (p as any).isFeatured ? 'translate-x-4' : 'translate-x-0.5',
                     ]"
                   />
                 </button>
