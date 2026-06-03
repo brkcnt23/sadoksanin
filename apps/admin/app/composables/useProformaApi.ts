@@ -112,7 +112,8 @@ export const useProformaApi = () => {
     const path = params.toString()
       ? `/proforma/history?${params.toString()}`
       : '/proforma/history'
-    return apiFetch<Proforma[]>(path)
+    const data = await apiFetch<any>(path)
+    return Array.isArray(data) ? data : []
   }
 
   /** Mark a proforma as sent */

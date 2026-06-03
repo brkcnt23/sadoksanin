@@ -820,7 +820,7 @@ const loadProformas = async () => {
   error.value = null
   try {
     const data = await getProformas()
-    allProformas.value = data || []
+    allProformas.value = Array.isArray(data) ? data : []
   } catch (err: any) {
     error.value = err.message || 'Proformalar yüklenemedi'
     console.error('Error loading proformas:', err)
