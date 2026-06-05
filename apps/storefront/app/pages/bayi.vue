@@ -5,7 +5,7 @@ const { enableDealer, isDealer, dealer } = useDealer()
 const { push: pushToast } = useToast()
 const { featured } = useProducts()
 const { getUser, isAuthenticated, loadUser, logout } = useAuth()
-const { getDealerInfo, getCariTransactions, getProformas, downloadProforma, downloadStockReport } = useDealerApi()
+const { getDealerInfo, getCariTransactions, getProformas, downloadProforma, downloadStockReport, downloadCariStatement } = useDealerApi()
 
 useHead({ title: 'Bayi Paneli — Sadöksan' })
 
@@ -74,6 +74,14 @@ const loadDashboard = async () => {
     error.value = err?.message || 'Veriler yüklenemedi'
     pushToast({ variant: 'error', title: 'Yükleme hatası', description: error.value })
   }
+  // Risk skoru (ayrı endpoint, hata olsa da dashboard çalışır)
+  try {
+    const riskData = await $fetch<any>(`${useRuntimeConfig().public.apiBase}/dealer/risk-score`, {
+      headers: import.meta.client ? { Authorization: `Bearer ${localStorage.getItem('user-token')}` } : {},
+    })
+    riskScore.value = riskData?.score ?? 0
+    riskLevel.value = riskScore.value >= 80 ? 'Düşük Risk' : riskScore.value >= 50 ? 'Orta Risk' : 'Yüksek Risk'
+  } catch { riskScore.value = 0; riskLevel.value = 'Bilinmiyor' }
   loading.value = false
 }
 
@@ -103,6 +111,12 @@ const formatDate = (d: Date) => new Intl.DateTimeFormat('tr-TR', { year: 'numeri
 const statusColor = (s: string) => s === 'Onay Bekleniyor' ? 'bg-amber-50 text-amber-800 border-amber-200' : s === 'Sevk Edildi' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
 const proformaStatusClass = (s: string) => s === 'sent' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : s === 'accepted' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-amber-50 text-amber-800 border-amber-200'
 const proformaStatusLabel = (s: string) => s === 'sent' ? 'Gönderildi' : s === 'accepted' ? 'Kabul Edildi' : 'Taslak'
+
+// Risk skoru
+const riskScore = ref(0)
+const riskLevel = ref('Hesaplanıyor...')
+const riskScoreColor = computed(() => riskScore.value >= 80 ? 'text-emerald-600' : riskScore.value >= 50 ? 'text-amber-600' : 'text-red-600')
+const riskScoreTextColor = computed(() => riskScore.value >= 80 ? 'text-emerald-600' : riskScore.value >= 50 ? 'text-amber-600' : 'text-red-600')
 
 const downloadReport = async (reportType: string) => {
   downloadingReport.value = reportType
@@ -200,6 +214,14 @@ const downloadProformaFile = async (id: string) => {
             {{ formatTL(dashboard.monthlyOrderTotal) }} <span class="text-sm text-ink-500 font-medium">TL</span>
           </p>
         </div>
+        <div class="rounded-xl bg-white border border-ink-100 p-5 shadow-card">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-semibold uppercase tracking-wider text-ink-500">Risk Skoru</p>
+            <Icon name="lucide:shield-alert" class="h-5 w-5" :class="riskScoreColor === 'text-emerald-600' ? 'text-emerald-500' : riskScoreColor === 'text-amber-600' ? 'text-amber-500' : 'text-red-500'" />
+          </div>
+          <p class="mt-2 font-display text-xl md:text-2xl font-extrabold" :class="riskScoreColor">{{ riskScore }}<span class="text-sm text-ink-500 font-medium">/100</span></p>
+          <p class="mt-0.5 text-xs" :class="riskScoreTextColor">{{ riskLevel }}</p>
+        </div>
       </div>
     </section>
 
@@ -242,6 +264,11 @@ const downloadProformaFile = async (id: string) => {
         <template v-else>
           <!-- Tab: İşlemler (Cari) -->
           <div v-if="activeTab === 'cari'" class="animate-fade-up">
+            <div class="flex justify-end mb-4" v-if="cariHistory.length > 0">
+              <button @click="async () => { try { const blob = await downloadCariStatement(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'Cari-Hesap-Dokumu.csv'; a.click(); window.URL.revokeObjectURL(url); pushToast({ variant: 'success', title: 'Cari döküm indirildi', duration: 4000 }); } catch(e: any) { pushToast({ variant: 'error', title: 'İndirilemedi', description: e?.message }); } }" class="btn-outline text-xs">
+                <Icon name="lucide:download" class="h-4 w-4" /> Cari Döküm İndir
+              </button>
+            </div>
             <div v-if="cariHistory.length === 0" class="text-center py-16">
               <Icon name="lucide:inbox" class="h-12 w-12 text-ink-300 mx-auto mb-4" />
               <p class="text-ink-500 font-medium">Henüz işlem bulunmuyor</p>
@@ -280,6 +307,9 @@ const downloadProformaFile = async (id: string) => {
                 { id: 'invoice' as const, title: 'Fatura Raporu', desc: 'Tüm faturalarınızın dökümü', icon: 'lucide:file-text' },
                 { id: 'stock' as const, title: 'Stok & Fiyat', desc: 'Güncel stok ve fiyat listesi', icon: 'lucide:package' },
                 { id: 'detailed' as const, title: 'Detaylı Rapor', desc: 'Ürün bazlı tüm sipariş dökümü', icon: 'lucide:list' },
+                { id: 'risk' as const, title: 'Risk Raporu', desc: 'Bayi risk değerlendirmesi', icon: 'lucide:shield-alert' },
+                { id: 'aging' as const, title: 'Yaşlandırma Raporu', desc: 'Alacak yaşlandırma analizi', icon: 'lucide:clock' },
+                { id: 'performance' as const, title: 'Performans Raporu', desc: 'Sipariş ve ciro performansı', icon: 'lucide:activity' },
               ]" :key="r.id" class="rounded-xl bg-white border border-ink-100 p-5 shadow-card hover:shadow-elevated transition-shadow">
                 <div class="flex items-center gap-3 mb-3">
                   <div class="h-10 w-10 rounded-lg bg-accent-50 flex items-center justify-center"><Icon :name="r.icon" class="h-5 w-5 text-accent-600" /></div>

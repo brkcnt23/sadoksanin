@@ -326,7 +326,7 @@
                   @click="newProforma.templateType = 'LOCAL'"
                   :class="[
                     'p-4 border-2 rounded-lg text-center font-medium transition-all',
-                    newProforma.template === 'LOCAL'
+                    newProforma.templateType === 'LOCAL'
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-ink-200 hover:border-ink-300'
                   ]"
@@ -337,7 +337,7 @@
                   @click="newProforma.templateType = 'INTERNATIONAL'"
                   :class="[
                     'p-4 border-2 rounded-lg text-center font-medium transition-all',
-                    newProforma.template === 'INTERNATIONAL'
+                    newProforma.templateType === 'INTERNATIONAL'
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-ink-200 hover:border-ink-300'
                   ]"
@@ -598,6 +598,7 @@ const selectedProforma = ref<any>(null)
 const detailLoading = ref(false)
 const pdfBlobUrl = ref<string | null>(null)
 
+const toast = useToast()
 const { createProforma, createAndSendProforma, getProformas, sendProforma, downloadProforma, deleteProforma, getProductImage, searchProducts, getDealers, getProforma } = useProformaApi()
 
 // Configurable upload limits (kept generous; PDF embedding downsizes anyway)

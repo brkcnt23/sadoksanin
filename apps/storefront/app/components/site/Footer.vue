@@ -148,16 +148,49 @@ const year = new Date().getFullYear()
       </div>
     </div>
 
-    <!-- Legal Links -->
+    <!-- Alt Linkler: Hakkımızda + Alışveriş + Yardım (eski site yapısı) -->
+    <div class="border-t border-white/5">
+      <div class="container-x py-12 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm">
+        <!-- HAKKIMIZDA -->
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-white mb-5">Hakkımızda</h4>
+          <ul class="space-y-2.5">
+            <li><NuxtLink to="/hakkimizda" class="text-ink-400 hover:text-white transition-colors">Hakkımızda</NuxtLink></li>
+            <li><NuxtLink to="/magaza" class="text-ink-400 hover:text-white transition-colors">Mağazamız</NuxtLink></li>
+            <li><NuxtLink to="/iletisim" class="text-ink-400 hover:text-white transition-colors">İletişim</NuxtLink></li>
+            <li><a href="#" class="text-ink-400 hover:text-white transition-colors">Kurumsal Haberler</a></li>
+            <li><NuxtLink to="/siparislerim" class="text-ink-400 hover:text-white transition-colors">Havale Bildirim Formu</NuxtLink></li>
+          </ul>
+        </div>
+        <!-- ALIŞVERİŞ -->
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-white mb-5">Alışveriş</h4>
+          <ul class="space-y-2.5">
+            <li><NuxtLink to="/sayfa/mesafeli-satis-sozlesmesi" class="text-ink-400 hover:text-white transition-colors">Mesafeli Satış Sözleşmesi</NuxtLink></li>
+            <li><NuxtLink to="/sayfa/gizlilik-ve-guvenlik" class="text-ink-400 hover:text-white transition-colors">Gizlilik ve Güvenlik</NuxtLink></li>
+            <li><NuxtLink to="/sayfa/iptal-ve-iade-sartlari" class="text-ink-400 hover:text-white transition-colors">İptal İade Koşulları</NuxtLink></li>
+            <li><NuxtLink to="/sayfa/kisisel-veriler-politikasi" class="text-ink-400 hover:text-white transition-colors">Kişisel Veriler Politikası</NuxtLink></li>
+          </ul>
+        </div>
+        <!-- YARDIM -->
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-white mb-5">Yardım</h4>
+          <ul class="space-y-2.5">
+            <li><NuxtLink to="/iletisim" class="text-ink-400 hover:text-white transition-colors">Bize Ulaşın</NuxtLink></li>
+            <li><a href="#" class="text-ink-400 hover:text-white transition-colors">E-Katalog</a></li>
+            <li><NuxtLink to="/sayfa/iptal-ve-iade-sartlari" class="text-ink-400 hover:text-white transition-colors">Teslimat & İade</NuxtLink></li>
+            <li><a href="#" class="text-ink-400 hover:text-white transition-colors">Hediye Paketleme</a></li>
+            <li><NuxtLink to="/sayfa/sss" class="text-ink-400 hover:text-white transition-colors">Sıkça Sorulan Sorular</NuxtLink></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Copyright -->
     <div class="border-t border-white/5">
       <div class="container-x py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-ink-500">
-        <p>© {{ year }} Sadöksan İnşaat. Tüm hakları saklıdır.</p>
-        <div class="flex flex-wrap items-center gap-4 md:gap-6">
-          <NuxtLink to="/yasal/mesafeli-satis" class="hover:text-white">Mesafeli Satış Sözleşmesi</NuxtLink>
-          <NuxtLink to="/yasal/gizlilik" class="hover:text-white">Gizlilik Politikası</NuxtLink>
-          <NuxtLink to="/yasal/tuketici-haklari" class="hover:text-white">Tüketici Hakları</NuxtLink>
-          <NuxtLink to="/yasal/kisisel-veriler" class="hover:text-white">Kişisel Veriler</NuxtLink>
-        </div>
+        <p>© {{ year }} Sadöksan İnşaat. Tüm hakları saklıdır. Kredi kartı bilgileriniz 256bit SSL sertifikası ile korunmaktadır.</p>
+        <p class="text-ink-600">Platform by <span class="text-accent-400 font-semibold">Burak Can®</span></p>
       </div>
     </div>
   </footer>

@@ -35,6 +35,13 @@ export default defineNuxtConfig({
     domains: ['images.unsplash.com'],
     format: ['webp', 'avif'],
   },
+  icon: {
+    serverBundle: 'local',
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 512,
+    },
+  },
   devtools: { enabled: true },
   typescript: {
     strict: true,

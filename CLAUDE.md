@@ -1,8 +1,14 @@
 # CLAUDE Project Context: Sadoksan ERP
 
 **Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
-**Last Updated:** 2026-06-02  
+**Last Updated:** 2026-06-03  
 **Owner:** John (brkcnt6@gmail.com)
+
+## Son Session Özeti (2026-06-03)
+
+3 Phase tamamlandı: Demo kart ödeme, sipariş durum takibi, bayi paneli zenginleştirme.
+Footer eski site yapısına uyarlandı, hukuki sayfalar eski siteden içerikle dolduruldu.
+Detaylı yapılacaklar için `YAPILACAKLAR.md`, giriş bilgileri için `info.md`.
 
 ## Tech Stack
 
@@ -196,6 +202,41 @@ Browser (HTTPS) → nginx → /api/* → api:3001 (NestJS)
                          → /sadoksan-panel/* → admin:3002 (Nuxt SPA)
                          → /* → storefront:3000 (Nuxt SSR)
 ```
+
+## Demo Kart (Sunum)
+
+```
+Kart No:  4111 1111 1111 1111
+SKT:      12/28
+CVV:      123
+İsim:     Test Kart
+```
+Bu kartla B2B sipariş OTOMATİK ONAYLANIR. Bilgiler `/sayfa/demo-card` sayfasında da var.
+
+## Recent Changes (2026-06-03)
+
+### Storefront
+- **siparislerim.vue** — komple yenilendi: 6 adımlı durum çizelgesi, durum geçmişi, iptal modal'ı, havale bildirim formu (9 banka), kargo takip
+- **bayi.vue** — 5 KPI kart (eklenen: Risk Skoru), 8 rapor tipi (eklenen: risk, aging, performance), cari CSV döküm
+- **Footer.vue** — eski site (sadoksaninsaat.com.tr) yapısına uyarlandı: Hakkımızda / Alışveriş / Yardım 3 kolon
+- **Header.vue** — "Ürünler" hover açılır menü (`@mouseenter`/`@mouseleave`)
+- **nuxt.config.ts** — icon config eklendi (lucide iconlar SSR'da yükleniyor)
+- **useDealerApi.ts** — report tiplerine `risk | aging | performance` eklendi
+
+### CMS (DB'ye yazıldı, API üzerinden)
+- `/sayfa/mesafeli-satis-sozlesmesi` — tam sözleşme metni
+- `/sayfa/gizlilik-ve-guvenlik` — gizlilik + SSL + kart güvenliği
+- `/sayfa/iptal-ve-iade-sartlari` — iade koşulları + cayma hakkı
+- `/sayfa/kisisel-veriler-politikasi` — KVKK metni
+- `/sayfa/sss` — placeholder
+- `/sayfa/banka-hesaplari` — placeholder
+
+### Nginx
+- Eski `/canterm-ws` (port 3456) rotası kaldırıldı
+- Yorumlu Sadoksan satırları temizlendi
+
+### PM2
+- Eski `canterm` (id 0, port 3456) silindi, `pm2 save` yapıldı
 
 ## Sıradaki İşler (API geldikten sonra)
 

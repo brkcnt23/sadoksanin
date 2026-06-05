@@ -114,7 +114,7 @@ export const useDealerApi = () => {
     }
   }
 
-  const downloadStockReport = async (reportType: 'monthly' | 'yearly' | 'invoice' | 'stock' | 'detailed'): Promise<Blob> => {
+  const downloadStockReport = async (reportType: 'monthly' | 'yearly' | 'invoice' | 'stock' | 'detailed' | 'risk' | 'aging' | 'performance'): Promise<Blob> => {
     try {
       return await downloadBlob(`${apiBase}/dealer/reports/${reportType}`)
     } catch (error) {

@@ -79,6 +79,7 @@ const nav: NavItem[] = [
 const mobileOpen = ref(false)
 const scrolled = ref(false)
 const megaOpen = ref(false)
+const megaLocked = ref(false)
 // Mobile drawer içinde "Ürünler" accordion'u
 const mobileProductsOpen = ref(false)
 
@@ -111,7 +112,28 @@ const onScroll = () => {
 }
 
 const toggleMega = () => {
-  megaOpen.value = !megaOpen.value
+  if (megaOpen.value) {
+    megaOpen.value = false
+    megaLocked.value = false
+  } else {
+    megaOpen.value = true
+    megaLocked.value = true
+  }
+}
+
+const onMegaClose = () => {
+  megaOpen.value = false
+  megaLocked.value = false
+}
+
+const onNavMouseLeave = () => {
+  if (!megaLocked.value) {
+    megaOpen.value = false
+  }
+}
+
+const onMegaTriggerEnter = () => {
+  if (!megaOpen.value) megaOpen.value = true
 }
 
 onMounted(() => {
@@ -126,6 +148,7 @@ onBeforeUnmount(() => {
 watch(() => route.fullPath, () => {
   mobileOpen.value = false
   megaOpen.value = false
+  megaLocked.value = false
   mobileProductsOpen.value = false
 })
 </script>
@@ -152,9 +175,9 @@ watch(() => route.fullPath, () => {
       </NuxtLink>
 
       <!-- Desktop nav -->
-      <nav class="hidden lg:flex items-center gap-1">
+      <nav class="hidden lg:flex items-center gap-1" @mouseleave="onNavMouseLeave">
         <template v-for="item in nav" :key="item.label">
-          <!-- Mega-menu tetik butonu -->
+          <!-- Mega-menu tetik butonu (click + hover) -->
           <button
             v-if="item.trigger === 'mega'"
             type="button"
@@ -164,6 +187,7 @@ watch(() => route.fullPath, () => {
             :aria-expanded="megaOpen"
             aria-haspopup="true"
             @click="toggleMega"
+            @mouseenter="onMegaTriggerEnter"
           >
             {{ item.label }}
             <Icon
@@ -315,7 +339,7 @@ watch(() => route.fullPath, () => {
     </div>
 
     <!-- Desktop mega-menu (full-width panel) -->
-    <SiteProductsMegaMenu :open="megaOpen" @close="megaOpen = false" />
+    <SiteProductsMegaMenu :open="megaOpen" @close="onMegaClose" />
 
     <!-- Mobile drawer -->
     <Transition
