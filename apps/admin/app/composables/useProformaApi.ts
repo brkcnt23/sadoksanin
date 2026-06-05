@@ -52,7 +52,7 @@ export const useProformaApi = () => {
   const config = useRuntimeConfig()
   const apiBase = String(config.public.apiBase).replace(/\/+$/, '')
 
-  /** Build Authorization header from the admin token cookie/localStorage. */
+  /** Build Authorization header from the admin token localStorage. */
   const authHeaders = (): Record<string, string> => {
     if (import.meta.client) {
       const token = localStorage.getItem('admin-token')
@@ -61,18 +61,42 @@ export const useProformaApi = () => {
     return {}
   }
 
-  /** Thin wrapper around $fetch that always sends JWT and logs errors once. */
-  const apiFetch = async <T>(
-    path: string,
-    options: Parameters<typeof $fetch>[1] = {},
-  ): Promise<T> => {
-    return $fetch<T>(`${apiBase}${path}`, {
+  /** Build full URL — handles both relative (/api) and absolute (https://) bases. */
+  const buildUrl = (path: string): string => {
+    const cleanPath = path.startsWith('/') ? path : '/' + path
+    const isAbsolute = apiBase.startsWith('http://') || apiBase.startsWith('https://')
+    if (isAbsolute) return new URL(apiBase + cleanPath).toString()
+    return apiBase + cleanPath
+  }
+
+  /** Thin wrapper around fetch that always sends JWT and handles errors like useApi. */
+  const apiFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
+    const url = buildUrl(path)
+    const res = await fetch(url, {
       ...options,
       headers: {
+        'Content-Type': 'application/json',
         ...authHeaders(),
-        ...((options as any)?.headers ?? {}),
+        ...(options.headers as Record<string, string> ?? {}),
       },
     })
+
+    if (!res.ok) {
+      let msg = `API hatası: ${res.status}`
+      try {
+        const body = await res.clone().json()
+        if (typeof body?.message === 'string') msg = body.message
+      } catch { /* response wasn't JSON */ }
+      throw new Error(msg)
+    }
+
+    // Handle blob responses (PDF download)
+    const ct = res.headers.get('content-type') || ''
+    if (ct.includes('application/pdf') || ct.includes('application/octet-stream')) {
+      return (await res.blob()) as unknown as T
+    }
+
+    return (await res.json()) as T
   }
 
   /**
@@ -123,10 +147,7 @@ export const useProformaApi = () => {
 
   /** Download proforma as PDF blob */
   const downloadProforma = async (proformaId: string): Promise<Blob> => {
-    return apiFetch<Blob>(`/proforma/${proformaId}/download`, {
-      method: 'GET',
-      responseType: 'blob' as any,
-    })
+    return apiFetch<Blob>(`/proforma/${proformaId}/download`, { method: 'GET' })
   }
 
   /** Delete a proforma */
