@@ -66,7 +66,18 @@
       "PowerShell(sleep 5; docker logs sadoksan-admin-prod --tail 5 2>&1; Write-Host \"---\"; Invoke-WebRequest -Uri \"http://localhost:3002/sadoksan-panel\" -TimeoutSec 10 -UseBasicParsing | Select-Object StatusCode, @{N=\"Length\";E={$_.Content.Length}})",
       "Bash(openssl req *)",
       "Bash(cp fullchain.pem sadoksan.crt)",
-      "Bash(cp privkey.pem sadoksan.key)"
+      "Bash(cp privkey.pem sadoksan.key)",
+      "Bash(ssh *)",
+      "Bash(scp server-seed.sql can@45.43.152.52:/tmp/seed.sql)",
+      "Bash(git push *)",
+      "Bash(scp seed-categories.sql can@45.43.152.52:/tmp/seed-categories.sql)",
+      "Bash(NUXT_APP_BASE_URL=\"/sadoksan-admin/\" pnpm build)",
+      "Bash(tar -czf /tmp/admin-output.tar.gz -C .output .)",
+      "Bash(scp /tmp/admin-output.tar.gz can@45.43.152.52:/tmp/)",
+      "Bash(tar -czf __TRACKED_VAR__/admin-output.tar.gz .output)",
+      "Bash(scp __TRACKED_VAR__/admin-output.tar.gz can@45.43.152.52:/tmp/)",
+      "Bash(scp \"C:/Users/brkcn/admin-output.zip\" can@45.43.152.52:/tmp/)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
