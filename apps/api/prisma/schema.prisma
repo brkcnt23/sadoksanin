@@ -216,6 +216,7 @@ model Product {
   // Visibility/Purchasability
   visible           Boolean      @default(true)
   purchasable       Boolean      @default(true)
+  isFeatured        Boolean      @default(false) // Öne çıkan ürün — ana sayfada gösterilir
 
   // Sync status
   syncStatus        SyncStatus   @default(NEVER)
@@ -238,6 +239,7 @@ model Product {
   @@index([brandId])
   @@index([categoryId])
   @@index([syncStatus])
+  @@index([isFeatured])
 }
 
 enum SyncStatus {

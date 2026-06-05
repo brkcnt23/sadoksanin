@@ -20,6 +20,11 @@ onMounted(async () => {
   if (qKategori && typeof qKategori === 'string') {
     selectedCategories.value = [qKategori.toLowerCase()]
   }
+  // Sub kategori arama filtresi: /urunler?kategori=seramik&ara=60x120
+  const qAra = route.query.ara
+  if (qAra && typeof qAra === 'string') {
+    searchQuery.value = decodeURIComponent(qAra)
+  }
   await load()
   loadOrders()
 })

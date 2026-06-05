@@ -79,7 +79,6 @@ const nav: NavItem[] = [
 const mobileOpen = ref(false)
 const scrolled = ref(false)
 const megaOpen = ref(false)
-const megaLocked = ref(false)
 // Mobile drawer içinde "Ürünler" accordion'u
 const mobileProductsOpen = ref(false)
 
@@ -112,28 +111,11 @@ const onScroll = () => {
 }
 
 const toggleMega = () => {
-  if (megaOpen.value) {
-    megaOpen.value = false
-    megaLocked.value = false
-  } else {
-    megaOpen.value = true
-    megaLocked.value = true
-  }
+  megaOpen.value = !megaOpen.value
 }
 
 const onMegaClose = () => {
   megaOpen.value = false
-  megaLocked.value = false
-}
-
-const onNavMouseLeave = () => {
-  if (!megaLocked.value) {
-    megaOpen.value = false
-  }
-}
-
-const onMegaTriggerEnter = () => {
-  if (!megaOpen.value) megaOpen.value = true
 }
 
 onMounted(() => {
@@ -148,7 +130,6 @@ onBeforeUnmount(() => {
 watch(() => route.fullPath, () => {
   mobileOpen.value = false
   megaOpen.value = false
-  megaLocked.value = false
   mobileProductsOpen.value = false
 })
 </script>
@@ -175,9 +156,9 @@ watch(() => route.fullPath, () => {
       </NuxtLink>
 
       <!-- Desktop nav -->
-      <nav class="hidden lg:flex items-center gap-1" @mouseleave="onNavMouseLeave">
+      <nav class="hidden lg:flex items-center gap-1">
         <template v-for="item in nav" :key="item.label">
-          <!-- Mega-menu tetik butonu (click + hover) -->
+          <!-- Mega-menu tetik butonu (sadece tık) -->
           <button
             v-if="item.trigger === 'mega'"
             type="button"
@@ -187,7 +168,6 @@ watch(() => route.fullPath, () => {
             :aria-expanded="megaOpen"
             aria-haspopup="true"
             @click="toggleMega"
-            @mouseenter="onMegaTriggerEnter"
           >
             {{ item.label }}
             <Icon
