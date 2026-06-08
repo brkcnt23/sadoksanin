@@ -18,6 +18,7 @@ import { PricingModule } from './modules/pricing/pricing.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { StockModule } from './modules/stock/stock.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { HealthController } from './health.controller';
     AuditModule,
     NotificationsModule,
     StockModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
   providers: [],
