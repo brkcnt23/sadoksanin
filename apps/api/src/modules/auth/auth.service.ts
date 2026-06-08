@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -7,6 +7,8 @@ import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -78,6 +80,81 @@ export class AuthService {
 
     // Return token
     return this.generateToken(user);
+  }
+
+  /**
+   * Admin tarafından kullanıcı oluşturma — PLASIYER veya ADMIN rolü atanabilir.
+   * DEALER için ek validasyonlar ve Dealer kaydı gerekir.
+   */
+  async adminCreateUser(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new BadRequestException('Bu email zaten kayıtlı');
+    }
+
+    const role = dto.role || 'DEALER';
+
+    if (role === 'DEALER') {
+      if (!dto.company || !dto.cariNo || !dto.taxNo) {
+        throw new BadRequestException('Bayi için şirket, cari no ve vergi no zorunludur');
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name,
+        password: hashedPassword,
+        role,
+        phone: dto.phone,
+        address: dto.address,
+        city: dto.city,
+      },
+    });
+
+    if (role === 'DEALER') {
+      await this.prisma.dealer.create({
+        data: {
+          userId: user.id,
+          name: dto.company!,
+          company: dto.company!,
+          contactPerson: dto.contactPerson || dto.name,
+          phone: dto.phone || '',
+          cariNo: dto.cariNo!,
+          taxNo: dto.taxNo!,
+          taxOffice: dto.taxOffice || '',
+          city: dto.city || '',
+          region: dto.region || 'Marmara',
+          address: dto.address || '',
+          status: 'ACTIVE', // Admin tarafından oluşturulan doğrudan aktif
+        },
+      });
+    }
+
+    this.logger.log(`Admin created user: ${user.email} (${user.role})`);
+    return { id: user.id, email: user.email, name: user.name, role: user.role };
+  }
+
+  async listUsers(role?: string) {
+    const where = role ? { role: role as any } : {};
+    return this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        city: true,
+        dealer: { select: { id: true, company: true, cariNo: true, status: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async login(dto: LoginDto) {

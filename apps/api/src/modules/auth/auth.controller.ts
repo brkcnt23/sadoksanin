@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -31,6 +33,22 @@ export class AuthController {
     @Body() data: { name?: string; phone?: string; city?: string; address?: string },
   ) {
     return this.authService.updateProfile(req.user.sub, data);
+  }
+
+  // ─── Admin: Kullanıcı Yönetimi ────────────────────────────────────────────
+
+  @Post('admin-create-user')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async adminCreateUser(@Body() dto: CreateUserDto) {
+    return this.authService.adminCreateUser(dto);
+  }
+
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async listUsers(@Request() req) {
+    return this.authService.listUsers(req.user.role);
   }
 
   @Post('forgot-password')

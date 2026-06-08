@@ -81,6 +81,7 @@ model CartItem {
 
 enum UserRole {
   DEALER    // B2B dealer (B2B-only system)
+  PLASIYER  // Sales representative — proforma + reports, no pricing
   ADMIN
   SUPER_ADMIN
 }

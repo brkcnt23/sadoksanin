@@ -13,8 +13,8 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['DEALER'])
-  role?: 'DEALER';
+  @IsIn(['DEALER', 'PLASIYER', 'ADMIN'])
+  role?: 'DEALER' | 'PLASIYER' | 'ADMIN';
 
   @IsOptional()
   @IsString()
