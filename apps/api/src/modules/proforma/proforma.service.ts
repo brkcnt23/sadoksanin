@@ -18,7 +18,7 @@ export class ProformaService {
   /**
    * Create a draft proforma (no PDF yet)
    */
-  async createProformaDraft(dto: CreateProformaDraftDto, userId: string) {
+  async createProformaDraft(dto: CreateProformaDraftDto, userId: string, userRole?: string) {
     try {
       const totalAmount = dto.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const proformaNumber = await this.generateProformaNumber();
@@ -42,6 +42,7 @@ export class ProformaService {
           tax: 0,
           totalAmount: totalAmount,
           generatedBy: userId,
+          generatedByRole: userRole || null,
           items: {
             createMany: {
               data: dto.items.map((item) => ({
@@ -179,16 +180,16 @@ export class ProformaService {
   async getProformaHistory(
     userId: string,
     options?: {
-      status?: 'draft' | 'sent' | 'accepted';
+      status?: string;
       search?: string;
       limit?: number;
     },
   ) {
-    const limit = options?.limit || 20;
+    const limit = options?.limit || 50;
 
     return this.prisma.proforma.findMany({
       where: {
-        generatedBy: userId,
+        // Admin tüm proformaları görür, plasiyer sadece kendininkini
         ...(options?.status && { status: options.status }),
         ...(options?.search && {
           OR: [

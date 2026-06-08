@@ -38,9 +38,10 @@ export class ProformaController {
   ) {
     try {
       const userId = req.user?.sub || req.user?.id;
-      this.logger.log(`Admin ${userId} creating draft proforma`);
+      const userRole = req.user?.role;
+      this.logger.log(`User ${userId} (${userRole}) creating draft proforma`);
 
-      return await this.proformaService.createProformaDraft(dto, userId);
+      return await this.proformaService.createProformaDraft(dto, userId, userRole);
     } catch (error) {
       this.logger.error(`Failed to create proforma draft: ${error.message}`);
       throw new BadRequestException(error.message);

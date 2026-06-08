@@ -59,8 +59,9 @@
             >
               <option value="">Tüm Durumlar</option>
               <option value="draft">Taslak</option>
-              <option value="sent">Gönderildi</option>
-              <option value="accepted">Kabul Edildi</option>
+              <option value="pending_approval">Onay Bekliyor</option>
+              <option value="approved">Onaylandı</option>
+              <option value="rejected">Reddedildi</option>
             </select>
           </div>
 
@@ -71,6 +72,7 @@
                 <tr>
                   <th class="px-4 py-3 text-left font-medium text-ink-700">Proforma No</th>
                   <th class="px-4 py-3 text-left font-medium text-ink-700">Müşteri</th>
+                  <th class="px-4 py-3 text-left font-medium text-ink-700">Oluşturan</th>
                   <th class="px-4 py-3 text-left font-medium text-ink-700">Şablon</th>
                   <th class="px-4 py-3 text-left font-medium text-ink-700">Tarih</th>
                   <th class="px-4 py-3 text-right font-medium text-ink-700">Tutar</th>
@@ -84,6 +86,14 @@
                   <td class="px-4 py-3 text-ink-600">
                     <div>{{ proforma.customerName }}</div>
                     <div class="text-xs text-ink-400">{{ proforma.customerCity }}</div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span v-if="proforma.generatedByRole === 'PLASIYER'" class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                      <Icon name="lucide:user" class="w-3 h-3 inline mr-1" /> Plasiyer
+                    </span>
+                    <span v-else class="px-2 py-1 rounded text-xs font-medium bg-ink-100 text-ink-600">
+                      Admin
+                    </span>
                   </td>
                   <td class="px-4 py-3">
                     <span :class="[
@@ -109,6 +119,23 @@
                   </td>
                   <td class="px-4 py-3 text-center">
                     <div class="flex justify-center gap-2">
+                      <!-- Onay Bekleyen: Onayla + Reddet -->
+                      <template v-if="proforma.status === 'pending_approval'">
+                        <button
+                          @click="approveProformaHandler(proforma.id)"
+                          class="text-green-600 hover:text-green-800 text-sm font-medium"
+                          title="Onayla"
+                        >
+                          <Icon name="lucide:check-circle" class="w-4 h-4" />
+                        </button>
+                        <button
+                          @click="openRejectModal(proforma)"
+                          class="text-red-600 hover:text-red-800 text-sm font-medium"
+                          title="Reddet"
+                        >
+                          <Icon name="lucide:x-circle" class="w-4 h-4" />
+                        </button>
+                      </template>
                       <button
                         @click="viewProforma(proforma)"
                         class="text-primary-600 hover:text-primary-800 text-sm font-medium"
@@ -117,7 +144,7 @@
                         <Icon name="lucide:eye" class="w-4 h-4" />
                       </button>
                       <button
-                        v-if="proforma.status === 'draft'"
+                        v-if="proforma.status === 'draft' || proforma.status === 'rejected'"
                         @click="editProforma(proforma)"
                         class="text-amber-600 hover:text-amber-800 text-sm font-medium"
                         title="Düzenle"
@@ -125,14 +152,7 @@
                         <Icon name="lucide:edit-2" class="w-4 h-4" />
                       </button>
                       <button
-                        v-if="proforma.status === 'draft'"
-                        @click="sendProformaHandler(proforma.id)"
-                        class="text-green-600 hover:text-green-800 text-sm font-medium"
-                        title="Gönder"
-                      >
-                        <Icon name="lucide:send" class="w-4 h-4" />
-                      </button>
-                      <button
+                        v-if="proforma.status === 'approved'"
                         @click="downloadProformaHandler(proforma.id)"
                         class="text-purple-600 hover:text-purple-800 text-sm font-medium"
                         title="İndir"
@@ -140,7 +160,7 @@
                         <Icon name="lucide:download" class="w-4 h-4" />
                       </button>
                       <button
-                        v-if="proforma.status !== 'accepted'"
+                        v-if="proforma.status !== 'approved'"
                         @click="deleteProformaHandler(proforma.id)"
                         class="text-red-600 hover:text-red-800 text-sm font-medium"
                         title="Sil"
@@ -562,6 +582,32 @@
       </div>
     </div>
   </div>
+
+  <!-- Reject Modal -->
+  <div v-if="rejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+    <div class="bg-white rounded-xl border border-ink-200 w-full max-w-md">
+      <div class="flex items-center justify-between p-4 border-b border-ink-200">
+        <h2 class="text-lg font-bold text-ink-900">Proforma Reddet</h2>
+        <button @click="rejectModal = false" class="text-ink-400 hover:text-ink-600 text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <p class="text-ink-700">"{{ rejectTarget?.proformaNumber }}" numaralı proformayı reddetmek üzeresiniz.</p>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-2">Red Sebebi *</label>
+          <textarea
+            v-model="rejectReason"
+            rows="3"
+            class="w-full px-4 py-2 border border-ink-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder="Plasiyerin görmesi için red sebebini açıklayın..."
+          ></textarea>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button @click="rejectModal = false" class="px-4 py-2 border border-ink-300 rounded-lg text-ink-700 hover:bg-ink-50">İptal</button>
+          <button @click="rejectProformaHandler()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Reddet</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -607,9 +653,10 @@ const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 const tabs = [
   { id: 'all', label: 'Tüm Proformalar', count: 0 },
+  { id: 'pending_approval', label: 'Onay Bekleyen', count: 0 },
   { id: 'draft', label: 'Taslaklar', count: 0 },
-  { id: 'sent', label: 'Gönderilen', count: 0 },
-  { id: 'accepted', label: 'Kabul Edilen', count: 0 }
+  { id: 'approved', label: 'Onaylanan', count: 0 },
+  { id: 'rejected', label: 'Reddedilen', count: 0 }
 ]
 
 const getTabCount = (tabId: string): number => {
@@ -681,10 +728,63 @@ const formatDate = (date: Date): string => {
 const statusLabel = (status: string): string => {
   const labels: Record<string, string> = {
     draft: 'Taslak',
+    pending_approval: 'Onay Bekliyor',
+    approved: 'Onaylandı',
+    rejected: 'Reddedildi',
     sent: 'Gönderildi',
     accepted: 'Kabul Edildi'
   }
   return labels[status] || status
+}
+
+const rejectModal = ref(false)
+const rejectTarget = ref<any>(null)
+const rejectReason = ref('')
+
+const openRejectModal = (proforma: any) => {
+  rejectTarget.value = proforma
+  rejectReason.value = ''
+  rejectModal.value = true
+}
+
+const approveProformaHandler = async (id: string) => {
+  if (!confirm('Bu proformayı onaylamak istediğinize emin misiniz?')) return
+  try {
+    const token = localStorage.getItem('admin-token')
+    const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
+    const res = await fetch(`${base}/api/proforma/${id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) throw new Error((await res.json()).message || 'Onay başarısız')
+    toast.push('Proforma onaylandı', 'success')
+    await loadProformas()
+  } catch (e: any) {
+    toast.push(`Onay hatası: ${e.message}`, 'error')
+  }
+}
+
+const rejectProformaHandler = async () => {
+  if (!rejectReason.value.trim()) {
+    toast.push('Red sebebi zorunludur', 'error')
+    return
+  }
+  try {
+    const token = localStorage.getItem('admin-token')
+    const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
+    const res = await fetch(`${base}/api/proforma/${rejectTarget.value.id}/reject`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: rejectReason.value }),
+    })
+    if (!res.ok) throw new Error((await res.json()).message || 'Reddetme başarısız')
+    toast.push('Proforma reddedildi', 'success')
+    rejectModal.value = false
+    rejectTarget.value = null
+    await loadProformas()
+  } catch (e: any) {
+    toast.push(`Reddetme hatası: ${e.message}`, 'error')
+  }
 }
 
 const calculateTotal = (): number => {
