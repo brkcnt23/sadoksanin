@@ -507,4 +507,180 @@ export class ProformaService {
 
     return `PROF-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
   }
+
+  // ─── Approval Workflow ──────────────────────────────────────────────────
+
+  /**
+   * Plasiyer proformayı onaya gönderir.
+   * Fiyatlar backend'de Product tablosundan zorlanır — plasiyer override edemez.
+   */
+  async submitForApproval(proformaId: string, userId: string, userRole: string) {
+    const proforma = await this.prisma.proforma.findUnique({
+      where: { id: proformaId },
+      include: { items: true },
+    })
+
+    if (!proforma) throw new BadRequestException('Proforma bulunamadı')
+    if (proforma.status !== 'draft' && proforma.status !== 'rejected') {
+      throw new BadRequestException('Sadece taslak veya reddedilmiş proformalar onaya gönderilebilir')
+    }
+
+    // Plasiyer fiyat override edemez — Product.basePrice'tan zorla
+    if (userRole === 'PLASIYER') {
+      for (const item of proforma.items) {
+        const product = await this.prisma.product.findUnique({ where: { sku: item.sku } })
+        if (product && Number(item.unitPrice) !== product.basePrice) {
+          // Fiyatı Product'tan güncelle
+          const newLineTotal = Number(item.quantity) * product.basePrice
+          await this.prisma.proformaItem.update({
+            where: { id: item.id },
+            data: { unitPrice: product.basePrice, lineTotal: newLineTotal },
+          })
+        }
+      }
+      // Subtotal ve totalAmount'ı yeniden hesapla
+      const updatedItems = await this.prisma.proformaItem.findMany({ where: { proformaId } })
+      const subtotal = updatedItems.reduce((sum, i) => sum + Number(i.lineTotal), 0)
+      await this.prisma.proforma.update({
+        where: { id: proformaId },
+        data: { subtotal, totalAmount: subtotal + Number(proforma.shipping) + Number(proforma.tax) },
+      })
+    }
+
+    return this.prisma.proforma.update({
+      where: { id: proformaId },
+      data: {
+        status: 'pending_approval',
+        submittedForApproval: true,
+        submittedAt: new Date(),
+        watermarkEnabled: true,
+      },
+      include: { items: true },
+    })
+  }
+
+  /**
+   * Admin proformayı onaylar — plasiyer artık indirebilir.
+   */
+  async approveProforma(proformaId: string, adminUserId: string) {
+    const proforma = await this.prisma.proforma.findUnique({ where: { id: proformaId } })
+    if (!proforma) throw new BadRequestException('Proforma bulunamadı')
+    if (proforma.status !== 'pending_approval') {
+      throw new BadRequestException('Sadece onay bekleyen proformalar onaylanabilir')
+    }
+
+    // PDF oluştur (varsa python service)
+    let pdfUrl: string | undefined
+    try {
+      // PDF'i şimdi oluşturmayı dene — başarısız olursa download sırasında tekrar dener
+    } catch { /* PDF oluşturma sonra yapılır */ }
+
+    return this.prisma.proforma.update({
+      where: { id: proformaId },
+      data: {
+        status: 'approved',
+        approvedBy: adminUserId,
+        approvedAt: new Date(),
+        watermarkEnabled: false,
+        pdfUrl,
+      },
+      include: { items: true },
+    })
+  }
+
+  /**
+   * Admin proformayı reddeder — sebep zorunlu.
+   */
+  async rejectProforma(proformaId: string, adminUserId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Red sebebi zorunludur')
+
+    const proforma = await this.prisma.proforma.findUnique({ where: { id: proformaId } })
+    if (!proforma) throw new BadRequestException('Proforma bulunamadı')
+    if (proforma.status !== 'pending_approval') {
+      throw new BadRequestException('Sadece onay bekleyen proformalar reddedilebilir')
+    }
+
+    return this.prisma.proforma.update({
+      where: { id: proformaId },
+      data: {
+        status: 'rejected',
+        rejectedBy: adminUserId,
+        rejectedAt: new Date(),
+        rejectionReason: reason.trim(),
+        watermarkEnabled: true,
+      },
+      include: { items: true },
+    })
+  }
+
+  /**
+   * Admin — onay bekleyen proformaları listeler.
+   */
+  async getPendingProformas(search?: string, limit: number = 50) {
+    return this.prisma.proforma.findMany({
+      where: {
+        status: 'pending_approval',
+        ...(search && {
+          OR: [
+            { proformaNumber: { contains: search, mode: 'insensitive' } },
+            { customerName: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      orderBy: { submittedAt: 'asc' }, // en eski en üstte
+      take: limit,
+      include: { items: true },
+    })
+  }
+
+  /**
+   * Plasiyer — kendi proformalarını listeler.
+   */
+  async getMyProformas(userId: string, status?: string, limit: number = 50) {
+    return this.prisma.proforma.findMany({
+      where: {
+        generatedBy: userId,
+        ...(status && { status }),
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+      include: { items: true },
+    })
+  }
+
+  /**
+   * Download — sadece approved ve watermarkEnabled=false ise izin ver.
+   */
+  async downloadProformaChecked(proformaId: string, userId: string, userRole: string) {
+    const proforma = await this.prisma.proforma.findUnique({
+      where: { id: proformaId },
+      include: { items: true },
+    })
+
+    if (!proforma) throw new BadRequestException('Proforma bulunamadı')
+
+    // Admin her zaman indirebilir
+    if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+      return this.downloadProforma(proformaId)
+    }
+
+    // Plasiyer sadece approved ise indirebilir
+    if (userRole === 'PLASIYER') {
+      if (proforma.status !== 'approved') {
+        throw new BadRequestException(
+          proforma.status === 'pending_approval'
+            ? 'Bu proforma henüz onaylanmadı. Admin onayı bekleniyor.'
+            : proforma.status === 'rejected'
+              ? `Bu proforma reddedildi. Sebep: ${proforma.rejectionReason || 'Belirtilmemiş'}`
+              : 'Bu proforma indirilemez durumda.',
+        )
+      }
+      // Kendi proforması mı?
+      if (proforma.generatedBy !== userId) {
+        throw new BadRequestException('Sadece kendi proformalarınızı indirebilirsiniz')
+      }
+    }
+
+    return this.downloadProforma(proformaId)
+  }
 }

@@ -177,7 +177,7 @@ export class ProformaController {
   }
 
   /**
-   * GET /api/proforma/:id/download - Download proforma as PDF
+   * GET /api/proforma/:id/download - Download proforma as PDF (role-checked)
    */
   @Get(':id/download')
   async downloadProforma(
@@ -187,7 +187,10 @@ export class ProformaController {
   ) {
     try {
       const userId = req.user?.sub || req.user?.id;
-      const { pdfBuffer, proforma } = await this.proformaService.downloadProforma(proformaId);
+      const userRole = req.user?.role;
+      const { pdfBuffer, proforma } = await this.proformaService.downloadProformaChecked(
+        proformaId, userId, userRole,
+      );
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${proforma.proformaNumber}.pdf"`);
@@ -196,6 +199,88 @@ export class ProformaController {
       this.logger.error(`Failed to download proforma: ${error.message}`);
       if (error instanceof HttpException) throw error;
       throw new NotFoundException('Proforma not found or PDF unavailable');
+    }
+  }
+
+  // ─── Approval Workflow Endpoints ────────────────────────────────────────
+
+  /**
+   * POST /api/proforma/:id/submit — Plasiyer onaya gönderir
+   */
+  @Patch(':id/submit')
+  async submitForApproval(@Param('id') proformaId: string, @Request() req) {
+    const userId = req.user?.sub || req.user?.id
+    const userRole = req.user?.role
+    this.logger.log(`User ${userId} (${userRole}) submitting proforma ${proformaId} for approval`)
+    return this.proformaService.submitForApproval(proformaId, userId, userRole)
+  }
+
+  /**
+   * PATCH /api/proforma/:id/approve — Admin onaylar
+   */
+  @Patch(':id/approve')
+  async approveProforma(@Param('id') proformaId: string, @Request() req) {
+    const userId = req.user?.sub || req.user?.id
+    this.logger.log(`Admin ${userId} approving proforma ${proformaId}`)
+    return this.proformaService.approveProforma(proformaId, userId)
+  }
+
+  /**
+   * PATCH /api/proforma/:id/reject — Admin reddeder
+   */
+  @Patch(':id/reject')
+  async rejectProforma(
+    @Param('id') proformaId: string,
+    @Body('reason') reason: string,
+    @Request() req,
+  ) {
+    const userId = req.user?.sub || req.user?.id
+    this.logger.log(`Admin ${userId} rejecting proforma ${proformaId}: ${reason}`)
+    return this.proformaService.rejectProforma(proformaId, userId, reason)
+  }
+
+  /**
+   * GET /api/proforma/pending — Admin: onay bekleyenler
+   */
+  @Get('pending')
+  async getPendingProformas(@Query('search') search?: string, @Query('limit') limit?: string) {
+    return this.proformaService.getPendingProformas(search, limit ? parseInt(limit) : 50)
+  }
+
+  /**
+   * GET /api/proforma/my — Plasiyer: kendi proformaları
+   */
+  @Get('my')
+  async getMyProformas(
+    @Request() req,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = req.user?.sub || req.user?.id
+    return this.proformaService.getMyProformas(userId, status, limit ? parseInt(limit) : 50)
+  }
+
+  /**
+   * GET /api/proforma/:id/download-checked — Rol bazlı indirme kontrolü
+   */
+  @Get(':id/download-checked')
+  async downloadProformaChecked(
+    @Param('id') proformaId: string,
+    @Request() req,
+    @Res() res: Response,
+  ) {
+    try {
+      const userId = req.user?.sub || req.user?.id
+      const userRole = req.user?.role
+      const { pdfBuffer, proforma } = await this.proformaService.downloadProformaChecked(
+        proformaId, userId, userRole,
+      )
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="${proforma.proformaNumber}.pdf"`)
+      res.send(pdfBuffer)
+    } catch (error) {
+      this.logger.error(`Failed to download proforma: ${error.message}`)
+      throw new BadRequestException(error.message)
     }
   }
 

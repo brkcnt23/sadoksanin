@@ -623,6 +623,8 @@ model Proforma {
   customerPhone                String?
   customerEmail                String?
 
+  // Status workflow: draft → pending_approval → approved → downloaded
+  //                  draft → pending_approval → rejected (→ draft on resubmit)
   status                       String   @default("draft")
   templateType                 String   @default("LOCAL")
 
@@ -653,7 +655,20 @@ model Proforma {
   pdfGeneratedAt               DateTime?
 
   generatedBy                  String?
+  generatedByRole              String?   // "ADMIN" | "PLASIYER" — who created this
   generatedAt                  DateTime @default(now())
+
+  // Approval workflow (plasiyer → admin)
+  submittedForApproval         Boolean  @default(false)
+  submittedAt                  DateTime?
+  approvedBy                   String?
+  approvedAt                   DateTime?
+  rejectedBy                   String?
+  rejectedAt                   DateTime?
+  rejectionReason              String?
+  isDownloaded                 Boolean  @default(false)
+  watermarkEnabled             Boolean  @default(true)
+
   viewedAt                     DateTime?
   downloadedAt                 DateTime?
 
@@ -666,6 +681,8 @@ model Proforma {
   @@index([customerId])
   @@index([templateType])
   @@index([generatedAt])
+  @@index([status])
+  @@index([generatedBy])
 }
 
 model ProformaItem {
