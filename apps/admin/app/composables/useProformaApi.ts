@@ -79,6 +79,8 @@ export const useProformaApi = () => {
         ...authHeaders(),
         ...(options.headers as Record<string, string> ?? {}),
       },
+      // JSON.stringify body if it's an object (fetch requires string body)
+      ...(options.body && typeof options.body === 'object' ? { body: JSON.stringify(options.body) } : {}),
     })
 
     if (!res.ok) {
