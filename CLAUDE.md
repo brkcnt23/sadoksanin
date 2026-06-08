@@ -1,14 +1,16 @@
 # CLAUDE Project Context: Sadoksan ERP
 
 **Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
-**Last Updated:** 2026-06-03  
+**Last Updated:** 2026-06-08  
 **Owner:** John (brkcnt6@gmail.com)
 
-## Son Session Özeti (2026-06-03)
+## Son Session Özeti (2026-06-08)
 
-3 Phase tamamlandı: Demo kart ödeme, sipariş durum takibi, bayi paneli zenginleştirme.
-Footer eski site yapısına uyarlandı, hukuki sayfalar eski siteden içerikle dolduruldu.
-Detaylı yapılacaklar için `YAPILACAKLAR.md`, giriş bilgileri için `info.md`.
+Netsis NetOpenX REST entegrasyonu temeli atıldı. Dökümantasyon Polaris üzerinden incelendi, modül gerçek API'ye göre yeniden yazıldı.
+- `netsis.types.ts`: Tüm REST interface'leri (Items, ARPs, ItemSlips, ExRates)
+- `netsis.service.ts`: OAuth2 token yönetimi + 4 sync metodu (ürün/stok/cari/kur)
+- NetOpenX REST = Windows servis (port 7070), Sadoksan Linux'tan HTTP ile bağlanacak
+- Netsis API bilgileri gelene kadar sync'ler sessizce atlanıyor
 
 ## Tech Stack
 
@@ -62,7 +64,7 @@ sadoksan/ (monorepo root)
 | `cms` | ✅ | Hero banner, site settings, maintenance mode |
 | `mailer` | ✅ | Console logger (SMTP ready) |
 | `favorites` | ✅ | Wishlist CRUD |
-| `netsis` | 🔴 | Scheduler + sync (API bekleniyor) |
+| `netsis` | 🟡 | NetOpenX REST: OAuth2 token, 4 sync (ürün/stok/cari/kur), API bilgisi bekleniyor |
 | `alneo` | 🔴 | E-invoice/e-archive (API bekleniyor) |
 
 ## Database Schema — 26 Models, 11 Enums
