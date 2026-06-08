@@ -1,49 +1,73 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { NetsisService } from './netsis.service';
+import { Injectable, Logger } from '@nestjs/common'
+import { Cron, CronExpression } from '@nestjs/schedule'
+import { NetsisService } from './netsis.service'
 
+/**
+ * Netsis periyodik sync zamanlayıcı.
+ *
+ * Varsayılan aralıklar:
+ *   - Stok: her 30 dk (en sık değişen veri)
+ *   - Ürün: saatte bir (yeni ürün/fiyat değişikliği)
+ *   - Cari: 2 saatte bir (bakiye/limit)
+ *   - Döviz: 6 saatte bir (günde 4 kez)
+ *
+ * Netsis yapılandırılmamışsa (NETSIS_API_URL boş) sync'ler sessizce atlanır.
+ */
 @Injectable()
 export class NetsisScheduler {
-  private logger = new Logger(NetsisScheduler.name);
+  private readonly logger = new Logger(NetsisScheduler.name)
 
-  constructor(private netsisService: NetsisService) {}
+  constructor(private readonly netsisService: NetsisService) {}
 
-  /**
-   * Sync products every hour at :00 minutes
-   */
+  @Cron('0 */30 * * * *') // Her 30 dk
+  async syncStock() {
+    this.logger.log('Planlı stok sync başlıyor...')
+    try {
+      const result = await this.netsisService.syncStock()
+      if (result.status !== 'skipped') {
+        this.logger.log(`Stok sync: ${result.status} (${result.itemsSynced} kayıt, ${result.duration}ms)`)
+      }
+    } catch (err) {
+      this.logger.error('Planlı stok sync başarısız:', (err as Error).message)
+    }
+  }
+
   @Cron(CronExpression.EVERY_HOUR)
   async syncProducts() {
-    this.logger.log('Running scheduled product sync...');
+    this.logger.log('Planlı ürün sync başlıyor...')
     try {
-      await this.netsisService.syncProducts();
-    } catch (error) {
-      this.logger.error('Scheduled product sync failed:', error);
+      const result = await this.netsisService.syncProducts()
+      if (result.status !== 'skipped') {
+        this.logger.log(`Ürün sync: ${result.status} (${result.itemsSynced} kayıt, ${result.duration}ms)`)
+      }
+    } catch (err) {
+      this.logger.error('Planlı ürün sync başarısız:', (err as Error).message)
     }
   }
 
-  /**
-   * Sync stock every 30 minutes
-   */
-  @Cron('0 */30 * * * *') // Every 30 minutes
-  async syncStock() {
-    this.logger.log('Running scheduled stock sync...');
-    try {
-      await this.netsisService.syncStock();
-    } catch (error) {
-      this.logger.error('Scheduled stock sync failed:', error);
-    }
-  }
-
-  /**
-   * Sync cari (customer accounts) every 2 hours
-   */
   @Cron(CronExpression.EVERY_2_HOURS)
   async syncCari() {
-    this.logger.log('Running scheduled cari sync...');
+    this.logger.log('Planlı cari sync başlıyor...')
     try {
-      await this.netsisService.syncCari();
-    } catch (error) {
-      this.logger.error('Scheduled cari sync failed:', error);
+      const result = await this.netsisService.syncCari()
+      if (result.status !== 'skipped') {
+        this.logger.log(`Cari sync: ${result.status} (${result.itemsSynced} bayi, ${result.duration}ms)`)
+      }
+    } catch (err) {
+      this.logger.error('Planlı cari sync başarısız:', (err as Error).message)
+    }
+  }
+
+  @Cron('0 0 */6 * * *') // Her 6 saatte bir (00:00, 06:00, 12:00, 18:00)
+  async syncExchangeRates() {
+    this.logger.log('Planlı döviz kuru sync başlıyor...')
+    try {
+      const result = await this.netsisService.syncExchangeRates()
+      if (result.status !== 'skipped') {
+        this.logger.log(`Kur sync: ${result.status} (${result.itemsSynced} kur, ${result.duration}ms)`)
+      }
+    } catch (err) {
+      this.logger.error('Planlı kur sync başarısız:', (err as Error).message)
     }
   }
 }
