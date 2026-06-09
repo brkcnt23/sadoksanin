@@ -224,6 +224,24 @@ export class OrdersService {
       throw new BadRequestException(`Order cannot be approved from status: ${order.status}`);
     }
 
+    // Kredi limiti kontrolü — bayi bakiyesi + yeni sipariş limiti aşmamalı
+    if (order.dealerId) {
+      const dealer = await this.prisma.dealer.findUnique({
+        where: { id: order.dealerId },
+        select: { creditLimit: true, cariBalance: true, company: true },
+      });
+
+      if (dealer && dealer.creditLimit > 0) {
+        const newBalance = dealer.cariBalance + order.total;
+        if (newBalance > dealer.creditLimit) {
+          const asim = newBalance - dealer.creditLimit;
+          throw new BadRequestException(
+            `Kredi limiti aşıldı! ${dealer.company} — Mevcut bakiye: ${this.formatTL(dealer.cariBalance)}, Limit: ${this.formatTL(dealer.creditLimit)}, Sipariş: ${this.formatTL(order.total)}, Aşım: ${this.formatTL(asim)}`,
+          );
+        }
+      }
+    }
+
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -498,6 +516,23 @@ export class OrdersService {
       ? 'APPROVED'
       : order.status;
 
+    // Kredi limiti kontrolü — demo kart ile B2B auto-approval
+    if (isDemoCard && newStatus === 'APPROVED' && order.customerType === 'B2B' && order.dealerId) {
+      const dealer = await this.prisma.dealer.findUnique({
+        where: { id: order.dealerId },
+        select: { creditLimit: true, cariBalance: true, company: true },
+      });
+      if (dealer && dealer.creditLimit > 0) {
+        const newBalance = dealer.cariBalance + order.total;
+        if (newBalance > dealer.creditLimit) {
+          const asim = newBalance - dealer.creditLimit;
+          throw new BadRequestException(
+            `Kredi limiti aşıldı! ${dealer.company} — Mevcut bakiye: ${this.formatTL(dealer.cariBalance)}, Limit: ${this.formatTL(dealer.creditLimit)}, Sipariş: ${this.formatTL(order.total)}, Aşım: ${this.formatTL(asim)}`,
+          );
+        }
+      }
+    }
+
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -714,5 +749,9 @@ export class OrdersService {
     await this.prisma.stockMovement.create({
       data: { productId, type: type as any, quantity, oldStock, newStock, userId, referenceType, referenceId, note },
     }).catch(err => this.logger.error(`StockMovement log failed: ${err.message}`));
+  }
+
+  private formatTL(value: number): string {
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(value);
   }
 }
