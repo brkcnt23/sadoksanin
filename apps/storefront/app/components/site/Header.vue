@@ -423,6 +423,7 @@ watch(() => route.fullPath, () => {
             </div>
           </template>
           <template v-else-if="isAuthenticated">
+            <div class="flex flex-col gap-2 mt-2">
               <NuxtLink to="/bayi" class="btn-outline justify-start">
                 <Icon name="lucide:user" class="h-4 w-4" />
                 {{ getUser()?.name || 'Hesabım' }}
