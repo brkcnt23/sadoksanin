@@ -105,7 +105,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-definePageMeta({ middleware: 'auth' })
+definePageMeta({ middleware: 'plasiyer' })
 
 const toast = useToast()
 const router = useRouter()
@@ -123,7 +123,7 @@ const searchResults = ref<any[]>([])
 const formatTL = (v: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(v || 0)
 
 const apiFetch = async (path: string, opts: RequestInit = {}) => {
-  const token = localStorage.getItem('auth-token') || localStorage.getItem('admin-token')
+  const token = localStorage.getItem('user-token')
   const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
   const res = await fetch(`${base}/api${path}`, {
     ...opts,

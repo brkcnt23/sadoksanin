@@ -1,116 +1,244 @@
-# Sadoksan ERP — Kaldığımız Yer / Yapılacaklar
+# Sadoksan ERP — Yapılacaklar & AI Prompt
 
-**Son güncelleme:** 2026-06-03
-**Session özeti:** 3 Phase tamamlandı — ödeme, sipariş takip, bayi paneli
-
----
-
-## Bu Session'da Yapılanlar
-
-### Phase 1: Demo Kart + Ödeme
-- Demo kart: `4111 1111 1111 1111` / `12/28` / `CVV: 123` / `Test Kart`
-- Kartla ödeme yapınca B2B sipariş OTOMATİK ONAYLANIYOR
-- Sepet checkout'ta kredi kartı seçeneği ve kart formu mevcut
-- `/sayfa/demo-card` sayfasında kart bilgileri yazıyor
-
-### Phase 2: Sipariş Durum Takibi
-- `siparislerim.vue` komple yenilendi:
-  - 6 adımlı görsel durum çizelgesi (Onay Bekliyor → Tamamlandı)
-  - Durum geçmişi (API'den canlı çekiliyor)
-  - İptal talebi butonu + modal (PENDING_APPROVAL/APPROVED/PREPARING için)
-  - Havale bildirim formu (9 banka seçenekli)
-  - Kargo takip gösterimi (tracking varsa)
-  - Sipariş kalemleri + fiyat özeti
-
-### Phase 3: Bayi Paneli
-- `bayi.vue` güncellendi:
-  - 5 KPI kart: Cari Bakiye, Onay Bekleyen, Bu Ay İşlem, Aylık Hacim, **Risk Skoru**
-  - Cari işlemler tablosu + CSV döküm butonu
-  - 8 rapor tipi: Aylık, Yıllık, Fatura, Stok, Detaylı, Risk, Yaşlandırma, Performans
-  - Proforma listesi + PDF indirme
-  - Bayi modu (lojistik bedel otomatik ekleniyor)
-
-### Bug Fix'ler
-- Hakkımızda iconları → `nuxt.config.ts`'e `icon` config eklendi
-- Header "Ürünler" hover → `@mouseenter`/`@mouseleave` eklendi (tık + hover ikisi de çalışıyor)
-- Footer → eski siteyle aynı 3 kolonlu yapı (Hakkımızda / Alışveriş / Yardım)
-- Hukuki sayfalar → eski siteden (`sadoksaninsaat.com.tr`) gerçek içerik çekilip CMS'e aktarıldı:
-  - `/sayfa/mesafeli-satis-sozlesmesi`
-  - `/sayfa/gizlilik-ve-guvenlik`
-  - `/sayfa/iptal-ve-iade-sartlari`
-  - `/sayfa/kisisel-veriler-politikasi`
-  - `/sayfa/sss`
-  - `/sayfa/banka-hesaplari`
-
-### Temizlik
-- Eski `canterm` (PM2 id 0, port 3456) kaldırıldı, `pm2 save` yapıldı
-- Nginx'teki ölü `/canterm-ws` rotası silindi
-- Nginx'teki yorumlu Sadoksan satırları temizlendi
+**Son güncelleme:** 2026-06-09
+**Konum:** motto-server (45.43.152.52) — SUNUCU İÇİNDE ÇALIŞIYORSUN, SSH GEREKMEZ
 
 ---
 
-## Kaldığımız Yer — Yapılacaklar
+## 🤖 AI KENDİNE PROMPT (Her Oturum Başı Oku)
 
-### 🔴 Prod'a çıkmadan önce MUTLAKA
+```
+Sen Sadoksan ERP projesinde çalışıyorsun. MOTTO-SERVER (Fedora 41, 94GB RAM)
+üzerindesin. SSH atmana gerek YOK — doğrudan sunucudasın.
 
-| # | İş | Detay |
-|---|-----|------|
-| 1 | `JWT_SECRET` | `.env`'deki değeri güçlü random string ile değiştir (min 64 karakter) |
-| 2 | Admin şifresi | `admin@admin.com` şifresini değiştir |
-| 3 | `POSTGRES_PASSWORD` | `.env`'de güçlü şifre kullan |
-| 4 | `CORS_ORIGINS` | Sadece kendi domain(ler)ini ekle |
-| 5 | Test hesaplarını temizle | `bayi@test.com` prod'da olmamalı |
-| 6 | Backup cron job | `0 2 * * * cd /home/can/sadoksan && ./scripts/backup-db.sh` |
-| 7 | SSL yenileme kontrolü | `certbot renew` cron'u çalışıyor mu? |
-| 8 | Gerçek ürünler | ideaSoft'tan 4000 ürün import edilmeli |
+HER ZAMAN:
+1. Bu dosyayı oku → "Yapılacaklar" ve "Bug'lar" bölümlerine bak
+2. Container durumunu kontrol et: docker compose -f docker-compose.prod.yml ps
+3. Gerekeni yap, BU DOSYAYI GÜNCE TUT (yapılanları "Yapılanlar"a ekle)
 
-### 🟡 Database Eksik Modelleri
-
-| Model | Amaç | Öncelik |
-|-------|------|---------|
-| `PaymentLog` | Ödeme girişimlerinin log kaydı (başarılı/başarısız) | Orta |
-| `ReturnRequest` + `ReturnItem` | İade/değişim yönetimi | Orta |
-| `ImportJob` | Excel import işlem takibi | Düşük |
-| `StockMovement` | **MVPP Planı var** (`docs/mvp-faz-0-1-uygulama-plani.md`) — schema'da model var, UI yok | Yüksek |
-
-### 🟡 Backend Eksik Modülleri
-
-| Modül | Durum | Detay |
-|-------|-------|-------|
-| `payment` | 🔴 Yok | Ödeme işlemlerini ayrı modüle taşı (şu an orders içinde) |
-| `returns` | 🔴 Yok | İade yönetim modülü |
-| `imports` | 🔴 Yok | Excel import tracking |
-
-### 🟡 Frontend Eksikleri
-
-| # | İş | Öncelik |
-|---|-----|---------|
-| 1 | Stok hareket yönetimi (Admin) | Yüksek — MVPP planı hazır |
-| 2 | Admin dashboard kartları (kritik stok, bayi başvuru) | Orta |
-| 3 | Admin ödeme yönetimi (`odemeler.vue` zayıf) | Orta |
-| 4 | WhatsApp "Gelince Haber Ver" (stoksuz üründe) | Düşük |
-| 5 | Misafir alışverişi (login olmadan sipariş) | Düşük |
-| 6 | Email bildirimleri (SMTP gelince aktif olacak) | Düşük |
-| 7 | Ürün görselleri (ideaSoft'tan 4000 ürün) | Orta |
-
-### 🟢 Entegrasyonlar (Dış API bekleniyor)
-
-| Entegrasyon | Durum |
-|-------------|-------|
-| Netsis (ERP) | 🔴 Fabrika ziyareti bekleniyor |
-| Alneo (E-fatura) | 🔴 API bekleniyor |
-| Albaraka (Ödeme) | 🔴 API bekleniyor |
-| Canmail (SMTP) | 🔴 Anahtar bekleniyor |
-| Canlogcatcher (Log) | 🔴 Anahtar bekleniyor |
+KRİTİK KURALLAR:
+- Admin panel SPA → .env değişikliğinde REBUILD ŞART (restart yetmez)
+- Storefront SSR → REBUILD gerekir
+- API değişikliğinde REBUILD + RESTART
+- Prisma migration: docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+- Backup: ./scripts/backup-db.sh
+- Proje dizini: /home/can/sadoksan
+```
 
 ---
 
-## Geliştirme Notları
+## ✅ YAPILANLAR
 
-- Tüm değişiklikler **production sunucuda** yapılıyor
-- Storefront build: `docker compose -f docker-compose.prod.yml build storefront`
-- Deploy: `docker compose -f docker-compose.prod.yml up -d storefront`
-- API container: `sadoksan-api-prod` (port 3010)
-- Backend test: `curl http://127.0.0.1:3010/api/health`
-- Prisma migration: `docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy`
-- PM2 sadece host'taki CanAI/CantTerm süreçleri için, Sadoksan Docker'da
+### 2026-06-09 — MD Toparlama + Bug Tespiti + Tüm Bug Fix'ler
+- Tüm MD'ler okundu, proje durumu analiz edildi
+- `settings.json`: `permissions.defaultMode: bypassPermissions` + `.bashrc`: `--dangerously-skip-permissions` alias
+- `YAPILACAKLAR.md`: AI prompt + yapılanlar + bug'lar + faz planları + doküman haritası ile yeniden yazıldı
+- `CLAUDE.md`: Temizlendi, sadece teknik context + YAPILACAKLAR pointer'ı
+- Eski MD'ler silindi: ADMIN_UI_REVISION, ROADMAP, oturum-ozetleri (3 dosya birleştirildi)
+- **5 bug fix edildi:**
+  - BUG-1: Proforma controller route sıralaması düzeltildi
+  - BUG-2: Eski raporlar.vue silindi (duplicate)
+  - BUG-3: Plasiyer middleware oluşturuldu + sayfalar güncellendi
+  - BUG-4: Header'a desktop + mobile plasiyer linki eklendi
+  - BUG-5: Token key'leri `user-token`/`auth.user` olarak standardize edildi
+
+### 2026-06-08 — Netsis + Plasiyer + Rapor (7 commit)
+- **Netsis NetOpenX REST:** types, service (OAuth2 + 4 sync), controller (8 endpoint), scheduler (cron)
+- **Plasiyer rolü:** UserRole'a PLASIYER eklendi, adminCreateUser(), listUsers()
+- **Proforma onay akışı:** submit/approve/reject/pending/my/download-checked (7 endpoint)
+- **Rapor motoru:** 8 endpoint (plasiyer-sales, order-pipeline, dealer-risk, critical-stock, slow-moving, credit-usage, plasiyer-dashboard, plasiyers)
+- **Plasiyer storefront:** 4 sayfa (dashboard, proforma, proformalarim, raporlar)
+- **Admin:** rapor sayfası (KPI kartları + 8 rapor tipi + CSV export)
+
+### 2026-06-05 — UI Fixes + Kategori Menü (5 commit)
+- SSH/GitHub: github-key-1 push yetkisi tanımlandı, 12 commit pushlandı
+- `Product.isFeatured` kolonu + index eklendi
+- Header "Ürünler" mega menü: hover kaldırıldı, tıklamalı, teknik çizim ölçü çizgileri
+- Sub kategori filtreleme: `?ara=` parametresiyle parent sayfaya yönlendirme
+- CMS sayfaları: SiteInfoPage komponenti, 6 hukuki sayfa içerik aktarımı
+- Proforma bug fix: `$fetch` → `fetch` (native), çift katmanlı Array.isArray() guard
+- Temizlik: canterm (PM2) kaldırıldı, /canterm-ws nginx rotası silindi
+
+### 2026-06-02/03 — Admin UI Revizyonu (~15 commit)
+- **Faz 0:** useToast + Toaster, 10 CSS typo fix, modal/drawer çakışması, proforma stil
+- **Faz 1:** Mobile sidebar, dashboard color fix, sidebar'a 5 eksik sayfa eklendi
+- **Faz 2:** CRM (4 sekmeli), İndirimler (arama), Ödemeler (StatCard), Denetim (filtre+export), Döviz (pagination)
+- **Faz 3:** 8 sayfada alert() → toast.push(), CMS rich text editor
+- **Faz 4:** 6 component (ConfirmModal, LoadingState, MoneyCell, StockBadge, ActionButtonGroup, FilterBar)
+- **KRİTİK FIX:** Global prefix sorunu — `app.setGlobalPrefix('api')`, 9 controller temizliği, nginx trailing slash
+
+### 2026-05-31 — Deployment + Kategori Hiyerarşisi (14 commit)
+- Production deployment (motto-server, Docker)
+- Category.parentId self-relation + 48 kategori seed (9 ana + 39 alt)
+- Subpath routing (baseURL=/sadoksan/, /sadoksan-admin/)
+- 19 migration başarıyla uygulandı
+- Testler: 48/48 passed
+
+---
+
+## 📦 Container Durumu
+
+| Container | Port | Son Build | Durum |
+|-----------|------|-----------|-------|
+| sadoksan-storefront-prod | 3011→3000 | 3 gün önce | ⚠️ Plasiyer sayfaları build'de yok |
+| sadoksan-admin-prod | 3012→3002 | 16 saat | ✅ Güncel |
+| sadoksan-api-prod | 3010→3001 | 16 saat | ✅ Güncel |
+| sadoksan-postgres-prod | 5432 | 6 gün | ✅ |
+| sadoksan-redis-prod | 6379 | 6 gün | ✅ |
+| sadoksan-python-prod | 3013→5000 | 6 gün | ✅ |
+
+---
+
+## 🔴 BUG'LAR — Hepsi Fix Edildi ✅
+
+| # | Bug | Fix | |
+|---|-----|-----|---|
+| BUG-1 | Proforma route sıralaması | `pending`/`my` route'ları `:id`'den önceye taşındı | ✅ |
+| BUG-2 | Admin rapor sayfası duplicate | Eski `raporlar.vue` silindi | ✅ |
+| BUG-3 | Plasiyer middleware eksik | `middleware/plasiyer.ts` oluşturuldu, 4 sayfa güncellendi | ✅ |
+| BUG-4 | Header'da plasiyer linki yok | Desktop + mobile header'a Plasiyer Paneli linki eklendi | ✅ |
+| BUG-5 | Token key tutarsızlığı | Hepsi `user-token` + `auth.user` olarak standardize edildi | ✅
+
+---
+
+## 🟡 BUILD & DEPLOY (Bug'lar Fix Edildikten Sonra)
+
+```bash
+cd /home/can/sadoksan && git pull
+
+# 1. API (backend değişiklikleri)
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+
+# 2. Admin (rapor sayfası + proforma fix)
+docker compose -f docker-compose.prod.yml build admin
+docker compose -f docker-compose.prod.yml up -d admin
+
+# 3. Storefront (plasiyer sayfaları)
+docker compose -f docker-compose.prod.yml build storefront
+docker compose -f docker-compose.prod.yml up -d storefront
+```
+
+---
+
+## 🟢 PLANLANAN GELİŞTİRMELER
+
+### Faz A: B2B-Only Refactor (CUSTOMER Rol Temizliği)
+> Detay: `docs/b2b-only-refactor-plani.md` | 6 adım, 12 dosya
+
+| # | İş | |
+|---|-----|---|
+| A1 | DB: UPDATE User SET role='DEALER' WHERE role='CUSTOMER' | ⬜ |
+| A2 | Prisma: Enum'dan CUSTOMER sil, default DEALER, migrate | ⬜ |
+| A3 | Backend: auth, mailer, popup, seed (6 dosya) | ⬜ |
+| A4 | Shared: types/index.ts, referans schema'lar | ⬜ |
+| A5 | Frontend: useAdminAuth, useAuth, uye-ol, bayi (4 dosya) | ⬜ |
+| A6 | Test: auth.service.spec.ts | ⬜ |
+
+### Faz B: Stok Modülü MVPP
+> Detay: `docs/mvp-faz-0-1-uygulama-plani.md` | 8 adım, ~8 saat
+
+| # | İş | |
+|---|-----|---|
+| B1 | Prisma: StockMovement modeli + netsisPendingQuantity | ⬜ |
+| B2 | recalcDisplayStock() formül güncellemesi | ⬜ |
+| B3 | StockModule: service + controller (4 endpoint) | ⬜ |
+| B4 | OrdersService ↔ StockMovement log entegrasyonu | ⬜ |
+| B5 | Admin stock store: fetchMovements, entry, exit, adjust | ⬜ |
+| B6 | Admin UI: drawer, manual modal, count modal | ⬜ |
+| B7 | Storefront: WhatsApp "Gelince Haber Ver" | ⬜ |
+| B8 | Test: 16 kabul kriteri | ⬜ |
+
+### Faz C: Eksik Modeller
+| Model | Öncelik |
+|-------|---------|
+| PaymentLog | Orta |
+| ReturnRequest + ReturnItem | Düşük |
+| ImportJob | Düşük |
+
+### Faz D: Eksik Modüller
+| Modül | Öncelik |
+|-------|---------|
+| BankTransferModule (havale onay) | Orta |
+| ReturnModule (iade yönetimi) | Düşük |
+
+---
+
+## 🔵 PRODUCTION HARDENING
+
+| # | İş | |
+|---|-----|---|
+| H1 | JWT_SECRET güçlü random string | 🔴 |
+| H2 | Admin şifresi değiştir | 🔴 |
+| H3 | POSTGRES_PASSWORD güçlü şifre | 🔴 |
+| H4 | CORS_ORIGINS domain'leri | 🔴 |
+| H5 | Test hesaplarını sil | 🔴 |
+| H6 | Backup cron (0 2 * * *) | 🔴 |
+
+---
+
+## 🔴 ENTEGRASYONLAR (Dış API Bekleniyor)
+
+| Entegrasyon | Durum | Beklenen |
+|-------------|-------|----------|
+| Netsis ERP | 🟡 Hazır | API URL + credentials |
+| Alneo E-Fatura | 🔴 | API dokümanı |
+| Albaraka Ödeme | 🔴 Mock | Sanal POS |
+| Canmail SMTP | 🔴 Console | SMTP bilgileri |
+| ideaSoft | 🔴 | 4000 ürün + görsel |
+
+---
+
+## 📊 Test Hesapları
+
+| Rol | Email | Şifre |
+|-----|-------|-------|
+| Admin | admin@admin.com | asd123 |
+| Bayi | bayi@test.com | asd123 |
+| Plasiyer | plasiyer@test.com | asd123 |
+
+---
+
+## 🌐 URL'ler
+
+| Servis | URL |
+|--------|-----|
+| Storefront | https://sadoksan.smartinnventory.com/ |
+| Admin Panel | https://sadoksan.smartinnventory.com/sadoksan-panel/ |
+| API Health | https://sadoksan.smartinnventory.com/api/health |
+
+---
+
+## 🛠️ Sık Komutlar
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml build api && docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml build admin && docker compose -f docker-compose.prod.yml up -d admin
+docker compose -f docker-compose.prod.yml build storefront && docker compose -f docker-compose.prod.yml up -d storefront
+docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+docker logs sadoksan-api-prod --tail 50
+curl http://127.0.0.1:3010/api/health
+docker exec sadoksan-postgres-prod psql -U sadoksan -d sadoksan
+./scripts/backup-db.sh
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
+## 📁 Doküman Haritası
+
+| Dosya | Amaç |
+|-------|------|
+| **YAPILACAKLAR.md** | **BU DOSYA** — görev + yapılanlar + AI prompt |
+| CLAUDE.md | Teknik context (AI için) |
+| info.md | Hızlı referans / giriş bilgileri |
+| docs/raporlar.md | 16 rapor kataloğu |
+| docs/raporlar_update.md | Plasiyer + rapor planı |
+| docs/sadoksan-sistem-tasarimi.md | Tam sistem tasarımı (35 bölüm) |
+| docs/deployment-31mayis2026.md | Deployment özeti |
+| docs/b2b-only-refactor-plani.md | Faz A detay planı |
+| docs/mvp-faz-0-1-uygulama-plani.md | Faz B detay planı |
+| docs/gelistirici-uygulama-rehberi.md | Task breakdown (20 task) |
+| docs/production-release-checklist.md | Prod checklist |

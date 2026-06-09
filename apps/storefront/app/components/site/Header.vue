@@ -281,6 +281,22 @@ watch(() => route.fullPath, () => {
               Bayi Çıkışı
             </button>
           </template>
+          <template v-else-if="getUser()?.role === 'PLASIYER'">
+            <NuxtLink
+              to="/plasiyer"
+              class="inline-flex btn-accent h-10 px-4 text-xs"
+            >
+              <Icon name="lucide:layout-dashboard" class="h-4 w-4" />
+              Plasiyer Paneli
+            </NuxtLink>
+            <button
+              @click="handleLogout"
+              class="inline-flex btn-outline h-10 px-4 text-xs text-red-600 hover:bg-red-50 border-red-200"
+            >
+              <Icon name="lucide:log-out" class="h-4 w-4" />
+              Çıkış
+            </button>
+          </template>
           <template v-else-if="isAuthenticated">
             <NuxtLink
               to="/bayi"
@@ -391,8 +407,22 @@ watch(() => route.fullPath, () => {
               </button>
             </div>
           </template>
-          <template v-else-if="isAuthenticated">
+          <template v-else-if="getUser()?.role === 'PLASIYER'">
             <div class="flex flex-col gap-2 mt-2">
+              <NuxtLink to="/plasiyer" class="btn-accent justify-center">
+                <Icon name="lucide:layout-dashboard" class="h-4 w-4" />
+                Plasiyer Paneli
+              </NuxtLink>
+              <button
+                @click="handleLogout"
+                class="w-full btn-outline justify-start text-red-600 hover:bg-red-50 border-red-200"
+              >
+                <Icon name="lucide:log-out" class="h-4 w-4" />
+                Çıkış
+              </button>
+            </div>
+          </template>
+          <template v-else-if="isAuthenticated">
               <NuxtLink to="/bayi" class="btn-outline justify-start">
                 <Icon name="lucide:user" class="h-4 w-4" />
                 {{ getUser()?.name || 'Hesabım' }}

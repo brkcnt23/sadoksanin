@@ -203,7 +203,30 @@ export class ProformaController {
     }
   }
 
-  // ─── Approval Workflow Endpoints ────────────────────────────────────────
+  // ─── Approval Workflow — Static Routes (BEFORE :id!) ──────────────────
+
+  /**
+   * GET /api/proforma/pending — Admin: onay bekleyenler
+   */
+  @Get('pending')
+  async getPendingProformas(@Query('search') search?: string, @Query('limit') limit?: string) {
+    return this.proformaService.getPendingProformas(search, limit ? parseInt(limit) : 50)
+  }
+
+  /**
+   * GET /api/proforma/my — Plasiyer: kendi proformaları
+   */
+  @Get('my')
+  async getMyProformas(
+    @Request() req,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = req.user?.sub || req.user?.id
+    return this.proformaService.getMyProformas(userId, status, limit ? parseInt(limit) : 50)
+  }
+
+  // ─── Approval Workflow — Parameterized Routes ──────────────────────────
 
   /**
    * POST /api/proforma/:id/submit — Plasiyer onaya gönderir
@@ -238,27 +261,6 @@ export class ProformaController {
     const userId = req.user?.sub || req.user?.id
     this.logger.log(`Admin ${userId} rejecting proforma ${proformaId}: ${reason}`)
     return this.proformaService.rejectProforma(proformaId, userId, reason)
-  }
-
-  /**
-   * GET /api/proforma/pending — Admin: onay bekleyenler
-   */
-  @Get('pending')
-  async getPendingProformas(@Query('search') search?: string, @Query('limit') limit?: string) {
-    return this.proformaService.getPendingProformas(search, limit ? parseInt(limit) : 50)
-  }
-
-  /**
-   * GET /api/proforma/my — Plasiyer: kendi proformaları
-   */
-  @Get('my')
-  async getMyProformas(
-    @Request() req,
-    @Query('status') status?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const userId = req.user?.sub || req.user?.id
-    return this.proformaService.getMyProformas(userId, status, limit ? parseInt(limit) : 50)
   }
 
   /**

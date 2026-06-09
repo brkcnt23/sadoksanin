@@ -13,7 +13,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'DEALER' | 'ADMIN' | 'SUPER_ADMIN'
+  role: 'DEALER' | 'ADMIN' | 'SUPER_ADMIN' | 'PLASIYER'
 }
 
 interface LoginResponse {

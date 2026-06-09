@@ -77,7 +77,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-definePageMeta({ middleware: 'auth' })
+definePageMeta({ middleware: 'plasiyer' })
 
 const toast = useToast()
 const userName = ref('')
@@ -95,7 +95,7 @@ const formatTL = (v: number) => new Intl.NumberFormat('tr-TR', { style: 'currenc
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('tr-TR') : '-'
 
 const apiFetch = async (path: string) => {
-  const token = localStorage.getItem('auth-token') || localStorage.getItem('admin-token')
+  const token = localStorage.getItem('user-token')
   const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
   const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)

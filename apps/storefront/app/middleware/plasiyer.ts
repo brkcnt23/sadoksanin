@@ -1,6 +1,7 @@
 /**
- * Dealer-only middleware — protects routes that only DEALER users can access.
- * Usage: definePageMeta({ middleware: 'dealer' })
+ * Plasiyer-only middleware — protects /plasiyer/* routes.
+ * Only PLASIYER role users can access.
+ * Usage: definePageMeta({ middleware: 'plasiyer' })
  */
 export default defineNuxtRouteMiddleware(() => {
   if (!import.meta.client) return
@@ -12,7 +13,7 @@ export default defineNuxtRouteMiddleware(() => {
 
   try {
     const user = JSON.parse(localStorage.getItem('auth.user') ?? '{}')
-    if (user.role !== 'DEALER') {
+    if (user.role !== 'PLASIYER') {
       return navigateTo('/')
     }
   } catch {

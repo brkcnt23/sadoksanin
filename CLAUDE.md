@@ -1,60 +1,51 @@
-# CLAUDE Project Context: Sadoksan ERP
+# CLAUDE.md — Sadoksan ERP
 
-**Project:** Sadoksan — Modular ERP system (B2B + B2C ecommerce hybrid)  
-**Last Updated:** 2026-06-08  
-**Owner:** John (brkcnt6@gmail.com)
+**Son güncelleme:** 2026-06-09
+**Ana görev listesi:** YAPILACAKLAR.md (her oturum başı OKU)
+**Oturum geçmişi:** docs/oturum-ozetleri.md
 
-## Son Session Özeti (2026-06-08)
-
-Netsis NetOpenX REST entegrasyonu temeli atıldı. Dökümantasyon Polaris üzerinden incelendi, modül gerçek API'ye göre yeniden yazıldı.
-- `netsis.types.ts`: Tüm REST interface'leri (Items, ARPs, ItemSlips, ExRates)
-- `netsis.service.ts`: OAuth2 token yönetimi + 4 sync metodu (ürün/stok/cari/kur)
-- NetOpenX REST = Windows servis (port 7070), Sadoksan Linux'tan HTTP ile bağlanacak
-- Netsis API bilgileri gelene kadar sync'ler sessizce atlanıyor
+---
 
 ## Tech Stack
 
-| Layer | Tech | Version | Notes |
-|-------|------|---------|-------|
-| **Storefront** | Nuxt 4 | 4.4+ | SSR for SEO, B2C + B2B dealer portal |
-| **Admin Panel** | Nuxt 4 | 4.4+ | SPA, `/sadoksan-panel` login |
-| **Backend API** | NestJS | 11+ | All business logic |
-| **Database** | PostgreSQL | 15+ | Primary data store |
-| **ORM** | Prisma | 7.8+ | Type-safe schema + migrations |
-| **Background Jobs** | Redis + BullMQ | - | Order processing, sync jobs |
-| **PDF Generator** | Python Flask | - | Proforma PDFs |
-| **Container** | Docker | Multi-stage | Dev + Production compose files |
-| **Package Manager** | pnpm | 8+ | Monorepo |
+| Layer | Tech | Notes |
+|-------|------|-------|
+| Storefront | Nuxt 4 (SSR) | B2C + B2B dealer portal |
+| Admin Panel | Nuxt 4 (SPA) | `/sadoksan-panel` login |
+| Backend API | NestJS 11 | ALL business logic |
+| Database | PostgreSQL 15 | Primary data store |
+| ORM | Prisma 7.8 | 26+ models, 19 migrations |
+| Queue | Redis + BullMQ | Background jobs |
+| PDF | Python Flask | Proforma PDFs |
+| Container | Docker | Multi-stage prod compose |
 
 ## Project Structure
 
 ```
 sadoksan/ (monorepo root)
 ├── apps/
-│   ├── storefront/          # B2C + dealer portal (Nuxt 4, SSR)
-│   ├── admin/               # Factory admin (Nuxt 4, SPA)
-│   └── api/                 # NestJS — ALL business logic
+│   ├── storefront/     # Nuxt 4 SSR (ana site + bayi + plasiyer)
+│   ├── admin/           # Nuxt 4 SPA (yönetim paneli)
+│   └── api/             # NestJS — ALL business logic
 ├── packages/
-│   ├── shared/              # Common types, Prisma schema
-│   └── ui/                  # Shared Vue components
-├── python-service/          # Proforma PDF generator (Flask)
-├── scripts/
-│   └── backup-db.sh         # PostgreSQL backup (pg_dump, retention)
-├── docker-compose.dev.yml   # Development (HOT RELOAD)
-├── docker-compose.prod.yml  # Production (multi-stage, nginx, security)
-├── nginx.prod.conf          # Nginx reverse proxy config
-└── Dockerfile.dev           # Unified dev image
+│   ├── shared/          # Common types, Prisma schema
+│   └── ui/              # Shared Vue components
+├── python-service/      # Proforma PDF generator (Flask)
+├── scripts/backup-db.sh # PostgreSQL backup
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
+└── nginx.prod.conf
 ```
 
-## Backend Modules (apps/api/src/modules/)
+## Backend Modules
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| `auth` | ✅ | JWT auth, register/login/me, forgot/reset password, address book |
+| `auth` | ✅ | JWT auth, register/login, PLASIYER + adminCreateUser, address book |
 | `products` | ✅ | CRUD, variations, categories, brands, bulk ops, Excel import/export |
 | `orders` | ✅ | Full lifecycle: create→approve→ship→complete, cart, stock reservation |
 | `dealer` | ✅ | Profile, cari, reports (8 types), approval flow, risk score |
-| `proforma` | ✅ | PDF generation via Python service |
+| `proforma` | ✅ | PDF via Python, approval workflow (draft→pending→approved→downloaded) |
 | `discounts` | ✅ | Product/category/brand discounts (% or fixed) |
 | `promo` | ✅ | Promo code validation |
 | `popup` | ✅ | Campaign popups with audience targeting |
@@ -64,189 +55,80 @@ sadoksan/ (monorepo root)
 | `cms` | ✅ | Hero banner, site settings, maintenance mode |
 | `mailer` | ✅ | Console logger (SMTP ready) |
 | `favorites` | ✅ | Wishlist CRUD |
-| `netsis` | 🟡 | NetOpenX REST: OAuth2 token, 4 sync (ürün/stok/cari/kur), API bilgisi bekleniyor |
-| `alneo` | 🔴 | E-invoice/e-archive (API bekleniyor) |
+| `reports` | ✅ | 8 endpoints: plasiyer-sales, order-pipeline, dealer-risk, critical-stock, slow-moving, credit-usage, plasiyer-dashboard, plasiyers |
+| `netsis` | 🟡 | NetOpenX REST: OAuth2 token, 4 sync, API bilgisi bekleniyor |
+| `stock` | 🟡 | Basic structure exists, StockMovement planı hazır |
+| `alneo` | 🔴 | E-invoice (API bekleniyor) |
 
-## Database Schema — 26 Models, 11 Enums
+## Environment / URLs
 
-**Core:** User, Dealer, Product, ProductVariation, Category, Brand, Address,  
-**Commerce:** Order, OrderLine, CartItem, Favorite, Proforma, ProformaItem,  
-**Stock:** StockReservation,  
-**Pricing:** RegionalPricingSurcharge, ProvincePricingSurcharge, LogisticsRule,  
-**Content:** SiteContent, Popup, Discount, PromoCode,  
-**Tracking:** OrderStatusHistory, AuditLog, NotifyRequest,  
-**External:** ExchangeRate, ProductCurrencyPrice, NetsisSync,  
-**Site:** SiteSettings
+| Servis | URL |
+|--------|-----|
+| Storefront | https://sadoksan.smartinnventory.com/ |
+| Admin Panel | https://sadoksan.smartinnventory.com/sadoksan-panel/ |
+| API Health | https://sadoksan.smartinnventory.com/api/health |
 
-## Key Integrations (Status)
+## Docker Containers (Production)
 
-| Integration | Status | Notes |
-|-------------|--------|-------|
-| **Netsis** | 🔴 API bekleniyor | Ürün/stok/cari sync, placeholder durumda |
-| **Alneo** | 🔴 API bekleniyor | E-fatura, e-irsaliye, e-arşiv |
-| **Ödeme (Albaraka)** | 🔴 API bekleniyor | Şu an mock — her zaman PAID |
-| **SMTP (Canmail)** | 🔴 Anahtar bekleniyor | Mailer modülü console'a yazıyor |
-| **Log (Canlogcatcher)** | 🔴 Anahtar bekleniyor | Eklenecek |
-| **Proforma PDF** | ✅ | Python Flask servisi, çalışıyor |
-| **ideaSoft** | 🟡 | 4000 ürün + görsel, migrate edilecek |
+| Container | Host Port | Internal |
+|-----------|-----------|----------|
+| sadoksan-storefront-prod | 3011 | 3000 |
+| sadoksan-admin-prod | 3012 | 3002 |
+| sadoksan-api-prod | 3010 | 3001 |
+| sadoksan-postgres-prod | — | 5432 |
+| sadoksan-redis-prod | — | 6379 |
+| sadoksan-python-prod | 3013 | 5000 |
 
-## Full Business Cycle — Durum
+## Nginx Reverse Proxy
 
-| # | Adım | Durum |
-|---|------|-------|
-| 1 | Admin → ürün CRUD (kategori, marka, görsel, varyasyon) | ✅ |
-| 2 | Admin → Excel import/export | ✅ |
-| 3 | Bayi başvurusu → admin onayı → aktif | ✅ |
-| 4 | Storefront → ürün kataloğu (filtre, arama) | ✅ |
-| 5 | Storefront → favori ekle, sepete ekle | ✅ |
-| 6 | Sepet → API sync + localStorage fallback, login merge | ✅ |
-| 7 | Sepet → sipariş (B2B PENDING_APPROVAL, B2C APPROVED) | ✅ |
-| 8 | Stok: displayStock = netsisStock − ACTIVE_rezervasyon | ✅ |
-| 9 | Admin → sipariş onayı (cari bakiye + bayi istatistik güncellenir) | ✅ |
-| 10 | Proforma PDF (onay sonrası otomatik) | ✅ |
-| 11 | Admin → sevk + kargo takip (trackingNumber, cargoCompany) | ✅ |
-| 12 | Admin → sipariş tamamlanma (COMPLETED + completedAt) | ✅ |
-| 13 | İade talebi → admin onayı → stok geri alımı | ✅ |
-| 14 | Bayi → dashboard + sipariş takibi + cari hareketler | ✅ |
-| 15 | Bayi → raporlar (8 tip: aylık, yıllık, fatura, detay, stok, risk, yaşlandırma, performans) | ✅ |
-| 16 | Bayi → risk skoru (JSON endpoint) | ✅ |
-| 17 | Adres defteri → CRUD, varsayılan adres, checkout seçimi | ✅ |
-| 18 | Kategori/Marka → ayrı entity, admin CRUD, 9 kat + 19 marka seed | ✅ |
-| 19 | Netsis → ürün/stok/cari sync | 🔴 |
-| 20 | Gerçek ödeme → sanal POS, havale | 🔴 |
-| 21 | E-fatura/irsaliye → Alneo | 🔴 |
-| 22 | SMTP mailer → Canmail | 🔴 |
-| 23 | Hibrit ödeme → bakiye + açık hesap | 🟡 Planlandı |
-
-## Production Hardening
-
-| # | İş | Durum |
-|---|-----|-------|
-| JWT_SECRET | Prod değeri | 🔴 Sana bırak |
-| SSL/HTTPS | Sunucuda Let's Encrypt | 🔴 Sana bırak |
-| docker-compose.prod.yml | Multi-stage, nginx, health checks | ✅ |
-| nginx.prod.conf | SSL termination, rate limit, security headers | ✅ |
-| CORS | Env-based, sadece kendi domain | ✅ |
-| Rate limiting | /auth/login: 10 req/15dk (express-rate-limit) | ✅ |
-| Helmet | Security headers (CSP devre dışı — Nuxt SSR) | ✅ |
-| Admin URL | `/sadoksan-panel` (eski `/sadoksanadmin`) | ✅ |
-| Admin API Base | `.env` → `ADMIN_API_BASE="/api"` (relative, build-time) | ✅ |
-| Build args | docker-compose → `${ADMIN_API_BASE:-/api}` → Nuxt bundle | ✅ |
-| PostgreSQL backup | scripts/backup-db.sh (pg_dump, 30 gün retention) | ✅ |
-| Non-root user | apps/*/Dockerfile production stage | ✅ |
-| Health checks | Tüm servislerde | ✅ |
-| Log rotation | docker-compose json-file 50MB/5file | ✅ |
+```
+Browser (HTTPS) → nginx → /api/* → api:3001
+                         → /sadoksan-panel/* → admin:3002
+                         → /* → storefront:3000
+```
 
 ## Test Hesapları
 
-| Email | Şifre | Rol | Bayi |
-|-------|-------|-----|------|
-| bayi@test.com | asd123 | DEALER | BayiTest Yapı Malzemeleri (İstanbul, 250k TL limit) |
-| admin@admin.com | asd123 | ADMIN | — |
-
-## Test Durumu
-
-**47 tests, 4 suite, 0 failures**
-- auth.service.spec.ts: 10 tests
-- orders.service.spec.ts: 15 tests
-- products.controller.spec.ts: 3 tests
-- full-cycle.spec.ts: 19 tests (bayi kaydı → sipariş → onay → sevk → tamamlanma)
-
-## Commit History (2026-05-23 Session)
-
-```
-eb09970  📝 CLAUDE.md final
-f761a77  🛡️  Production hardening (helmet, rate limit, CORS, docker prod, backup)
-1734283  🚚 Shipment tracking (trackingNumber + cargoCompany)
-b5dab96  📊 Dealer reports (risk, aging, performance)
-84e52b8  🛒 Server-side cart (CartItem model, API, useCart sync)
-de8f8d5  📍 Address book (Address model, CRUD, hesabim UI)
-ec2f215  🏷️  Category & Brand entities (9 cat, 19 brand, admin CRUD)
-fc8e149  🔧 Admin fix + dealer stats bug + COMPLETED endpoint
-3a80834  🏗️  Initial (100 files, 7 modules, 7 migrations)
-```
-
-## Docker
-
-```bash
-# Development
-docker compose -f docker-compose.dev.yml up
-
-# Production
-docker compose -f docker-compose.prod.yml up -d
-
-# Backup
-./scripts/backup-db.sh
-# veya
-docker exec sadoksan-postgres-prod pg_dump -U sadoksan sadoksan > backup.sql
-```
-
-## Recent Fixes
-
-### 2026-06-02 — Admin panel Mixed Content (http://api:3001)
-
-**Problem:** Admin panel (`ssr: false` SPA) login sayfasında `Mixed Content: ... requested an insecure resource 'http://api:3001/auth/login'` hatası. HTTPS sayfadan HTTP API çağrısı yapılamıyordu.
-
-**Root Cause:** Admin SPA olduğu için API URL'si build zamanında JS bundle'a gömülüyor. `.env` dosyasında `ADMIN_API_BASE="http://api:3001"` tanımlıydı — bu Docker içinde geçerli ama tarayıcıdan erişilemez. `docker-compose.prod.yml` build arg olarak `${ADMIN_API_BASE:-/api}` geçiyordu, fakat `.env` değeri fallback'i ezip `http://api:3001` yapıyordu.
-
-**Fix:** `.env` → `ADMIN_API_BASE="/api"` (relative path). Tarayıcı bunu mevcut origin'e göre çözümleyip `https://sadoksan.smartinnventory.com/api/...` şeklinde istek atıyor, nginx de `/api` prefix'ini API container'ına proxy'liyor.
-
-**Files changed:**
-- `.env`: `ADMIN_API_BASE="http://api:3001"` → `ADMIN_API_BASE="/api"`
-- Admin container rebuild (build arg değiştiği için)
-
-**⚠️ Gotcha:** `.env` değişikliği tek başına yetmez — admin SPA olduğu için container'ın **rebuild** edilmesi şart. Sadece restart yeterli değil, çünkü değer build-time'da bundle'a gömülüyor.
-
-### Nginx reverse proxy yapısı
-
-```
-Browser (HTTPS) → nginx → /api/* → api:3001 (NestJS)
-                         → /sadoksan-panel/* → admin:3002 (Nuxt SPA)
-                         → /* → storefront:3000 (Nuxt SSR)
-```
+| Rol | Email | Şifre |
+|-----|-------|-------|
+| Admin | admin@admin.com | asd123 |
+| Bayi | bayi@test.com | asd123 |
+| Plasiyer | plasiyer@test.com | asd123 |
 
 ## Demo Kart (Sunum)
 
 ```
-Kart No:  4111 1111 1111 1111
-SKT:      12/28
-CVV:      123
-İsim:     Test Kart
+Kart No: 4111 1111 1111 1111 / SKT: 12/28 / CVV: 123
 ```
-Bu kartla B2B sipariş OTOMATİK ONAYLANIR. Bilgiler `/sayfa/demo-card` sayfasında da var.
 
-## Recent Changes (2026-06-03)
+---
 
-### Storefront
-- **siparislerim.vue** — komple yenilendi: 6 adımlı durum çizelgesi, durum geçmişi, iptal modal'ı, havale bildirim formu (9 banka), kargo takip
-- **bayi.vue** — 5 KPI kart (eklenen: Risk Skoru), 8 rapor tipi (eklenen: risk, aging, performance), cari CSV döküm
-- **Footer.vue** — eski site (sadoksaninsaat.com.tr) yapısına uyarlandı: Hakkımızda / Alışveriş / Yardım 3 kolon
-- **Header.vue** — "Ürünler" hover açılır menü (`@mouseenter`/`@mouseleave`)
-- **nuxt.config.ts** — icon config eklendi (lucide iconlar SSR'da yükleniyor)
-- **useDealerApi.ts** — report tiplerine `risk | aging | performance` eklendi
+## ⚠️ Gotcha'lar
 
-### CMS (DB'ye yazıldı, API üzerinden)
-- `/sayfa/mesafeli-satis-sozlesmesi` — tam sözleşme metni
-- `/sayfa/gizlilik-ve-guvenlik` — gizlilik + SSL + kart güvenliği
-- `/sayfa/iptal-ve-iade-sartlari` — iade koşulları + cayma hakkı
-- `/sayfa/kisisel-veriler-politikasi` — KVKK metni
-- `/sayfa/sss` — placeholder
-- `/sayfa/banka-hesaplari` — placeholder
+1. **Admin panel SPA'dır** → `.env` değişikliğinde REBUILD şart, restart yetmez
+2. **Storefront SSR'dır** → Her değişiklikte rebuild gerekir
+3. **Prisma migration prod'da** → `migrate deploy` kullan, `migrate dev` YOK
+4. **NestJS global prefix** → `app.setGlobalPrefix('api')` aktif, controller'larda `api/` prefix'i YOK
+5. **Proforma controller route sıralaması** → `pending`/`my` route'ları `:id`'den ÖNCE olmalı (BUG-1)
 
-### Nginx
-- Eski `/canterm-ws` (port 3456) rotası kaldırıldı
-- Yorumlu Sadoksan satırları temizlendi
+## Recent Fixes
 
-### PM2
-- Eski `canterm` (id 0, port 3456) silindi, `pm2 save` yapıldı
+### Global Prefix Fix (2026-06-02)
+- Controller'ların yarısı `api/` prefix'liydi, yarısı değildi
+- `main.ts` → `app.setGlobalPrefix('api')` eklendi
+- 9 controller'dan `api/` prefix'i kaldırıldı
+- Host nginx `proxy_pass` trailing slash kaldırıldı
 
-## Sıradaki İşler (API geldikten sonra)
+### Admin Mixed Content Fix (2026-06-02)
+- `ADMIN_API_BASE="/api"` (relative) → tarayıcı origin'e göre çözümler
 
-1. **Netsis entegrasyonu** — Gerçek API bağlantısı
-2. **Albaraka ödeme** — Sanal POS
-3. **Alneo e-fatura** — E-fatura, e-irsaliye, e-arşiv
-4. **Canmail SMTP** — Gerçek email gönderimi
-5. **Canlogcatcher** — Log entegrasyonu
-6. **Hibrit ödeme** — Dealer.balance + BalanceTransaction
-7. **E2E testler** — Playwright
-8. **Ürün görselleri** — ideaSoft'tan 4000 ürün görseli
+## Son Commit'ler
+
+```
+1cbf8e8 feat: Admin rapor sayfası + Plasiyer storefront + dökümantasyon
+dfd5346 feat: Rapor motoru — 8 endpoint (Faz 2-3A)
+d49905c feat: Proforma onay akışı — admin panel UI + generatedByRole
+a6fd651 feat: Proforma onay akışı (Faz 1)
+af4789a feat: PLASIYER rolü eklendi
+67b4cec feat: Netsis NetOpenX REST entegrasyonu
+```

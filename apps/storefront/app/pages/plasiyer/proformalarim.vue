@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-definePageMeta({ middleware: 'auth' })
+definePageMeta({ middleware: 'plasiyer' })
 
 const toast = useToast()
 const loading = ref(true)
@@ -80,7 +80,7 @@ const formatTL = (v: number) => new Intl.NumberFormat('tr-TR', { style: 'currenc
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('tr-TR') : '-'
 
 const apiFetch = async (path: string, opts: RequestInit = {}) => {
-  const token = localStorage.getItem('auth-token') || localStorage.getItem('admin-token')
+  const token = localStorage.getItem('user-token')
   const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
   const res = await fetch(`${base}/api${path}`, {
     ...opts,
@@ -92,7 +92,7 @@ const apiFetch = async (path: string, opts: RequestInit = {}) => {
 
 const downloadProforma = async (id: string) => {
   try {
-    const token = localStorage.getItem('auth-token') || localStorage.getItem('admin-token')
+    const token = localStorage.getItem('user-token')
     const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
     const res = await fetch(`${base}/api/proforma/${id}/download`, { headers: { Authorization: `Bearer ${token}` } })
     if (!res.ok) {
