@@ -14,13 +14,38 @@ const { isAuthenticated } = useAuth()
 const route = useRoute()
 const cartNotification = ref('')
 
+// Category tree from API (parent → children)
+const categoryTree = ref<any[]>([])
+
 onMounted(async () => {
-  // Pre-select category from URL query param
+  // Fetch category tree for sub-category filters
+  try {
+    const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
+    const res = await fetch(`${base}/api/products/categories`)
+    if (res.ok) categoryTree.value = await res.json()
+  } catch {}
+
+  // Pre-select category from URL query param (slug → id lookup)
   const qKategori = route.query.kategori
   if (qKategori && typeof qKategori === 'string') {
-    selectedCategories.value = [qKategori.toLowerCase()]
+    const slug = qKategori.toLowerCase()
+    // Find matching category by slug in tree
+    for (const parent of categoryTree.value) {
+      if (parent.slug === slug || norm(parent.name) === slug) {
+        selectedCategories.value = [parent.id]
+        expandedParents.value[parent.id] = true
+        break
+      }
+      for (const child of parent.children || []) {
+        if (child.slug === slug || norm(child.name) === slug) {
+          selectedCategories.value = [child.id]
+          expandedParents.value[parent.id] = true
+          break
+        }
+      }
+    }
   }
-  // Sub kategori arama filtresi: /urunler?kategori=seramik&ara=60x120
+  // Sub kategori arama filtresi: /urunler?ara=60x120
   const qAra = route.query.ara
   if (qAra && typeof qAra === 'string') {
     searchQuery.value = decodeURIComponent(qAra)
@@ -52,24 +77,53 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
 const itemsPerPageOptions = [10, 20, 50, 100]
+const expandedParents = ref<Record<string, boolean>>({})
+
+/** Normalize text for fuzzy matching: remove spaces, dots, dashes */
+const norm = (s: string) => s.toLowerCase().replace(/[\s.\-_]+/g, '')
+
+// Flatten category tree to get all sub-category IDs for a given parent
+const getSubCategoryIds = (parentId: string): string[] => {
+  const parent = categoryTree.value.find((c: any) => c.id === parentId)
+  if (!parent) return [parentId]
+  const ids = [parentId]
+  for (const child of parent.children || []) {
+    ids.push(child.id)
+  }
+  return ids
+}
 
 const getFilteredProducts = (): CatalogProduct[] => {
   const query = searchQuery.value.toLowerCase().trim()
+  const queryNorm = norm(query)
 
   return allProducts.value.filter(product => {
-    // Search filter: match name, brand, or sku
+    // Search filter: fuzzy match name, brand, sku, description, category (spaces/punctuation insensitive)
     if (query) {
       const matchesSearch =
-        product.name.toLowerCase().includes(query) ||
-        product.brand.toLowerCase().includes(query) ||
-        (product.sku?.toLowerCase().includes(query) ?? false) ||
-        (product.description?.toLowerCase().includes(query) ?? false)
+        norm(product.name).includes(queryNorm) ||
+        norm(product.brand).includes(queryNorm) ||
+        (product.sku ? norm(product.sku).includes(queryNorm) : false) ||
+        (product.description ? norm(product.description).includes(queryNorm) : false) ||
+        (product.category ? norm(product.category).includes(queryNorm) : false)
       if (!matchesSearch) return false
     }
 
-    // Category filter
-    if (selectedCategories.value.length > 0 && !selectedCategories.value.includes(product.category.toLowerCase())) {
-      return false
+    // Category filter — match by categoryId (supports sub-categories)
+    if (selectedCategories.value.length > 0) {
+      const productCatId = product.categoryId || ''
+      // Check if product's categoryId matches any selected ID
+      // Also check: if a parent is selected, include its sub-category products
+      let matchesCat = false
+      for (const selId of selectedCategories.value) {
+        if (productCatId === selId) { matchesCat = true; break }
+        // If parent selected, also match children
+        const subIds = getSubCategoryIds(selId)
+        if (subIds.includes(productCatId)) { matchesCat = true; break }
+        // Fallback: match by normalized category name
+        if (norm(product.category) === norm(selId)) { matchesCat = true; break }
+      }
+      if (!matchesCat) return false
     }
 
     // Brand filter
@@ -294,13 +348,57 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                 </label>
               </div>
 
-              <!-- Kategoriler Filter -->
+              <!-- Kategoriler Filter (Tree) -->
               <div class="mb-6 pb-6 border-b border-ink-100">
                 <h3 class="text-sm font-bold text-primary-900 mb-4 uppercase tracking-wide">
                   Kategoriler
                 </h3>
-                <div class="space-y-3">
+                <div class="space-y-1">
+                  <template v-for="parent in categoryTree" :key="parent.id">
+                    <!-- Parent category -->
+                    <div class="flex items-center gap-2 py-1.5">
+                      <button
+                        v-if="parent.children?.length"
+                        @click="expandedParents[parent.id] = !expandedParents[parent.id]"
+                        class="text-ink-400 hover:text-ink-600 w-4 h-4 flex items-center justify-center"
+                      >
+                        <Icon :name="expandedParents[parent.id] ? 'lucide:chevron-down' : 'lucide:chevron-right'" class="w-3 h-3" />
+                      </button>
+                      <span v-else class="w-4" />
+                      <label class="flex items-center gap-2 cursor-pointer group flex-1">
+                        <input
+                          type="checkbox"
+                          :checked="selectedCategories.includes(parent.id)"
+                          @change="toggleCategory(parent.id)"
+                          class="w-4 h-4 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
+                        />
+                        <span class="text-sm font-medium text-ink-700 group-hover:text-primary-900">
+                          {{ parent.name }}
+                        </span>
+                      </label>
+                    </div>
+                    <!-- Sub-categories -->
+                    <div v-if="parent.children?.length && expandedParents[parent.id]" class="ml-6 space-y-0.5 border-l border-ink-100 pl-3 mb-1">
+                      <label
+                        v-for="child in parent.children"
+                        :key="child.id"
+                        class="flex items-center gap-2 cursor-pointer group py-1"
+                      >
+                        <input
+                          type="checkbox"
+                          :checked="selectedCategories.includes(child.id)"
+                          @change="toggleCategory(child.id)"
+                          class="w-3.5 h-3.5 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
+                        />
+                        <span class="text-xs text-ink-600 group-hover:text-primary-900">
+                          {{ child.name }}
+                        </span>
+                      </label>
+                    </div>
+                  </template>
+                  <!-- Fallback if no tree data -->
                   <label
+                    v-if="categoryTree.length === 0"
                     v-for="cat in getUniqueCategories()"
                     :key="cat.slug"
                     class="flex items-center gap-3 cursor-pointer group"

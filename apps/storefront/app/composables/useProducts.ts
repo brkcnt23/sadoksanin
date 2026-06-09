@@ -12,6 +12,7 @@ export interface Product {
   name: string
   brand: string
   category: string
+  categoryId?: string
   /** B2C taban fiyatı (TL) */
   price: number
   image: string
