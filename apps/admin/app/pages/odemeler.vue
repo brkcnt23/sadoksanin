@@ -35,11 +35,19 @@ const approve = async (t: BankTransfer) => {
   catch { toast.push('Onaylama başarısız', 'error') }
 }
 
-const reject = async (t: BankTransfer) => {
-  const reason = prompt('Ret sebebi:')
-  if (!reason) return
-  try { await api.post(`/orders/${t.orderId}/bank-transfer/reject`, { reason }); toast.push('Reddedildi', 'success'); load() }
-  catch { toast.push('Reddetme başarısız', 'error') }
+const rejectTarget = ref<BankTransfer | null>(null)
+const rejectReason = ref('')
+const rejectOpen = ref(false)
+
+const openReject = (t: BankTransfer) => { rejectTarget.value = t; rejectReason.value = ''; rejectOpen.value = true }
+const doReject = async () => {
+  if (!rejectReason.value.trim() || !rejectTarget.value) return
+  try {
+    await api.post(`/orders/${rejectTarget.value.orderId}/bank-transfer/reject`, { reason: rejectReason.value })
+    toast.push('Reddedildi', 'success')
+    rejectOpen.value = false
+    load()
+  } catch { toast.push('Reddetme başarısız', 'error') }
 }
 
 const statusVariant = (s: string) => ({ PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' } as any)[s] ?? 'neutral'
@@ -107,7 +115,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR', { year
             <td class="px-5 py-3">
               <div v-if="t.status === 'PENDING'" class="flex gap-1">
                 <button @click="approve(t)" class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md">Onayla</button>
-                <button @click="reject(t)" class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">Reddet</button>
+                <button @click="openReject(t)" class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">Reddet</button>
               </div>
               <span v-else-if="t.status === 'REJECTED'" class="text-xs text-red-600">{{ t.rejectionReason || '—' }}</span>
               <span v-else class="text-xs text-green-600 flex items-center gap-1"><Icon name="lucide:check" class="w-3.5 h-3.5" /> Onaylandı</span>
@@ -117,5 +125,21 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR', { year
       </table>
       <EmptyState v-else icon="lucide:banknote" title="Havale bildirimi bulunamadı" />
     </div>
+
+    <!-- Reject Modal -->
+    <ConfirmModal
+      :open="rejectOpen"
+      title="Havale Bildirimini Reddet"
+      :message="`Bu havale bildirimini reddetmek istediğinize emin misiniz?`"
+      confirm-label="Reddet"
+      variant="danger"
+      @confirm="doReject"
+      @close="rejectOpen = false"
+    >
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-ink-700 mb-1">Ret Sebebi *</label>
+        <input v-model="rejectReason" type="text" class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm" placeholder="Reddetme sebebini yazın..." />
+      </div>
+    </ConfirmModal>
   </div>
 </template>
