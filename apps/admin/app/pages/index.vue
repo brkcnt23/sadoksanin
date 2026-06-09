@@ -147,44 +147,62 @@ const formatTimeAgo = (d: string) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <StatCard
-        label="Toplam Sipariş"
-        :value="orders.items.length"
-        icon="lucide:package"
-        color="blue"
-      />
-      <StatCard
-        label="Onay Bekleyen"
-        :value="orders.pendingCount"
-        icon="lucide:clock"
-        color="amber"
-      />
-      <StatCard
-        label="Bugünkü Ciro"
-        :value="formatPrice(todayRevenue)"
-        icon="lucide:trending-up"
-        color="green"
-      />
-      <StatCard
-        label="Aktif Bayi"
-        :value="dealers.activeCount"
-        icon="lucide:users"
-        color="purple"
-      />
-      <StatCard
-        label="Düşük/Stoksuz"
-        :value="`${products.lowStockCount + products.outOfStockCount}`"
-        icon="lucide:alert-circle"
-        color="red"
-      />
-      <StatCard
-        label="Bayi Başvurusu"
-        :value="pendingDealers"
-        icon="lucide:user-plus"
-        color="amber"
-      />
+    <!-- Hero Section -->
+    <DashboardHero
+      :stats="[
+        { label: 'Toplam Sipariş', value: orders.items.length, icon: 'lucide:package' },
+        { label: 'Onay Bekleyen', value: orders.pendingCount, icon: 'lucide:clock' },
+        { label: 'Bugünkü Ciro', value: formatPrice(todayRevenue), icon: 'lucide:trending-up' },
+      ]"
+    />
+
+    <!-- Quick Actions -->
+    <QuickActionCards />
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-primary-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-200 transition-colors">
+          <Icon name="lucide:package" class="w-5 h-5 text-blue-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ orders.items.length }}</p>
+        <p class="text-xs text-ink-500">Toplam Sipariş</p>
+      </div>
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-amber-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-amber-200 transition-colors">
+          <Icon name="lucide:clock" class="w-5 h-5 text-amber-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ orders.pendingCount }}</p>
+        <p class="text-xs text-ink-500">Onay Bekleyen</p>
+      </div>
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-emerald-200 transition-colors">
+          <Icon name="lucide:trending-up" class="w-5 h-5 text-emerald-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ formatPrice(todayRevenue) }}</p>
+        <p class="text-xs text-ink-500">Bugünkü Ciro</p>
+      </div>
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-purple-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-purple-200 transition-colors">
+          <Icon name="lucide:users" class="w-5 h-5 text-purple-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ dealers.activeCount }}</p>
+        <p class="text-xs text-ink-500">Aktif Bayi</p>
+      </div>
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-red-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-red-200 transition-colors">
+          <Icon name="lucide:alert-circle" class="w-5 h-5 text-red-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ products.lowStockCount + products.outOfStockCount }}</p>
+        <p class="text-xs text-ink-500">Stok Uyarısı</p>
+      </div>
+      <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-amber-200 transition-all cursor-pointer group">
+        <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-amber-200 transition-colors">
+          <Icon name="lucide:user-plus" class="w-5 h-5 text-amber-600" />
+        </div>
+        <p class="text-2xl font-bold text-ink-900">{{ pendingDealers }}</p>
+        <p class="text-xs text-ink-500">Bayi Başvurusu</p>
+      </div>
     </div>
 
     <!-- Sync banner -->

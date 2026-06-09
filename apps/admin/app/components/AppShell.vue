@@ -84,13 +84,18 @@ const handleLogout = () => {
       <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 lg:hidden">
         <div class="absolute inset-0 bg-black/40" @click="mobileMenuOpen = false" />
         <aside class="absolute left-0 top-0 h-full w-64 bg-white shadow-xl flex flex-col z-50">
-          <div class="px-6 py-4 border-b border-ink-100 flex items-center justify-between">
-            <div>
-              <h1 class="text-lg font-bold text-ink-900">{{ settings.data.siteName }}</h1>
-              <p class="text-xs text-ink-500 mt-0.5">Yönetim Paneli</p>
+          <div class="px-6 py-4 flex items-center justify-between" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center">
+                <span class="text-white font-bold text-xs">S</span>
+              </div>
+              <div>
+                <h1 class="text-base font-bold text-white">{{ settings.data.siteName }}</h1>
+                <p class="text-[10px] text-slate-400 mt-0.5">Yönetim Paneli</p>
+              </div>
             </div>
-            <button @click="mobileMenuOpen = false" class="p-1.5 hover:bg-ink-100 rounded-md lg:hidden">
-              <Icon name="lucide:x" class="w-5 h-5 text-ink-500" />
+            <button @click="mobileMenuOpen = false" class="p-1.5 hover:bg-white/10 rounded-lg">
+              <Icon name="lucide:x" class="w-5 h-5 text-white/70" />
             </button>
           </div>
           <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
@@ -119,32 +124,40 @@ const handleLogout = () => {
     </Teleport>
 
     <!-- Desktop Sidebar -->
-    <aside class="hidden lg:flex w-64 bg-white border-r border-ink-200 sticky top-0 h-screen flex-col shrink-0">
-      <div class="px-6 py-5 border-b border-ink-100">
-        <h1 class="text-lg font-bold text-ink-900">{{ settings.data.siteName }}</h1>
-        <p class="text-xs text-ink-500 mt-0.5">Yönetim Paneli</p>
+    <aside class="hidden lg:flex w-64 sticky top-0 h-screen flex-col shrink-0 border-r border-ink-200" style="background: linear-gradient(180deg, #0f172a 0%, #1e293b 180px, #ffffff 180px);">
+      <!-- Logo / Brand -->
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+            <span class="text-white font-bold text-sm">S</span>
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-white leading-tight">{{ settings.data.siteName }}</h1>
+            <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Yönetim Paneli</p>
+          </div>
+        </div>
       </div>
 
-      <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         <div v-for="group in navGroups" :key="group.title">
-          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-400">{{ group.title }}</p>
-          <div class="space-y-1">
+          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ group.title }}</p>
+          <div class="space-y-0.5">
             <NuxtLink
               v-for="item in group.items"
               :key="item.to"
               :to="item.to"
               :class="[
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 isActive(item.to)
-                  ? 'bg-primary-50 text-primary-700'
-                  : 'text-ink-700 hover:bg-ink-50',
+                  ? 'bg-primary-50/80 text-primary-700 shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
               ]"
             >
-              <Icon :name="item.icon" class="w-4 h-4 shrink-0" />
+              <Icon :name="item.icon" class="w-4 h-4 shrink-0" :class="isActive(item.to) ? 'text-primary-600' : 'text-slate-400'" />
               <span class="flex-1 truncate">{{ item.label }}</span>
               <span
                 v-if="item.badge && item.badge() > 0"
-                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[1.25rem] text-center"
+                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[1.25rem] text-center shadow-sm"
               >
                 {{ item.badge() }}
               </span>
@@ -170,13 +183,16 @@ const handleLogout = () => {
 
     <!-- Main -->
     <main class="flex-1 flex flex-col min-w-0">
-      <header class="bg-white border-b border-ink-200 px-4 lg:px-8 py-3.5 sticky top-0 z-10">
+      <header class="bg-white/80 backdrop-blur border-b border-ink-200/60 px-4 lg:px-8 py-3.5 sticky top-0 z-10">
         <div class="flex items-center justify-between gap-4">
           <div class="flex items-center gap-3 min-w-0">
-            <button @click="mobileMenuOpen = true" class="p-1.5 hover:bg-ink-100 rounded-md lg:hidden shrink-0">
-              <Icon name="lucide:menu" class="w-5 h-5 text-ink-600" />
+            <button @click="mobileMenuOpen = true" class="p-1.5 hover:bg-slate-100 rounded-lg lg:hidden shrink-0">
+              <Icon name="lucide:menu" class="w-5 h-5 text-slate-600" />
             </button>
-            <h2 class="text-lg font-semibold text-ink-900 truncate">{{ activeLabel }}</h2>
+            <div class="flex items-center gap-2">
+              <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-300" />
+              <h2 class="text-base font-semibold text-slate-800 truncate">{{ activeLabel }}</h2>
+            </div>
           </div>
 
           <div class="flex items-center gap-2">
