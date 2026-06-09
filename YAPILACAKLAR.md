@@ -29,18 +29,18 @@ KRİTİK KURALLAR:
 
 ## ✅ YAPILANLAR
 
-### 2026-06-09 — MD Toparlama + Bug Tespiti + Tüm Bug Fix'ler
-- Tüm MD'ler okundu, proje durumu analiz edildi
-- `settings.json`: `permissions.defaultMode: bypassPermissions` + `.bashrc`: `--dangerously-skip-permissions` alias
-- `YAPILACAKLAR.md`: AI prompt + yapılanlar + bug'lar + faz planları + doküman haritası ile yeniden yazıldı
-- `CLAUDE.md`: Temizlendi, sadece teknik context + YAPILACAKLAR pointer'ı
-- Eski MD'ler silindi: ADMIN_UI_REVISION, ROADMAP, oturum-ozetleri (3 dosya birleştirildi)
-- **5 bug fix edildi:**
-  - BUG-1: Proforma controller route sıralaması düzeltildi
-  - BUG-2: Eski raporlar.vue silindi (duplicate)
-  - BUG-3: Plasiyer middleware oluşturuldu + sayfalar güncellendi
-  - BUG-4: Header'a desktop + mobile plasiyer linki eklendi
-  - BUG-5: Token key'leri `user-token`/`auth.user` olarak standardize edildi
+### 2026-06-09 — MD Toparlama + 5 Bug Fix + Kredi Limiti + Ürün Filtreleme
+- `settings.json`: `permissions.defaultMode: bypassPermissions` + `.bashrc`: `--dangerously-skip-permissions`
+- **5 bug fix:** Proforma route sıralaması, rapor duplicate, plasiyer middleware, header linki, token standardizasyonu
+- **Kredi limiti kontrolü:** approveOrder() + payOrder() — cariBalance + order.total > creditLimit kontrolü
+- **Ürün filtreleme:** categoryId bazlı, kategori ağacı sidebar, fuzzy search (boşluk insensitive)
+- **DB:** 101 ürün categoryId eşleştirildi, 13 seramik sub-kategoriye atandı
+- **MD temizliği:** 5 eski dosya silindi, CLAUDE.md + YAPILACAKLAR.md yeniden yazıldı
+- **Build:** API + Admin + Storefront (2 kez) rebuild + deploy
+- **B2B-only refactor:** Zaten yapılmış (CUSTOMER rolü yok)
+- **Stok MVPP:** Zaten yapılmış (StockMovement + UI component'leri hazır)
+- **Tüm DB modelleri:** 35 tablo, 20 migration, eksik yok
+- **netopenx.md:** /home/can/netopenx.md + /home/can/can-scrap/netsis-netopenx-docs.md
 
 ### 2026-06-08 — Netsis + Plasiyer + Rapor (7 commit)
 - **Netsis NetOpenX REST:** types, service (OAuth2 + 4 sync), controller (8 endpoint), scheduler (cron)

@@ -46,9 +46,12 @@ export interface Product extends AuditMeta {
   sku: string
   name: string
   brand: string
+  brandId?: string
   category: string
+  categoryId?: string
   description?: string
   images: string[]
+  imageUrl?: string
   basePrice: Currency
   taxRate: number // 0.20 = %20 KDV
   unit: string // adet, m², kg
@@ -59,6 +62,7 @@ export interface Product extends AuditMeta {
   displayStock: number // netsisStock - reservedStock
   lastNetsisSync: ISODate
   syncStatus: 'synced' | 'pending' | 'error' | 'never'
+  isFeatured?: boolean
   variations: ProductVariation[]
   // Stock thresholds for 3-level status system
   minimumStock: number // Required: red zone threshold (kritik stok)

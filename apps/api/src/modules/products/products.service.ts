@@ -379,6 +379,7 @@ export class ProductsService {
         description: dto.description || '',
         brand: dto.brand || '',
         category: dto.category,
+        categoryId: dto.categoryId || null,
         basePrice: dto.basePrice,
         taxRate: dto.taxRate ?? 0.2,
         unit: dto.unit || 'Adet',
@@ -418,7 +419,7 @@ export class ProductsService {
 
     const data: any = {};
     const fields: (keyof UpdateProductDto)[] = [
-      'name', 'description', 'brand', 'category', 'basePrice', 'taxRate',
+      'name', 'description', 'brand', 'category', 'categoryId', 'basePrice', 'taxRate',
       'unit', 'netsisCode', 'sku', 'netsisStock', 'netsisPendingQuantity', 'minimumStock',
       'middleStock', 'visible', 'purchasable', 'isFeatured', 'imageUrl', 'images', 'weight',
     ];

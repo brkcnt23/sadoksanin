@@ -18,6 +18,10 @@ export class CreateProductDto {
   @IsString()
   category: string;
 
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
   @IsNumber()
   @Min(0)
   basePrice: number;
@@ -70,6 +74,9 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   images?: string;
 
   @IsOptional()

@@ -53,6 +53,7 @@ const error = ref<string | null>(null)
 
 // Cascading category select
 const selectedParent = ref('')
+const selectedSubCategoryId = ref<string | null>(null)
 const subcategories = computed(() => {
   if (!selectedParent.value) return []
   const parent = products.allCategories.find((c) => c.name === selectedParent.value)
@@ -72,11 +73,15 @@ watch(
         }
         if (parent.children?.some((c) => c.name === props.product.category)) {
           selectedParent.value = parent.name
+          // Set sub-category if product has a sub-category assigned
+          const child = parent.children.find((c) => c.name === props.product!.category)
+          if (child) selectedSubCategoryId.value = child.id
           return
         }
       }
     } else if (isOpen && !props.product) {
       selectedParent.value = ''
+      selectedSubCategoryId.value = null
     }
   },
   { immediate: true },
@@ -105,6 +110,7 @@ const save = async () => {
         netsisCode: form.value.netsisCode,
         brand: form.value.brand,
         category: form.value.category,
+        categoryId: (form.value as any).categoryId || undefined,
         basePrice: form.value.basePrice,
         taxRate: form.value.taxRate,
         unit: form.value.unit,
@@ -125,6 +131,7 @@ const save = async () => {
         netsisCode: form.value.netsisCode || form.value.sku,
         brand: form.value.brand,
         category: form.value.category,
+        categoryId: (form.value as any).categoryId || undefined,
         basePrice: form.value.basePrice,
         taxRate: form.value.taxRate,
         unit: form.value.unit,
@@ -196,15 +203,16 @@ const save = async () => {
           <select
             v-model="selectedParent"
             class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
-            @change="form.category = ''"
+            @change="form.category = ''; selectedSubCategoryId = null; (form as any).categoryId = undefined"
           >
             <option value="">Ana Kategori Seçin</option>
             <option v-for="c in products.allCategories" :key="c.id" :value="c.name">{{ c.name }}</option>
           </select>
           <select
             v-if="selectedParent && subcategories.length > 0"
-            v-model="form.category"
+            v-model="selectedSubCategoryId"
             class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            @change="(e: any) => { const child = subcategories.find(c => c.id === e.target.value); if (child) { form.category = child.name; (form as any).categoryId = child.id; } }"
           >
             <option value="">Alt Kategori Seçin</option>
             <option v-for="child in subcategories" :key="child.id" :value="child.name">{{ child.name }}</option>

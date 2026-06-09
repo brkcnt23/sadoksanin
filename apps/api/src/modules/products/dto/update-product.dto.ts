@@ -18,6 +18,10 @@ export class UpdateProductDto {
   category?: string;
 
   @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   basePrice?: number;
@@ -74,6 +78,9 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   images?: string;
 
   @IsOptional()
