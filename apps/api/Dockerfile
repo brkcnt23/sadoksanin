@@ -16,6 +16,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/tsconfig*.json ./apps/api/
 COPY apps/api/prisma ./apps/api/prisma
+COPY apps/api/prisma.config.ts ./apps/api/
 COPY apps/api/src ./apps/api/src
 COPY packages/shared ./packages/shared
 

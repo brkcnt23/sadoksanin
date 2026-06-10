@@ -20,16 +20,12 @@ const props = withDefaults(defineProps<{
 </script>
 
 <template>
-  <div class="grid [grid-template-areas:'stack'] place-items-center py-4">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-4">
     <NuxtLink
       v-for="(card, index) in cards"
       :key="card.to"
       :to="card.to"
-      class="[grid-area:stack] w-full max-w-xs bg-white rounded-2xl border border-ink-200/60 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 cursor-pointer group"
-      :style="{
-        transform: `translateX(${index * 16}px) translateY(${index * 10}px)`,
-        zIndex: cards.length - index,
-      }"
+      class="w-full bg-white rounded-2xl border border-ink-200/60 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
     >
       <div class="flex items-start gap-4">
         <div :class="`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`">

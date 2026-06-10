@@ -83,7 +83,7 @@ const handleLogout = () => {
     <Teleport to="body">
       <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 lg:hidden">
         <div class="absolute inset-0 bg-black/40" @click="mobileMenuOpen = false" />
-        <aside class="absolute left-0 top-0 h-full w-64 bg-white shadow-xl flex flex-col z-50">
+        <aside class="absolute left-0 top-0 h-full w-64 shadow-xl flex flex-col z-50" style="background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);">
           <div class="px-6 py-4 flex items-center justify-between" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center">
@@ -100,9 +100,9 @@ const handleLogout = () => {
           </div>
           <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
             <div v-for="group in navGroups" :key="'m-'+group.title">
-              <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-400">{{ group.title }}</p>
+              <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ group.title }}</p>
               <div class="space-y-1">
-                <NuxtLink v-for="item in group.items" :key="'m-'+item.to" :to="item.to" :class="['flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors', isActive(item.to) ? 'bg-primary-50 text-primary-700' : 'text-ink-700 hover:bg-ink-50']">
+                <NuxtLink v-for="item in group.items" :key="'m-'+item.to" :to="item.to" :class="['flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors', isActive(item.to) ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white']">
                   <Icon :name="item.icon" class="w-4 h-4 shrink-0" />
                   <span class="flex-1 truncate">{{ item.label }}</span>
                   <span v-if="item.badge && item.badge() > 0" class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[1.25rem] text-center">{{ item.badge() }}</span>
@@ -110,12 +110,12 @@ const handleLogout = () => {
               </div>
             </div>
           </nav>
-          <div class="p-3 border-t border-ink-100 space-y-2">
-            <div class="px-3 py-2 rounded-lg bg-ink-50">
-              <p class="text-xs font-medium text-ink-700 truncate">{{ currentUser?.name }}</p>
-              <p class="text-[11px] text-ink-500 truncate">{{ currentUser?.email }}</p>
+          <div class="p-3 border-t border-white/10 space-y-2">
+            <div class="px-3 py-2 rounded-lg bg-white/5">
+              <p class="text-xs font-medium text-slate-300 truncate">{{ currentUser?.name }}</p>
+              <p class="text-[11px] text-slate-500 truncate">{{ currentUser?.email }}</p>
             </div>
-            <button @click="handleLogout" class="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 justify-center">
+            <button @click="handleLogout" class="w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-2 justify-center">
               <Icon name="lucide:log-out" class="w-4 h-4" /> Çıkış Yap
             </button>
           </div>
@@ -124,7 +124,7 @@ const handleLogout = () => {
     </Teleport>
 
     <!-- Desktop Sidebar -->
-    <aside class="hidden lg:flex w-64 sticky top-0 h-screen flex-col shrink-0 border-r border-ink-200" style="background: linear-gradient(180deg, #0f172a 0%, #1e293b 180px, #ffffff 180px);">
+    <aside class="hidden lg:flex w-64 sticky top-0 h-screen flex-col shrink-0 border-r border-slate-700/30" style="background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);">
       <!-- Logo / Brand -->
       <div class="px-6 py-5">
         <div class="flex items-center gap-2.5">
@@ -140,7 +140,7 @@ const handleLogout = () => {
 
       <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         <div v-for="group in navGroups" :key="group.title">
-          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ group.title }}</p>
+          <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ group.title }}</p>
           <div class="space-y-0.5">
             <NuxtLink
               v-for="item in group.items"
@@ -149,11 +149,11 @@ const handleLogout = () => {
               :class="[
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 isActive(item.to)
-                  ? 'bg-primary-50/80 text-primary-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white',
               ]"
             >
-              <Icon :name="item.icon" class="w-4 h-4 shrink-0" :class="isActive(item.to) ? 'text-primary-600' : 'text-slate-400'" />
+              <Icon :name="item.icon" class="w-4 h-4 shrink-0" :class="isActive(item.to) ? 'text-white' : 'text-slate-500'" />
               <span class="flex-1 truncate">{{ item.label }}</span>
               <span
                 v-if="item.badge && item.badge() > 0"
@@ -166,14 +166,14 @@ const handleLogout = () => {
         </div>
       </nav>
 
-      <div class="p-3 border-t border-ink-100 space-y-2">
-        <div class="px-3 py-2 rounded-lg bg-ink-50">
-          <p class="text-xs font-medium text-ink-700 truncate">{{ currentUser?.name }}</p>
-          <p class="text-[11px] text-ink-500 truncate">{{ currentUser?.email }}</p>
+      <div class="p-3 border-t border-white/10 space-y-2">
+        <div class="px-3 py-2 rounded-lg bg-white/5">
+          <p class="text-xs font-medium text-slate-300 truncate">{{ currentUser?.name }}</p>
+          <p class="text-[11px] text-slate-500 truncate">{{ currentUser?.email }}</p>
         </div>
         <button
           @click="handleLogout"
-          class="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 justify-center"
+          class="w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-2 justify-center"
         >
           <Icon name="lucide:log-out" class="w-4 h-4" />
           Çıkış Yap

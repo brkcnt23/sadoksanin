@@ -14,91 +14,102 @@ const { isAuthenticated } = useAuth()
 const route = useRoute()
 const cartNotification = ref('')
 
-// Category tree from API (parent → children)
-const categoryTree = ref<any[]>([])
+// ─── Helpers ─────────────────────────────────────────────────────────────
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c').replace(/&/g,'ve').replace(/[^a-z0-9\s-]/g,'').replace(/[\s]+/g,'-')
 
-onMounted(async () => {
-  // Fetch category tree for sub-category filters
-  try {
-    const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
-    const res = await fetch(`${base}/api/products/categories`)
-    if (res.ok) categoryTree.value = await res.json()
-  } catch {}
+const norm = (s: string) => (s || '').toLowerCase().replace(/[\s.\-_]+/g, '')
 
-  // Pre-select category from URL query param (slug → id lookup)
-  const qKategori = route.query.kategori
-  if (qKategori && typeof qKategori === 'string') {
-    const slug = qKategori.toLowerCase()
-    // Find matching category by slug in tree
-    for (const parent of categoryTree.value) {
-      if (parent.slug === slug || norm(parent.name) === slug) {
-        selectedCategories.value = [parent.id]
-        expandedParents.value[parent.id] = true
-        break
-      }
-      for (const child of parent.children || []) {
-        if (child.slug === slug || norm(child.name) === slug) {
-          selectedCategories.value = [child.id]
-          expandedParents.value[parent.id] = true
-          break
-        }
-      }
-    }
-  }
-  // Sub kategori arama filtresi: /urunler?ara=60x120
-  const qAra = route.query.ara
-  if (qAra && typeof qAra === 'string') {
-    searchQuery.value = decodeURIComponent(qAra)
-  }
-  await load()
-  loadOrders()
-})
+const titleCase = (s: string) => s.replace(/\b\w/g, (c: string) => c.toLocaleUpperCase('tr-TR'))
 
-const categoryNames: Record<string, string> = {
-  seramik: 'Seramik',
-  vitrifiye: 'Vitrifiye',
-  rtrmax: 'RTRMAX',
-  'banyo-grubu': 'Banyo Grubu & Kabin',
-  'banyo-aksesuarlari': 'Banyo Aksesuarları',
-  'batarya-ve-musluklar': 'Batarya ve Musluklar',
-  'silikon-kopuk': 'Silikon & Köpük & Sprey Boya',
-  'alci-alci-plaka': 'Yapı Kimyasalları',
-  'insort-urunler': 'İnsört Ürünler',
-}
-
-const failedImages = ref<Record<string, boolean>>({})
-
-const allProducts = computed(() => list())
-
-const selectedCategories = ref<string[]>([])
-const selectedBrands = ref<string[]>([])
+// ─── State ───────────────────────────────────────────────────────────────
+const selectedCategories = ref<string[]>([])   // category SLUGs
+const selectedBrands = ref<string[]>([])        // brand names
 const showOnlySponsored = ref(false)
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
-const itemsPerPageOptions = [10, 20, 50, 100]
 const expandedParents = ref<Record<string, boolean>>({})
 
-/** Normalize text for fuzzy matching: remove spaces, dots, dashes */
-const norm = (s: string) => s.toLowerCase().replace(/[\s.\-_]+/g, '')
+const failedImages = ref<Record<string, boolean>>({})
+const allProducts = computed(() => list())
 
-// Flatten category tree to get all sub-category IDs for a given parent
-const getSubCategoryIds = (parentId: string): string[] => {
-  const parent = categoryTree.value.find((c: any) => c.id === parentId)
-  if (!parent) return [parentId]
-  const ids = [parentId]
-  for (const child of parent.children || []) {
-    ids.push(child.id)
+// ─── Dynamic category tree from products ─────────────────────────────────
+const categoryTree = computed(() => {
+  const map = new Map<string, { name: string; slug: string; children: { name: string; slug: string }[] }>()
+
+  for (const p of allProducts.value) {
+    const cat = p.category || 'Diğer'
+    // Detect sub-category from product name patterns
+    let parentName = cat, subName = ''
+    const n = norm(p.name)
+
+    // Seramik alt kategorileri
+    if (cat === 'Seramik') {
+      if (n.includes('60x120') || n.includes('60x120')) subName = '60 x 120 Seramikler'
+      else if (n.includes('61x61') || n.includes('60x60')) subName = '60 x 60 Seramikler'
+      else if (n.includes('20x120') || n.includes('20x120')) subName = '20 x 120 Seramikler'
+      else if (n.includes('30x90') || n.includes('30x90')) subName = '30 x 90 Seramikler'
+      else if (n.includes('30x60') || n.includes('30x60')) subName = '30 x 60 Seramikler'
+      else if (n.includes('45x45') || n.includes('45x45')) subName = '45 x 45 Seramikler'
+    }
+    // Vitrifiye alt kategorileri
+    if (cat === 'Vitrifiye') {
+      if (n.includes('asma') || n.includes('duvara sıfır') || n.includes('wall hung')) subName = 'Asma Klozetler'
+      else if (n.includes('klozet')) subName = 'Klozetler'
+      else if (n.includes('pisuar') || n.includes('pisuvar')) subName = 'Pisuvarlar'
+      else if (n.includes('lavabo')) subName = 'Lavabolar'
+      else if (n.includes('tezgah üstü') || n.includes('tezgahüstü')) subName = 'Tezgah Üstü Lavabolar'
+      else if (n.includes('engelli')) subName = 'Engelli Serisi'
+      else if (n.includes('hela')) subName = 'Hela Taşları'
+    }
+    // Banyo Dolabı alt kategorileri
+    if (cat === 'Banyo Dolabı') {
+      if (n.includes('boy dolap') || n.includes('boy dolab')) subName = 'Boy Dolapları'
+    }
+    // Batarya alt kategorileri
+    if (cat === 'Batarya ve Musluklar') {
+      if (n.includes('banyo')) subName = 'Banyo Bataryası'
+      else if (n.includes('lavabo') || n.includes('kuğu') || n.includes('kugu')) subName = 'Lavabo Bataryası'
+      else if (n.includes('eviye') || n.includes('mutfak')) subName = 'Eviye (Mutfak) Bataryası'
+      else if (n.includes('duş') || n.includes('dus')) subName = 'Duş Sistemleri'
+      else if (n.includes('musluk')) subName = 'Musluklar'
+    }
+    // Silikon alt kategorileri
+    if (cat === 'Silikon & Köpük & Yapıştırıcı') {
+      if (n.includes('silikon')) subName = 'Silikonlar'
+      else if (n.includes('mastik')) subName = 'Mastikler'
+      else if (n.includes('köpük') || n.includes('kopuk')) subName = 'Köpükler (PU)'
+      else if (n.includes('yapıştırıcı') || n.includes('yapistirici') || n.includes('japon')) subName = 'Yapıştırıcılar'
+      else if (n.includes('sprey')) subName = 'Sprey Boyalar'
+    }
+
+    const parentSlug = slugify(parentName)
+    if (!map.has(parentSlug)) map.set(parentSlug, { name: titleCase(parentName), slug: parentSlug, children: [] })
+
+    if (subName) {
+      const childSlug = slugify(subName)
+      const parent = map.get(parentSlug)!
+      if (!parent.children.find(c => c.slug === childSlug)) {
+        parent.children.push({ name: titleCase(subName), slug: childSlug })
+      }
+    }
   }
-  return ids
+
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+})
+
+const getUniqueBrands = (): string[] => {
+  const brands = new Set(getFilteredProducts().map(p => p.brand))
+  return Array.from(brands).filter(Boolean).sort()
 }
 
+// ─── Filtering ───────────────────────────────────────────────────────────
 const getFilteredProducts = (): CatalogProduct[] => {
   const query = searchQuery.value.toLowerCase().trim()
   const queryNorm = norm(query)
 
   return allProducts.value.filter(product => {
-    // Search filter: fuzzy match name, brand, sku, description, category (spaces/punctuation insensitive)
     if (query) {
       const matchesSearch =
         norm(product.name).includes(queryNorm) ||
@@ -109,104 +120,105 @@ const getFilteredProducts = (): CatalogProduct[] => {
       if (!matchesSearch) return false
     }
 
-    // Category filter — match by categoryId (supports sub-categories)
     if (selectedCategories.value.length > 0) {
-      const productCatId = product.categoryId || ''
-      // Check if product's categoryId matches any selected ID
-      // Also check: if a parent is selected, include its sub-category products
       let matchesCat = false
-      for (const selId of selectedCategories.value) {
-        if (productCatId === selId) { matchesCat = true; break }
-        // If parent selected, also match children
-        const subIds = getSubCategoryIds(selId)
-        if (subIds.includes(productCatId)) { matchesCat = true; break }
-        // Fallback: match by normalized category name
-        if (norm(product.category) === norm(selId)) { matchesCat = true; break }
+      for (const selSlug of selectedCategories.value) {
+        // Match by product category slug
+        if (slugify(product.category) === selSlug) { matchesCat = true; break }
+        // Match by sub-category (product name pattern)
+        const n = norm(product.name)
+        const cat = product.category
+        if (cat === 'Seramik') {
+          if (selSlug === '60-x-120-seramikler' && (n.includes('60x120') || n.includes('60x120'))) { matchesCat = true; break }
+          if (selSlug === '60-x-60-seramikler' && (n.includes('61x61') || n.includes('60x60'))) { matchesCat = true; break }
+          if (selSlug === '20-x-120-seramikler' && (n.includes('20x120') || n.includes('20x120'))) { matchesCat = true; break }
+          if (selSlug === '30-x-90-seramikler' && (n.includes('30x90') || n.includes('30x90'))) { matchesCat = true; break }
+        }
+        if (cat === 'Vitrifiye') {
+          if (selSlug === 'asma-klozetler' && (n.includes('asma') || n.includes('duvara sıfır') || n.includes('wall hung'))) { matchesCat = true; break }
+          if (selSlug === 'klozetler' && !n.includes('asma') && !n.includes('duvara sıfır') && n.includes('klozet')) { matchesCat = true; break }
+          if (selSlug === 'pisuvarlar' && (n.includes('pisuar') || n.includes('pisuvar'))) { matchesCat = true; break }
+          if (selSlug === 'lavabolar' && n.includes('lavabo') && !n.includes('tezgah')) { matchesCat = true; break }
+          if (selSlug === 'tezgah-ustu-lavabolar' && (n.includes('tezgah üstü') || n.includes('tezgahüstü'))) { matchesCat = true; break }
+          if (selSlug === 'engelli-serisi' && n.includes('engelli')) { matchesCat = true; break }
+        }
       }
       if (!matchesCat) return false
     }
 
-    // Brand filter
-    if (selectedBrands.value.length > 0 && !selectedBrands.value.includes(product.brand)) {
-      return false
-    }
-
-    // Premium filter
+    if (selectedBrands.value.length > 0 && !selectedBrands.value.includes(product.brand)) return false
     if (showOnlySponsored.value && !product.badges?.includes('Premium')) return false
-
     return true
   })
 }
 
 const filteredProducts = computed(() => getFilteredProducts())
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredProducts.value.length / itemsPerPage.value)
-})
-
+const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage.value))
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredProducts.value.slice(start, end)
+  return filteredProducts.value.slice(start, start + itemsPerPage.value)
 })
 
-const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toLocaleUpperCase('tr-TR'))
-
-const slugify = (s: string) =>
-  s.toLowerCase().replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c').replace(/&/g,'ve').replace(/[^a-z0-9\s-]/g,'').replace(/[\s]+/g,'-')
-
-const getUniqueCategories = (): Array<{ slug: string; name: string }> => {
-  const seen = new Map<string, string>()
-  allProducts.value.forEach(p => {
-    const slug = slugify(p.category)
-    if (!seen.has(slug)) seen.set(slug, p.category)
-  })
-  return Array.from(seen.entries())
-    .sort(([,a], [,b]) => a.localeCompare(b, 'tr'))
-    .map(([slug, name]) => ({ slug, name: categoryNames[slug] || titleCase(name) }))
-}
-
-const getUniqueBrands = (): string[] => {
-  const brands = new Set(getFilteredProducts().map(p => p.brand))
-  return Array.from(brands).sort()
-}
-
-const handleImageError = (productId: string) => {
-  failedImages.value[productId] = true
-}
-
-const toggleCategory = (category: string) => {
-  const idx = selectedCategories.value.indexOf(category)
-  if (idx > -1) {
-    selectedCategories.value.splice(idx, 1)
-  } else {
-    selectedCategories.value.push(category)
-  }
+// ─── Actions ─────────────────────────────────────────────────────────────
+const toggleCategory = (slug: string) => {
+  const idx = selectedCategories.value.indexOf(slug)
+  if (idx > -1) selectedCategories.value.splice(idx, 1)
+  else selectedCategories.value.push(slug)
   currentPage.value = 1
 }
 
 const toggleBrand = (brand: string) => {
   const idx = selectedBrands.value.indexOf(brand)
-  if (idx > -1) {
-    selectedBrands.value.splice(idx, 1)
-  } else {
-    selectedBrands.value.push(brand)
-  }
+  if (idx > -1) selectedBrands.value.splice(idx, 1)
+  else selectedBrands.value.push(brand)
   currentPage.value = 1
 }
 
-const toggleSponsored = () => {
-  showOnlySponsored.value = !showOnlySponsored.value
-  currentPage.value = 1
-}
+const toggleSponsored = () => { showOnlySponsored.value = !showOnlySponsored.value; currentPage.value = 1 }
 
 const clearFilters = () => {
-  selectedCategories.value = []
-  selectedBrands.value = []
-  showOnlySponsored.value = false
-  searchQuery.value = ''
-  currentPage.value = 1
+  selectedCategories.value = []; selectedBrands.value = []
+  showOnlySponsored.value = false; searchQuery.value = ''; currentPage.value = 1
 }
+
+const handleImageError = (productId: string) => { failedImages.value[productId] = true }
+
+// ─── Init ────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  await load()
+  // URL-based category pre-selection
+  const qKategori = route.query.kategori
+  if (qKategori && typeof qKategori === 'string') {
+    const targetSlug = qKategori.toLowerCase()
+    // Match parent categories
+    for (const parent of categoryTree.value) {
+      if (parent.slug === targetSlug) {
+        selectedCategories.value = [parent.slug]
+        expandedParents.value[parent.slug] = true
+        break
+      }
+      for (const child of parent.children) {
+        if (child.slug === targetSlug) {
+          selectedCategories.value = [child.slug]
+          expandedParents.value[parent.slug] = true
+          break
+        }
+      }
+    }
+    // Fallback: match by slugify of all product categories
+    if (selectedCategories.value.length === 0) {
+      for (const p of allProducts.value) {
+        if (slugify(p.category) === targetSlug) {
+          selectedCategories.value = [targetSlug]
+          break
+        }
+      }
+    }
+  }
+  const qAra = route.query.ara
+  if (qAra && typeof qAra === 'string') searchQuery.value = decodeURIComponent(qAra)
+  loadOrders()
+})
 
 const addToCart = (product: CatalogProduct) => {
   addItem(product, 1)
@@ -219,8 +231,7 @@ const addToCart = (product: CatalogProduct) => {
 const orderViaWhatsApp = (product: CatalogProduct) => {
   const phoneNumber = '905396541720'
   const productPageUrl = `${window.location.origin}/urunler#${product.id}`
-  const categoryLower = product.category.toLowerCase()
-  const categoryName = categoryNames[categoryLower] || product.category
+  const categoryName = product.category
 
   const message = `*${product.name}* hakkında bilgi istiyorum
 
@@ -354,22 +365,22 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                   Kategoriler
                 </h3>
                 <div class="space-y-1">
-                  <template v-for="parent in categoryTree" :key="parent.id">
+                  <template v-for="parent in categoryTree" :key="parent.slug">
                     <!-- Parent category -->
                     <div class="flex items-center gap-2 py-1.5">
                       <button
                         v-if="parent.children?.length"
-                        @click="expandedParents[parent.id] = !expandedParents[parent.id]"
+                        @click="expandedParents[parent.slug] = !expandedParents[parent.slug]"
                         class="text-ink-400 hover:text-ink-600 w-4 h-4 flex items-center justify-center"
                       >
-                        <Icon :name="expandedParents[parent.id] ? 'lucide:chevron-down' : 'lucide:chevron-right'" class="w-3 h-3" />
+                        <Icon :name="expandedParents[parent.slug] ? 'lucide:chevron-down' : 'lucide:chevron-right'" class="w-3 h-3" />
                       </button>
                       <span v-else class="w-4" />
                       <label class="flex items-center gap-2 cursor-pointer group flex-1">
                         <input
                           type="checkbox"
-                          :checked="selectedCategories.includes(parent.id)"
-                          @change="toggleCategory(parent.id)"
+                          :checked="selectedCategories.includes(parent.slug)"
+                          @change="toggleCategory(parent.slug)"
                           class="w-4 h-4 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
                         />
                         <span class="text-sm font-medium text-ink-700 group-hover:text-primary-900">
@@ -378,16 +389,16 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                       </label>
                     </div>
                     <!-- Sub-categories -->
-                    <div v-if="parent.children?.length && expandedParents[parent.id]" class="ml-6 space-y-0.5 border-l border-ink-100 pl-3 mb-1">
+                    <div v-if="parent.children?.length && expandedParents[parent.slug]" class="ml-6 space-y-0.5 border-l border-ink-100 pl-3 mb-1">
                       <label
                         v-for="child in parent.children"
-                        :key="child.id"
+                        :key="child.slug"
                         class="flex items-center gap-2 cursor-pointer group py-1"
                       >
                         <input
                           type="checkbox"
-                          :checked="selectedCategories.includes(child.id)"
-                          @change="toggleCategory(child.id)"
+                          :checked="selectedCategories.includes(child.slug)"
+                          @change="toggleCategory(child.slug)"
                           class="w-3.5 h-3.5 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
                         />
                         <span class="text-xs text-ink-600 group-hover:text-primary-900">
@@ -396,23 +407,6 @@ Detaylı bilgi için lütfen iletişime geçiniz.`
                       </label>
                     </div>
                   </template>
-                  <!-- Fallback if no tree data -->
-                  <label
-                    v-if="categoryTree.length === 0"
-                    v-for="cat in getUniqueCategories()"
-                    :key="cat.slug"
-                    class="flex items-center gap-3 cursor-pointer group"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="selectedCategories.includes(cat.slug)"
-                      @change="toggleCategory(cat.slug)"
-                      class="w-4 h-4 rounded border-primary-200 text-accent-600 focus:ring-accent-500"
-                    />
-                    <span class="text-sm text-ink-700 group-hover:text-primary-900">
-                      {{ cat.name }}
-                    </span>
-                  </label>
                 </div>
               </div>
 

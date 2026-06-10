@@ -3,6 +3,7 @@ import { PopupService } from './popup.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('admin/popups')
 @UseGuards(JwtAuthGuard)
@@ -14,6 +15,7 @@ export class PopupController {
     return this.popupService.listAll();
   }
 
+  @Public()
   @Get('active')
   async getActive(@Req() req: any) {
     return this.popupService.getActive(
@@ -61,11 +63,13 @@ export class PopupController {
     return this.popupService.remove(id);
   }
 
+  @Public()
   @Post(':id/impression')
   async trackImpression(@Param('id') id: string) {
     return this.popupService.trackImpression(id);
   }
 
+  @Public()
   @Post(':id/click')
   async trackClick(@Param('id') id: string) {
     return this.popupService.trackClick(id);
