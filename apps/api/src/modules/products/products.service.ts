@@ -480,7 +480,10 @@ export class ProductsService {
         .map(csvEscape).join(','),
     );
 
-    const csv = '﻿' + headers.map(csvEscape).join(',') + '\n' + rows.join('\n');
+    // 'sep=,' ipucu: Türkçe/Avrupa Windows Excel varsayılan liste ayracı ';' olduğu için,
+    // bu satır olmadan virgülle ayrılmış CSV Excel'de tek sütunda birleşik görünür.
+    const csv =
+      '﻿' + 'sep=,\r\n' + headers.map(csvEscape).join(',') + '\r\n' + rows.join('\r\n');
     return Buffer.from(csv, 'utf-8');
   }
 
@@ -489,7 +492,12 @@ export class ProductsService {
    */
   async importProducts(buffer: Buffer): Promise<{ created: number; updated: number; errors: string[] }> {
     const text = buffer.toString('utf-8').replace(/^﻿/, '');
-    const lines = text.split('\n').filter((l) => l.trim());
+    let lines = text.split(/\r\n|\n/).filter((l) => l.trim());
+
+    // Excel uyumluluğu için eklenen 'sep=,' ipucu satırını (varsa) atla
+    if (lines[0] && /^sep=.$/i.test(lines[0].trim())) {
+      lines = lines.slice(1);
+    }
 
     if (lines.length < 2) {
       return { created: 0, updated: 0, errors: ['CSV dosyası boş veya sadece başlık satırı var'] };
