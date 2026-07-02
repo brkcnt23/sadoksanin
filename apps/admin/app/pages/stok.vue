@@ -26,8 +26,12 @@ const reservations = computed(() => {
 })
 
 // Products with warning or critical status
+// NOT: sadece visible (katalogda yayında) ürünler burada gösterilir — henüz
+// fiyat/kategori girilmemiş, gizli (visible=false) yeni içe aktarılan ürünler
+// stok=0/min=0 olduğu için "kritik" görünür ama aslında aksiyon gerektirmez.
 const warningAndCriticalStock = computed(() => {
   return products.items
+    .filter((p) => p.visible)
     .filter((p) => {
       const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
       return status.status === 'red' || status.status === 'orange'
@@ -35,19 +39,34 @@ const warningAndCriticalStock = computed(() => {
     .sort((a, b) => a.displayStock - b.displayStock)
 })
 
-const lowStock = computed(() =>
+const lowStockAll = computed(() =>
   warningAndCriticalStock.value.filter((p) => {
     const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
     return status.status === 'orange' // Middle warning zone
   }),
 )
 
-const outOfStock = computed(() =>
+const outOfStockAll = computed(() =>
   warningAndCriticalStock.value.filter((p) => {
     const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
     return status.status === 'red' // Critical zone
   }),
 )
+
+// Uyarı listeleri sayfalama (10'ar)
+const WARNING_PAGE_SIZE = 10
+const lowStockPage = ref(1)
+const outOfStockPage = ref(1)
+const lowStockTotalPages = computed(() => Math.max(1, Math.ceil(lowStockAll.value.length / WARNING_PAGE_SIZE)))
+const outOfStockTotalPages = computed(() => Math.max(1, Math.ceil(outOfStockAll.value.length / WARNING_PAGE_SIZE)))
+const lowStock = computed(() => {
+  const start = (lowStockPage.value - 1) * WARNING_PAGE_SIZE
+  return lowStockAll.value.slice(start, start + WARNING_PAGE_SIZE)
+})
+const outOfStock = computed(() => {
+  const start = (outOfStockPage.value - 1) * WARNING_PAGE_SIZE
+  return outOfStockAll.value.slice(start, start + WARNING_PAGE_SIZE)
+})
 
 const reservationBadge = (s: 'active' | 'released' | 'fulfilled') => {
   const m = {
@@ -133,8 +152,8 @@ const onModalSaved = () => {
         icon="lucide:lock"
         color="amber"
       />
-      <StatCard label="Orta Uyarı (Turuncu)" :value="lowStock.length" icon="lucide:trending-down" color="amber" />
-      <StatCard label="Kritik (Kırmızı)" :value="outOfStock.length" icon="lucide:alert-circle" color="red" />
+      <StatCard label="Orta Uyarı (Turuncu)" :value="lowStockAll.length" icon="lucide:trending-down" color="amber" />
+      <StatCard label="Kritik (Kırmızı)" :value="outOfStockAll.length" icon="lucide:alert-circle" color="red" />
     </div>
 
     <!-- Sync detail -->
@@ -194,6 +213,16 @@ const onModalSaved = () => {
           </div>
         </div>
         <EmptyState v-else icon="lucide:check-circle" title="Düşük stoklu ürün yok" />
+        <div v-if="lowStockTotalPages > 1" class="px-5 py-2.5 border-t border-ink-100 flex items-center justify-between">
+          <span class="text-xs text-ink-500">{{ lowStockAll.length }} ürün</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="lowStockPage <= 1" @click="lowStockPage--"
+              class="px-2 py-1 text-xs border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">Geri</button>
+            <span class="px-2 text-xs text-ink-700">{{ lowStockPage }} / {{ lowStockTotalPages }}</span>
+            <button :disabled="lowStockPage >= lowStockTotalPages" @click="lowStockPage++"
+              class="px-2 py-1 text-xs border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">İleri</button>
+          </div>
+        </div>
       </div>
 
       <!-- Out of stock (red - critical) -->
@@ -219,6 +248,16 @@ const onModalSaved = () => {
           </div>
         </div>
         <EmptyState v-else icon="lucide:check-circle" title="Stoksuz ürün yok" />
+        <div v-if="outOfStockTotalPages > 1" class="px-5 py-2.5 border-t border-ink-100 flex items-center justify-between">
+          <span class="text-xs text-ink-500">{{ outOfStockAll.length }} ürün</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="outOfStockPage <= 1" @click="outOfStockPage--"
+              class="px-2 py-1 text-xs border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">Geri</button>
+            <span class="px-2 text-xs text-ink-700">{{ outOfStockPage }} / {{ outOfStockTotalPages }}</span>
+            <button :disabled="outOfStockPage >= outOfStockTotalPages" @click="outOfStockPage++"
+              class="px-2 py-1 text-xs border border-ink-300 rounded hover:bg-ink-50 disabled:opacity-30">İleri</button>
+          </div>
+        </div>
       </div>
     </div>
 
