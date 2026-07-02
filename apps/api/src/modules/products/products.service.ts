@@ -166,7 +166,7 @@ export class ProductsService {
    * Get all categories from the Category model
    */
   async getCategories() {
-    return this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: { parentId: null },
       orderBy: { order: 'asc' },
       include: {
@@ -176,6 +176,17 @@ export class ProductsService {
           include: { _count: { select: { products: true } } },
         },
       },
+    });
+
+    // Üst kategori sayısı = kendi doğrudan ürünleri + tüm alt kategorilerin toplamı
+    // (Prisma _count sadece doğrudan ilişkiyi sayar, alt kategorilere dağıtılan
+    // ürünler üst kategoride kaybolmasın diye burada toplanıyor)
+    return categories.map((cat) => {
+      const childrenTotal = cat.children.reduce((sum, child) => sum + child._count.products, 0);
+      return {
+        ...cat,
+        _count: { products: cat._count.products + childrenTotal },
+      };
     });
   }
 

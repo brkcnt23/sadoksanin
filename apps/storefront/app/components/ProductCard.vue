@@ -59,7 +59,7 @@ const notifyViaWhatsApp = () => {
     class="group relative flex flex-col rounded-xl border border-ink-200 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:border-primary-200 hover:shadow-card"
   >
     <!-- Image -->
-    <div class="relative aspect-[4/5] bg-ink-50 overflow-hidden">
+    <NuxtLink :to="`/urunler/${product.slug}`" class="relative aspect-[4/5] bg-ink-50 overflow-hidden block">
       <img
         v-if="product.image"
         :src="product.image"
@@ -104,20 +104,20 @@ const notifyViaWhatsApp = () => {
         :class="isFavorited ? 'text-red-500 hover:bg-red-50' : 'text-ink-700 hover:bg-accent-500 hover:text-primary-950'"
         :aria-label="isFavorited ? 'Favoriden çıkar' : 'Favoriye ekle'"
         :disabled="favLoading"
-        @click.stop="toggleFavorite"
+        @click.stop.prevent="toggleFavorite"
       >
         <Icon :name="isFavorited ? 'lucide:heart' : 'lucide:heart'" class="h-4 w-4" :class="{ 'fill-red-500': isFavorited }" />
       </button>
-    </div>
+    </NuxtLink>
 
     <!-- Body -->
     <div class="flex-1 flex flex-col p-4">
       <p class="text-[11px] font-semibold uppercase tracking-wider text-accent-600">
         {{ product.brand }}
       </p>
-      <h3 class="mt-1 text-sm font-semibold text-ink-900 line-clamp-2 leading-snug">
+      <NuxtLink :to="`/urunler/${product.slug}`" class="mt-1 text-sm font-semibold text-ink-900 line-clamp-2 leading-snug hover:text-primary-700">
         {{ product.name }}
-      </h3>
+      </NuxtLink>
       <p v-if="product.sku" class="mt-0.5 text-[10px] text-ink-400 font-mono">{{ product.sku }}</p>
 
       <!-- Price -->
