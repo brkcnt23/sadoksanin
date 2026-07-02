@@ -435,6 +435,7 @@ interface ApiProduct {
   name: string
   brand: string
   category: string
+  categoryId?: string | null
   basePrice: number
   description?: string | null
   displayStock?: number
@@ -462,6 +463,7 @@ const mapApiProduct = (p: ApiProduct): Product => ({
   name: p.name,
   brand: p.brand,
   category: p.category,
+  categoryId: p.categoryId || undefined,
   price: p.basePrice,
   image: p.imageUrl || '',
   inStock: (p.displayStock ?? 0) > 0,
