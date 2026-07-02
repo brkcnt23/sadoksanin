@@ -27,15 +27,15 @@ const imageUrls = computed(() => props.modelValue || [])
 
 // File validation
 const validateFile = (file: File): string | null => {
-  const maxSize = 5 * 1024 * 1024 // 5MB
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  const maxSize = 20 * 1024 * 1024 // 20MB (backend limitiyle eşit)
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
 
   if (!allowedTypes.includes(file.type)) {
-    return 'Sadece JPG, PNG ve WebP formatları destekleniyor'
+    return 'Sadece JPG, PNG, WebP ve AVIF formatları destekleniyor'
   }
 
   if (file.size > maxSize) {
-    return 'Dosya boyutu 5MB\'dan küçük olmalı'
+    return 'Dosya boyutu 20MB\'dan küçük olmalı'
   }
 
   return null

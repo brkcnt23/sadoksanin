@@ -262,6 +262,7 @@ model ProductVariation {
   attributes  String    // JSON: { "size": "60x120", "color": "Beige" }
   price       Float?    // null = inherit parent
   stock       Int       @default(0)
+  images      String?   // JSON array: ["url1","url2",...]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

@@ -20,6 +20,7 @@ const newVar = ref({
   label: '',
   attributes: {} as Record<string, string>,
   price: '',
+  images: [] as string[],
 })
 
 const editingId = ref<string | null>(null)
@@ -49,6 +50,7 @@ const addVariation = () => {
     label: newVar.value.label,
     attributes: { [newVar.value.name]: newVar.value.label },
     price: newVar.value.price ? Number(newVar.value.price) : undefined,
+    images: newVar.value.images.length ? [...newVar.value.images] : undefined,
   } as ProductVariation
 
   emit('update', [...props.variations, variation])
@@ -59,12 +61,13 @@ const addVariation = () => {
     label: '',
     attributes: {},
     price: '',
+    images: [],
   }
 }
 
 const startEdit = (variation: ProductVariation) => {
   editingId.value = variation.id
-  editForm.value = { ...variation }
+  editForm.value = { ...variation, images: variation.images ? [...variation.images] : [] }
 }
 
 const cancelEdit = () => {
@@ -101,6 +104,7 @@ const formatPrice = (price?: number) => {
       <table class="w-full text-sm">
         <thead class="bg-ink-50 border-b border-ink-200">
           <tr>
+            <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Görsel</th>
             <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Adı</th>
             <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">Değeri</th>
             <th class="px-4 py-2 text-xs font-semibold text-ink-700 text-left uppercase">SKU</th>
@@ -109,75 +113,100 @@ const formatPrice = (price?: number) => {
           </tr>
         </thead>
         <tbody class="divide-y divide-ink-100">
-          <tr v-for="(v, i) in variations" :key="v.id" class="hover:bg-ink-50">
-            <td v-if="editingId === v.id" class="px-4 py-3">
-              <input
-                v-model="editForm.label"
-                type="text"
-                placeholder="Renk"
-                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
-              />
-            </td>
-            <td v-else class="px-4 py-3 text-sm font-medium text-ink-900">
-              {{ Object.keys(v.attributes)[0] || 'Custom' }}
-            </td>
+          <template v-for="(v, i) in variations" :key="v.id">
+            <tr class="hover:bg-ink-50">
+              <td class="px-4 py-3">
+                <div v-if="editingId !== v.id" class="flex items-center gap-1">
+                  <img
+                    v-if="v.images?.length"
+                    :src="v.images[0]"
+                    class="w-8 h-8 rounded object-cover border border-ink-200"
+                  />
+                  <span v-if="v.images?.length" class="text-xs text-ink-400">{{ v.images.length }}</span>
+                  <span v-else class="text-xs text-ink-300">—</span>
+                </div>
+                <span v-else class="text-xs text-ink-500">↓ aşağıda</span>
+              </td>
 
-            <td v-if="editingId === v.id" class="px-4 py-3">
-              <input
-                v-model="editForm.label"
-                type="text"
-                placeholder="Kırmızı"
-                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
-              />
-            </td>
-            <td v-else class="px-4 py-3 text-sm text-ink-700">{{ v.label }}</td>
+              <td v-if="editingId === v.id" class="px-4 py-3">
+                <input
+                  v-model="editForm.label"
+                  type="text"
+                  placeholder="Renk"
+                  class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
+                />
+              </td>
+              <td v-else class="px-4 py-3 text-sm font-medium text-ink-900">
+                {{ Object.keys(v.attributes)[0] || 'Custom' }}
+              </td>
 
-            <td class="px-4 py-3 text-xs text-ink-500 font-mono">{{ v.sku }}</td>
+              <td v-if="editingId === v.id" class="px-4 py-3">
+                <input
+                  v-model="editForm.label"
+                  type="text"
+                  placeholder="Kırmızı"
+                  class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
+                />
+              </td>
+              <td v-else class="px-4 py-3 text-sm text-ink-700">{{ v.label }}</td>
 
-            <td v-if="editingId === v.id" class="px-4 py-3">
-              <input
-                v-model.number="editForm.price"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="—"
-                class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
-              />
-            </td>
-            <td v-else class="px-4 py-3 text-sm text-ink-700">{{ formatPrice(v.price) }}</td>
+              <td class="px-4 py-3 text-xs text-ink-500 font-mono">{{ v.sku }}</td>
 
-            <td class="px-4 py-3 flex gap-1">
-              <button
-                v-if="editingId === v.id"
-                @click="saveEdit"
-                class="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
-              >
-                Kaydet
-              </button>
-              <button
-                v-else
-                @click="startEdit(v)"
-                class="px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-200 rounded"
-              >
-                Düzenle
-              </button>
+              <td v-if="editingId === v.id" class="px-4 py-3">
+                <input
+                  v-model.number="editForm.price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="—"
+                  class="w-full px-2 py-1 text-xs border border-ink-300 rounded"
+                />
+              </td>
+              <td v-else class="px-4 py-3 text-sm text-ink-700">{{ formatPrice(v.price) }}</td>
 
-              <button
-                v-if="editingId === v.id"
-                @click="cancelEdit"
-                class="px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200 rounded"
-              >
-                İptal
-              </button>
-              <button
-                v-else
-                @click="removeVariation(v.id)"
-                class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded"
-              >
-                Sil
-              </button>
-            </td>
-          </tr>
+              <td class="px-4 py-3 flex gap-1">
+                <button
+                  v-if="editingId === v.id"
+                  @click="saveEdit"
+                  class="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
+                >
+                  Kaydet
+                </button>
+                <button
+                  v-else
+                  @click="startEdit(v)"
+                  class="px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-200 rounded"
+                >
+                  Düzenle
+                </button>
+
+                <button
+                  v-if="editingId === v.id"
+                  @click="cancelEdit"
+                  class="px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200 rounded"
+                >
+                  İptal
+                </button>
+                <button
+                  v-else
+                  @click="removeVariation(v.id)"
+                  class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded"
+                >
+                  Sil
+                </button>
+              </td>
+            </tr>
+            <!-- Inline image editor row (only while editing this variation) -->
+            <tr v-if="editingId === v.id" class="bg-ink-50">
+              <td colspan="6" class="px-4 py-3">
+                <UiImageUploadZone
+                  :model-value="editForm.images"
+                  label="Varyasyon Görselleri"
+                  @update:model-value="(imgs) => (editForm.images = imgs)"
+                />
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -225,10 +254,16 @@ const formatPrice = (price?: number) => {
           Ekle
         </button>
       </div>
+
+      <UiImageUploadZone
+        :model-value="newVar.images"
+        label="Varyasyon Görselleri (İsteğe Bağlı)"
+        @update:model-value="(imgs) => (newVar.images = imgs)"
+      />
     </div>
 
     <!-- Empty State -->
-    <div v-if="variations.length === 0 && !Object.values(newVar).some((v) => v)" class="text-center py-4">
+    <div v-if="variations.length === 0 && !Object.values(newVar).some((v) => (Array.isArray(v) ? v.length : v))" class="text-center py-4">
       <Icon name="lucide:layers" class="w-6 h-6 text-ink-300 mx-auto mb-2" />
       <p class="text-xs text-ink-500">Varyasyon yok (örn. renk, beden)</p>
     </div>

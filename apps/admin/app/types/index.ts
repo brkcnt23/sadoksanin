@@ -38,6 +38,7 @@ export interface ProductVariation {
   attributes: Record<string, string> // size, color, finish ...
   price?: Currency // null = inherit parent
   stock: number
+  images?: string[] // varyasyona özel görseller
 }
 
 export interface Product extends AuditMeta {

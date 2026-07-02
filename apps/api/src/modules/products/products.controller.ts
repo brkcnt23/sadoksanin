@@ -244,7 +244,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @UseInterceptors(FileInterceptor('image', {
-    limits: { fileSize: 20 * 1024 * 1024 }, // 5MB
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
     fileFilter: (_req, file, cb) => {
       const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
       if (allowed.includes(file.mimetype)) cb(null, true);
@@ -276,7 +276,7 @@ export class ProductsController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   async createVariation(
     @Param('productId') productId: string,
-    @Body() body: { sku: string; label: string; attributes?: any; price?: number; stock?: number },
+    @Body() body: { sku: string; label: string; attributes?: any; price?: number; stock?: number; images?: string[] },
   ) {
     return this.productsService.createVariation(productId, body);
   }
@@ -286,7 +286,7 @@ export class ProductsController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   async updateVariation(
     @Param('variationId') variationId: string,
-    @Body() body: { label?: string; attributes?: any; price?: number; stock?: number },
+    @Body() body: { label?: string; attributes?: any; price?: number; stock?: number; images?: string[] },
   ) {
     return this.productsService.updateVariation(variationId, body);
   }

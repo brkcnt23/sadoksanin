@@ -71,6 +71,7 @@ export class ProductsService {
         const discounted = await this.discountsService.getDiscountedPrice(product);
         return {
           ...product,
+          variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
           availableStock: await this.ordersService.getAvailableStock(product.id),
           discountedPrice: discounted.price,
           discount: discounted.discount,
@@ -100,6 +101,7 @@ export class ProductsService {
 
     return {
       ...product,
+      variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
       availableStock: await this.ordersService.getAvailableStock(product.id),
       discountedPrice: discounted.price,
       discount: discounted.discount,
@@ -284,6 +286,7 @@ export class ProductsService {
         const discounted = await this.discountsService.getDiscountedPrice(product);
         return {
           ...product,
+          variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
           availableStock: await this.ordersService.getAvailableStock(product.id),
           discountedPrice: discounted.price,
           discount: discounted.discount,
@@ -554,12 +557,33 @@ export class ProductsService {
 
   // ─── Variations ─────────────────────────────────────────────────────────────
 
-  async getVariations(productId: string) {
-    return this.prisma.productVariation.findMany({ where: { productId } });
+  /**
+   * DB'deki ProductVariation satırını frontend'in beklediği şekle çevirir:
+   * attributes/images DB'de JSON-string olarak tutulur, burada parse edilir.
+   */
+  private mapVariation(v: any) {
+    let attributes: Record<string, string> = {};
+    try {
+      attributes = v.attributes ? JSON.parse(v.attributes) : {};
+    } catch {
+      attributes = {};
+    }
+    let images: string[] = [];
+    try {
+      images = v.images ? JSON.parse(v.images) : [];
+    } catch {
+      images = [];
+    }
+    return { ...v, attributes, images };
   }
 
-  async createVariation(productId: string, body: { sku: string; label: string; attributes?: any; price?: number; stock?: number }) {
-    return this.prisma.productVariation.create({
+  async getVariations(productId: string) {
+    const rows = await this.prisma.productVariation.findMany({ where: { productId } });
+    return rows.map((v) => this.mapVariation(v));
+  }
+
+  async createVariation(productId: string, body: { sku: string; label: string; attributes?: any; price?: number; stock?: number; images?: string[] }) {
+    const created = await this.prisma.productVariation.create({
       data: {
         productId,
         sku: body.sku,
@@ -567,18 +591,22 @@ export class ProductsService {
         attributes: body.attributes ? JSON.stringify(body.attributes) : '{}',
         price: body.price ?? null,
         stock: body.stock ?? 0,
+        images: body.images?.length ? JSON.stringify(body.images) : null,
       },
     });
+    return this.mapVariation(created);
   }
 
-  async updateVariation(variationId: string, body: { label?: string; attributes?: any; price?: number; stock?: number }) {
+  async updateVariation(variationId: string, body: { label?: string; attributes?: any; price?: number; stock?: number; images?: string[] }) {
     const data: any = {};
     if (body.label !== undefined) data.label = body.label;
     if (body.attributes !== undefined) data.attributes = JSON.stringify(body.attributes);
     if (body.price !== undefined) data.price = body.price;
     if (body.stock !== undefined) data.stock = body.stock;
+    if (body.images !== undefined) data.images = body.images.length ? JSON.stringify(body.images) : null;
 
-    return this.prisma.productVariation.update({ where: { id: variationId }, data });
+    const updated = await this.prisma.productVariation.update({ where: { id: variationId }, data });
+    return this.mapVariation(updated);
   }
 
   async deleteVariation(variationId: string) {

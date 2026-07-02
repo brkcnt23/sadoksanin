@@ -451,6 +451,22 @@ export const useProductsStore = defineStore('products', {
       this.items = this.items.filter((p) => p.id !== id)
     },
 
+    // ── Varyasyonlar ──────────────────────────────────────────────────
+    async createVariation(productId: string, data: Record<string, unknown>) {
+      const api = useApi()
+      return api.post(`/products/${productId}/variations`, data)
+    },
+
+    async updateVariation(productId: string, variationId: string, data: Record<string, unknown>) {
+      const api = useApi()
+      return api.patch(`/products/${productId}/variations/${variationId}`, data)
+    },
+
+    async deleteVariation(productId: string, variationId: string) {
+      const api = useApi()
+      await api.delete(`/products/${productId}/variations/${variationId}`)
+    },
+
     async importProducts(file: File): Promise<{ created: number; updated: number; errors: string[] }> {
       const api = useApi()
       const formData = new FormData()

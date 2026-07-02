@@ -87,6 +87,47 @@ watch(
   { immediate: true },
 )
 
+// Varyasyonları backend ile senkronize et (create/update/delete diff)
+const syncVariations = async (productId: string) => {
+  const original = props.product?.variations || []
+  const current = form.value.variations || []
+  const originalIds = new Set(original.map((v) => v.id))
+  const currentIds = new Set(current.map((v) => v.id))
+
+  // Silinenler: orijinalde var, şimdi yok
+  for (const v of original) {
+    if (!currentIds.has(v.id)) {
+      await products.deleteVariation(productId, v.id)
+    }
+  }
+
+  // Yeni eklenenler (id 'var-' ile başlıyor = client-generated temp id) ve değişenler
+  for (const v of current) {
+    const isNew = v.id.startsWith('var-') || !originalIds.has(v.id)
+    const payload = {
+      sku: v.sku,
+      label: v.label,
+      attributes: v.attributes,
+      price: v.price,
+      images: v.images || [],
+    }
+    if (isNew) {
+      await products.createVariation(productId, payload)
+    } else {
+      const orig = original.find((o) => o.id === v.id)
+      const changed =
+        !orig ||
+        orig.label !== v.label ||
+        orig.price !== v.price ||
+        JSON.stringify(orig.attributes) !== JSON.stringify(v.attributes) ||
+        JSON.stringify(orig.images || []) !== JSON.stringify(v.images || [])
+      if (changed) {
+        await products.updateVariation(productId, v.id, payload)
+      }
+    }
+  }
+}
+
 const save = async () => {
   if (!form.value.name.trim() || !form.value.sku.trim()) {
     error.value = 'Ürün adı ve SKU zorunludur'
@@ -102,9 +143,10 @@ const save = async () => {
   error.value = null
 
   try {
+    let productId: string
     if (props.product) {
       // Update existing product
-      await products.update(props.product.id, {
+      const updated = await products.update(props.product.id, {
         name: form.value.name,
         sku: form.value.sku,
         netsisCode: form.value.netsisCode,
@@ -123,9 +165,10 @@ const save = async () => {
         imageUrl: form.value.images?.[0] || undefined,
         images: form.value.images?.length ? JSON.stringify(form.value.images) : undefined,
       })
+      productId = updated.id
     } else {
       // Create new product
-      await products.create({
+      const created = await products.create({
         name: form.value.name,
         sku: form.value.sku,
         netsisCode: form.value.netsisCode || form.value.sku,
@@ -144,7 +187,11 @@ const save = async () => {
         imageUrl: form.value.images?.[0] || undefined,
         images: form.value.images?.length ? JSON.stringify(form.value.images) : undefined,
       })
+      productId = created.id
     }
+
+    await syncVariations(productId)
+
     emit('saved', form.value)
     emit('close')
   } catch (err) {
