@@ -109,6 +109,7 @@ const syncVariations = async (productId: string) => {
       label: v.label,
       attributes: v.attributes,
       price: v.price,
+      stock: v.stock,
       images: v.images || [],
     }
     if (isNew) {
@@ -119,6 +120,7 @@ const syncVariations = async (productId: string) => {
         !orig ||
         orig.label !== v.label ||
         orig.price !== v.price ||
+        orig.stock !== v.stock ||
         JSON.stringify(orig.attributes) !== JSON.stringify(v.attributes) ||
         JSON.stringify(orig.images || []) !== JSON.stringify(v.images || [])
       if (changed) {
