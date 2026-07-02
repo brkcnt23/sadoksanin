@@ -18,6 +18,7 @@ const DEFAULTS: SiteSettings = {
   alneoTrigger: 'order-shipped',
   siteName: 'Sadöksan',
   contactEmail: 'info@sadoksan.com',
+  introEnabled: true,
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -76,6 +77,7 @@ export const useSettingsStore = defineStore('settings', {
         notifyChannelDefault: data.defaultNotificationChannel,
         netsisSyncInterval: data.netsisSyncInterval,
         alneoTrigger: data.alneoTriggerEvent,
+        introEnabled: data.introEnabled ?? true,
       }
     },
 
@@ -92,6 +94,7 @@ export const useSettingsStore = defineStore('settings', {
       if ('notifyChannelDefault' in patch) m.defaultNotificationChannel = patch.notifyChannelDefault
       if ('netsisSyncInterval' in patch) m.netsisSyncInterval = patch.netsisSyncInterval
       if ('alneoTrigger' in patch) m.alneoTriggerEvent = patch.alneoTrigger
+      if ('introEnabled' in patch) m.introEnabled = patch.introEnabled
       return m
     },
   },

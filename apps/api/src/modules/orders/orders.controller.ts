@@ -50,6 +50,25 @@ export class OrdersController {
   }
 
   /**
+   * Admin: Get ALL orders with full details including dealer info
+   */
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async adminGetAllOrders(
+    @Query('status') status?: string,
+    @Query('customerType') customerType?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.ordersService.getOrders(
+      undefined, status, customerType as 'B2C' | 'B2B' | undefined,
+      parseInt(limit || '500'),
+      parseInt(offset || '0'),
+    );
+  }
+
+  /**
    * Get available stock for a product
    */
   @Get('stock/:productId')
@@ -115,6 +134,16 @@ export class OrdersController {
     @Request() req: any,
   ) {
     return this.ordersService.rejectOrder(orderId, req.user.sub, body.reason);
+  }
+
+  /**
+   * Admin: Undo approval — revert APPROVED back to PENDING_APPROVAL
+   */
+  @Post(':orderId/unapprove')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async unapproveOrder(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.unapproveOrder(orderId, req.user.sub);
   }
 
   /**

@@ -229,6 +229,13 @@ const save = async () => {
             <option>kg</option>
             <option>m³</option>
             <option>kutu</option>
+            <option>paket</option>
+            <option>koli</option>
+            <option>takım</option>
+            <option>set</option>
+            <option>torba</option>
+            <option>metre</option>
+            <option>litre</option>
           </select>
         </div>
         <div>

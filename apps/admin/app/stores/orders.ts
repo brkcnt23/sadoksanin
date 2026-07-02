@@ -90,10 +90,16 @@ export const useOrdersStore = defineStore('orders', {
       try {
         const api = useApi()
         // Load all pending + recent orders
-        const response = await api.get<{ orders: Order[]; total: number }>('/orders/admin/pending', {
-          limit: 10000,
+        const response = await api.get<{ orders: Order[]; total: number }>('/orders/admin/all', {
+          limit: 500,
         })
-        this.items = response.orders
+        this.items = (response.orders || []).map((o: any) => ({
+          ...o,
+          dealerName: o.dealer?.company || o.dealer?.name || '',
+          dealerCariNo: o.dealer?.cariNo || o.dealerCariNo || '',
+          dealerCity: o.dealer?.city || '',
+          customerName: o.customer?.name || o.user?.name || o.customerName || '',
+        }))
         this.loaded = true
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Siparişler yüklenemedi'

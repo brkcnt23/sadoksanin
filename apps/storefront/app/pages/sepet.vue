@@ -20,6 +20,11 @@ const lastOrder = ref<any>(null)
 const paymentMethod = ref<'bank-transfer' | 'credit-card' | 'installment'>('bank-transfer')
 const cardForm = ref({ cardNumber: '', expiry: '', cvv: '', cardHolder: '' })
 
+const formatCardNumber = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  let val = input.value.replace(/\D/g, '').slice(0, 16)
+  cardForm.value.cardNumber = val.replace(/(.{4})/g, '$1 ').trim()
+}
 const formatExpiry = (e: Event) => {
   const input = e.target as HTMLInputElement
   let val = input.value.replace(/\D/g, '')
@@ -241,19 +246,25 @@ const handleClearCart = () => {
 
                   <div class="flex items-center justify-between">
                     <!-- Quantity Control -->
-                    <div class="flex items-center gap-3 bg-ink-100 rounded-lg p-2">
+                    <div class="flex items-center gap-1 bg-ink-100 rounded-lg p-1">
                       <button
-                        @click="updateQuantity(item.productId, item.quantity - 1)"
+                        @click="updateQuantity(item.productId, Math.max(1, item.quantity - 1))"
                         type="button"
-                        class="h-8 w-8 flex items-center justify-center hover:bg-ink-200 rounded transition-colors"
+                        class="h-8 w-8 flex items-center justify-center hover:bg-ink-200 rounded transition-colors font-bold text-lg"
                       >
                         −
                       </button>
-                      <span class="w-8 text-center font-semibold">{{ item.quantity }}</span>
+                      <input
+                        :value="item.quantity"
+                        @change="updateQuantity(item.productId, parseInt(($event.target as HTMLInputElement).value) || 1)"
+                        type="number"
+                        min="1"
+                        class="w-14 text-center font-semibold bg-white border border-ink-200 rounded py-1 text-sm"
+                      />
                       <button
                         @click="updateQuantity(item.productId, item.quantity + 1)"
                         type="button"
-                        class="h-8 w-8 flex items-center justify-center hover:bg-ink-200 rounded transition-colors"
+                        class="h-8 w-8 flex items-center justify-center hover:bg-ink-200 rounded transition-colors font-bold text-lg"
                       >
                         +
                       </button>
@@ -454,7 +465,7 @@ const handleClearCart = () => {
               <div v-if="paymentMethod === 'credit-card'" class="ml-8 p-4 bg-ink-50 rounded-lg border border-ink-100 space-y-3 animate-fade-up">
                 <div>
                   <label class="block text-xs font-semibold text-primary-900 mb-1">Kart Numarası</label>
-                  <input v-model="cardForm.cardNumber" type="text" maxlength="19" placeholder="4111 1111 1111 1111" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
+                  <input :value="cardForm.cardNumber" @input="formatCardNumber" type="text" maxlength="19" placeholder="0000 0000 0000 0000" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>

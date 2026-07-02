@@ -33,6 +33,13 @@ const whatsAppOrderUrl = (p: Product) => {
 
 const product = ref<Product | null>(null)
 const relatedProducts = ref<Product[]>([])
+const selectedVariantId = ref<string | null>(null)
+const selectedVariant = computed(() => {
+  if (!selectedVariantId.value) return null
+  return (product.value as any)?.variations?.find((v: any) => v.id === selectedVariantId.value) || null
+})
+const displayPrice = computed(() => selectedVariant.value?.price || product.value?.price || 0)
+const displayStock = computed(() => selectedVariant.value?.stock ?? (product.value?.inStock ? product.value?.stockCount : 0))
 
 onMounted(async () => {
   await load()
@@ -76,11 +83,30 @@ onMounted(async () => {
 
             <!-- Price (auth required) -->
             <template v-if="isAuthenticated">
-              <p class="text-3xl text-accent-600 font-bold mb-6">₺{{ product.price.toLocaleString('tr-TR') }}</p>
+              <p class="text-3xl text-accent-600 font-bold mb-2">₺{{ displayPrice.toLocaleString('tr-TR') }}</p>
+              <span v-if="selectedVariant" class="text-sm text-ink-500">Seçilen: {{ selectedVariant.label }}</span>
             </template>
             <NuxtLink v-else to="/giris" class="block text-lg text-accent-600 hover:text-accent-700 font-semibold mb-6">
               Fiyat Görmek İçin Giriş Yapın →
             </NuxtLink>
+
+            <!-- Varyant Seçimi -->
+            <div v-if="(product as any).variations?.length > 0" class="mb-6">
+              <p class="text-sm font-semibold text-ink-700 mb-2">Varyant Seçiniz</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="v in (product as any).variations" :key="v.id"
+                  @click="selectedVariantId = v.id"
+                  :class="['px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
+                    selectedVariantId === v.id
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-ink-700 border-ink-200 hover:border-primary-300']"
+                >
+                  {{ v.label }}
+                  <span class="text-xs ml-1 opacity-70">{{ v.price ? '₺' + v.price : '' }}</span>
+                </button>
+              </div>
+            </div>
 
             <p class="text-gray-700 mb-8">{{ product.description }}</p>
 

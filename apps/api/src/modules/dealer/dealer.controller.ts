@@ -151,4 +151,15 @@ export class DealerController {
     const userId = req.user?.sub || req.user?.id;
     return await this.dealerService.rejectDealer(dealerId, userId, body.reason);
   }
+
+  /**
+   * PATCH /api/dealer/:id/credit-limit — Kredi limiti güncelle
+   */
+  @Patch(':id/credit-limit')
+  async updateCreditLimit(
+    @Param('id') dealerId: string,
+    @Body() body: { creditLimit: number },
+  ) {
+    return await this.dealerService.updateCreditLimit(dealerId, body.creditLimit);
+  }
 }

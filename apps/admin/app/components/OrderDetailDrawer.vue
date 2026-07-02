@@ -84,6 +84,14 @@ async function doReject() {
   finally { saving.value = false }
 }
 
+async function doUnapprove() {
+  if (!confirm('Onayı geri al? Sipariş tekrar onay bekleyen durumuna dönecek.')) return
+  saving.value = true
+  try { await api.post(`/orders/${props.orderId}/unapprove`); emit('action', 'unapproved'); toast.push('Onay geri alındı', 'success') }
+  catch { toast.push('İşlem başarısız', 'error') }
+  finally { saving.value = false }
+}
+
 async function doStatusChange(status: string) {
   saving.value = true
   try {
@@ -142,7 +150,7 @@ const formatTimeAgo = (d: string) => {
 <template>
   <div class="fixed inset-0 z-50 flex justify-end">
     <div class="absolute inset-0 bg-black/30" @click="emit('close')" />
-    <div class="relative w-full max-w-xl bg-white shadow-xl flex flex-col h-full overflow-y-auto">
+    <div class="relative w-full sm:max-w-xl bg-white shadow-xl flex flex-col h-full overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-ink-200 shrink-0 sticky top-0 bg-white z-10">
         <div>
@@ -171,7 +179,7 @@ const formatTimeAgo = (d: string) => {
         </div>
 
         <!-- Adresler -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-ink-50 rounded-lg p-3">
             <p class="text-xs font-semibold text-ink-500 mb-1">Teslimat</p>
             <p class="text-sm text-ink-700">{{ order.shippingAddress || '—' }}</p>
@@ -255,6 +263,31 @@ const formatTimeAgo = (d: string) => {
           </div>
         </div>
 
+        <!-- Finansal Takip -->
+        <div class="bg-ink-50 rounded-lg p-3 text-sm space-y-2">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Finansal Takip</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="flex items-center gap-2">
+              <div :class="['w-3 h-3 rounded-full', order.invoiceCut ? 'bg-emerald-500' : 'bg-ink-300']" />
+              <span class="text-ink-700">Fatura</span>
+              <span v-if="order.invoiceCut" class="text-xs font-mono text-emerald-700 font-medium">{{ order.invoiceNo }}</span>
+              <span v-else class="text-xs text-ink-400">Bekliyor</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div :class="['w-3 h-3 rounded-full', order.cashCollected ? 'bg-emerald-500' : 'bg-ink-300']" />
+              <span class="text-ink-700">Nakit</span>
+              <span v-if="order.cashCollected" class="text-xs text-emerald-700 font-medium">Tahsil Edildi</span>
+              <span v-else class="text-xs text-ink-400">Bekliyor</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div :class="['w-3 h-3 rounded-full', order.deliveryNoteCut ? 'bg-emerald-500' : 'bg-ink-300']" />
+              <span class="text-ink-700">İrsaliye</span>
+              <span v-if="order.deliveryNoteCut" class="text-xs text-emerald-700 font-medium">Kesildi</span>
+              <span v-else class="text-xs text-ink-400">Bekliyor</span>
+            </div>
+          </div>
+        </div>
+
         <!-- E-Doküman -->
         <div v-if="order.eInvoiceNo || order.eArchiveNo || order.eIrsaliyeNo" class="bg-ink-50 rounded-lg p-3 text-sm space-y-1">
           <p v-if="order.eInvoiceNo" class="text-ink-700">E-Fatura: <span class="font-mono font-semibold">{{ order.eInvoiceNo }}</span> <span :class="['text-xs', order.eInvoiceStatus === 'ACCEPTED' ? 'text-green-600' : 'text-amber-600']">{{ order.eInvoiceStatus }}</span></p>
@@ -267,9 +300,11 @@ const formatTimeAgo = (d: string) => {
       <div class="border-t border-ink-200 p-4 bg-ink-50 shrink-0 sticky bottom-0 flex flex-wrap gap-2">
         <button v-if="order.status === 'PENDING_APPROVAL'" @click="doApprove" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50">Onayla</button>
         <button v-if="order.status === 'PENDING_APPROVAL'" @click="doReject" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">Reddet</button>
+        <button v-if="order.status === 'APPROVED'" @click="doUnapprove" :disabled="saving" class="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md disabled:opacity-50">Onayı Geri Al</button>
         <button v-if="order.status === 'APPROVED'" @click="doStatusChange('PREPARING')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">Hazırlanıyor</button>
         <button v-if="order.status === 'PREPARING'" @click="doStatusChange('READY_TO_SHIP')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50">Kargoya Hazır</button>
         <button v-if="order.status === 'SHIPPED'" @click="doStatusChange('COMPLETED')" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50">Teslim Edildi</button>
+        <button @click="window.print()" class="px-4 py-2 text-sm font-medium text-ink-600 bg-ink-50 hover:bg-ink-100 rounded-md flex items-center gap-1.5"><Icon name="lucide:printer" class="w-4 h-4" />Yazdır</button>
         <button v-if="!order.eInvoiceNo" @click="doEInvoice" :disabled="saving" class="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-md disabled:opacity-50 flex items-center gap-1.5"><Icon name="lucide:file-text" class="w-4 h-4" />E-Fatura</button>
         <button v-if="order.status !== 'CANCELLED' && order.status !== 'COMPLETED'" @click="doCancel" :disabled="saving" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50">İptal Et</button>
       </div>

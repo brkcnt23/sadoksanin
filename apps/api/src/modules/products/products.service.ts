@@ -33,7 +33,11 @@ export class ProductsService {
     };
 
     if (category) {
-      where.category = category;
+      // Try categoryId first (for sub-category filtering), fall back to name match
+      where.OR = [
+        { categoryId: category },
+        { category: category },
+      ];
     }
 
     if (brand) {

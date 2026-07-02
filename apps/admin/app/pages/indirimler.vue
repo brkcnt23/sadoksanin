@@ -139,7 +139,7 @@ onMounted(async () => {
     <div v-if="loading" class="bg-white rounded-xl border border-ink-200 p-12 text-center text-ink-500">Yükleniyor...</div>
 
     <!-- Table -->
-    <div v-else class="bg-white rounded-xl border border-ink-200 overflow-hidden">
+    <div v-else class="bg-white rounded-xl border border-ink-200 overflow-hidden overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-ink-50 text-ink-500 text-xs uppercase tracking-wider">
           <tr>

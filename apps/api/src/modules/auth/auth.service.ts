@@ -158,8 +158,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const login = dto.login.trim();
+    const isEmail = login.includes('@');
+
+    const user = await this.prisma.user.findFirst({
+      where: isEmail ? { email: login } : { name: login },
     });
 
     if (!user) {

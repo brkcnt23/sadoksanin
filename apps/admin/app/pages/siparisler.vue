@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { formatPrice, formatDate, formatRelative } from '~/utils/storage'
 import type { Order, OrderStatus } from '~/types'
+import TestOrderModal from '~/components/TestOrderModal.vue'
 
 definePageMeta({
   layout: 'default',
@@ -10,6 +11,7 @@ definePageMeta({
 
 const orders = useOrdersStore()
 const auth = useAdminAuth()
+const showTestModal = ref(false)
 
 onMounted(() => {
   if (!orders.loaded) orders.load()
@@ -99,6 +101,20 @@ const approve = async (o: Order) => {
 
 const toast = useToast()
 
+async function approveAllPending() {
+  const u = auth.getUser()
+  if (!u) return
+  const pending = orders.items.filter((o) => o.status === 'pending-approval')
+  if (pending.length === 0) { toast.push('Onay bekleyen sipariş yok', 'info'); return }
+  if (!confirm(`${pending.length} sipariş onaylansın mı?`)) return
+
+  let ok = 0
+  for (const o of pending) {
+    try { await orders.approve(o.id, u.id); ok++ } catch { /* skip */ }
+  }
+  toast.push(`${ok}/${pending.length} sipariş onaylandı`, 'success')
+}
+
 
 
 
@@ -137,7 +153,27 @@ const reject = async (o: Order) => {
       v-else
       title="Siparişler"
       :description="`${orders.items.length} sipariş — ${orders.pendingCount} onay bekliyor`"
-    />
+    >
+      <template #actions>
+        <div class="flex gap-2">
+          <button
+            v-if="orders.pendingCount > 0"
+            @click="approveAllPending"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Icon name="lucide:check-check" class="w-4 h-4" />
+            Tümünü Onayla ({{ orders.pendingCount }})
+          </button>
+          <button
+            @click="showTestModal = true"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Icon name="lucide:flask-conical" class="w-4 h-4" />
+            Test Siparişi
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <template v-if="!orders.loading || orders.loaded">
       <!-- Filters -->
@@ -228,7 +264,7 @@ const reject = async (o: Order) => {
                 />
               </th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Sipariş No</th>
-              <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Müşteri</th>
+              <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Bayi</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Ürün</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Tutar</th>
               <th class="px-4 py-3 text-xs font-semibold text-ink-700 uppercase">Durum</th>
@@ -256,8 +292,9 @@ const reject = async (o: Order) => {
                 />
               </td>
               <td class="px-4 py-3 text-sm">
-                <p class="text-ink-900 truncate max-w-xs">{{ o.customerName }}</p>
-                <p v-if="o.dealerCariNo" class="text-xs text-ink-500 font-mono">{{ o.dealerCariNo }}</p>
+                <p class="text-ink-900 truncate max-w-[180px] font-medium">{{ o.dealerName || o.customerName }}</p>
+                <p v-if="o.dealerCariNo" class="text-xs text-ink-400 font-mono">{{ o.dealerCariNo }}</p>
+                <p v-if="o.dealerCity" class="text-[10px] text-ink-400">{{ o.dealerCity }}</p>
               </td>
               <td class="px-4 py-3 text-sm text-ink-600">{{ o.lines.length }} kalem</td>
               <td class="px-4 py-3 text-sm font-bold text-ink-900">{{ formatPrice(o.total) }}</td>
@@ -323,6 +360,12 @@ const reject = async (o: Order) => {
       :order-id="detail.id"
       @close="detail = null"
       @action="detail = null; orders.load()"
+    />
+
+    <!-- Test Order Modal -->
+    <TestOrderModal
+      :open="showTestModal"
+      @close="showTestModal = false"
     />
     </template>
   </div>

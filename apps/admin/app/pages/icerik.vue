@@ -181,7 +181,7 @@ onMounted(() => { load(); loadHero(); loadRedirects() })
 
       <div v-if="loading" class="p-8 text-center text-ink-500">Yükleniyor...</div>
 
-      <table v-else-if="pages.length > 0" class="w-full">
+      <div v-else-if="pages.length > 0" class="overflow-x-auto"><table class="w-full">
         <thead class="bg-ink-50 border-b border-ink-200 text-left">
           <tr>
             <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Başlık</th>
@@ -205,8 +205,7 @@ onMounted(() => { load(); loadHero(); loadRedirects() })
             </td>
           </tr>
         </tbody>
-      </table>
-      <EmptyState v-else icon="lucide:file-text" title="Henüz sayfa eklenmemiş" />
+      </table></div><EmptyState v-else icon="lucide:file-text" title="Henüz sayfa eklenmemiş" />
     </div>
 
     <!-- Sayfa Form Modal -->

@@ -244,7 +244,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @UseInterceptors(FileInterceptor('image', {
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    limits: { fileSize: 20 * 1024 * 1024 }, // 5MB
     fileFilter: (_req, file, cb) => {
       const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
       if (allowed.includes(file.mimetype)) cb(null, true);

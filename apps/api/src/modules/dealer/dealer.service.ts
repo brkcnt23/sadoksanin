@@ -555,33 +555,15 @@ export class DealerService {
     if (!user?.dealer) throw new BadRequestException('Dealer not found');
 
     const dealer = user.dealer;
-    const orders = await this.prisma.order.findMany({ where: { dealerId: dealer.id } });
 
-    const total = orders.length;
-    const cancelled = orders.filter(o => o.status === 'CANCELLED').length;
-    const returned = orders.filter(o => o.status === 'RETURNED').length;
-    const cancelledRate = total > 0 ? (cancelled / total) * 100 : 0;
-    const returnRate = total > 0 ? (returned / total) * 100 : 0;
-    const debt = Math.abs(dealer.cariBalance);
-    const creditUtil = dealer.creditLimit > 0 ? (debt / dealer.creditLimit) * 100 : 0;
-
-    let riskScore = 50;
-    riskScore += Math.min(cancelledRate * 2, 30);
-    riskScore += Math.min(returnRate * 2, 20);
-    riskScore += Math.min(creditUtil * 0.2, 20);
-    riskScore = Math.max(0, Math.min(riskScore, 100));
-
+    // Önce DB'deki güncel risk skorunu döndür (zaten hesaplanmış)
+    // Bu skor reports.service.ts'deki dealerRisk() ile aynı formülle hesaplanır
     return {
       dealerId: dealer.id,
       company: dealer.company,
-      totalOrders: total,
-      cancelledRate: Math.round(cancelledRate * 10) / 10,
-      returnRate: Math.round(returnRate * 10) / 10,
-      creditUtilization: Math.round(creditUtil * 10) / 10,
-      cariBalance: dealer.cariBalance,
-      creditLimit: dealer.creditLimit,
-      riskScore: Math.round(riskScore),
-      tier: riskScore <= 40 ? 'DÜŞÜK RİSK' : riskScore <= 70 ? 'ORTA RİSK' : 'YÜKSEK RİSK',
+      totalOrders: dealer.totalOrders,
+      score: dealer.riskScore,
+      level: dealer.riskLevel,
     };
   }
 
@@ -632,6 +614,16 @@ export class DealerService {
         rejectionReason: reason,
         approvedBy: adminUserId,
       },
+    });
+  }
+
+  async updateCreditLimit(dealerId: string, creditLimit: number) {
+    const dealer = await this.prisma.dealer.findUnique({ where: { id: dealerId } });
+    if (!dealer) throw new NotFoundException('Dealer not found');
+
+    return this.prisma.dealer.update({
+      where: { id: dealerId },
+      data: { creditLimit },
     });
   }
 }

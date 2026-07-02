@@ -101,6 +101,8 @@ export interface Order extends AuditMeta {
   customerName: string
   dealerId?: ID
   dealerCariNo?: string
+  dealerName?: string
+  dealerCity?: string
   shippingCity: string
   shippingAddress: string
   status: OrderStatus
@@ -113,6 +115,13 @@ export interface Order extends AuditMeta {
   eInvoiceNo?: string
   eInvoiceStatus?: 'pending' | 'submitted' | 'accepted' | 'rejected'
   eIrsaliyeNo?: string
+  // Financial tracking
+  invoiceCut?: boolean
+  invoiceNo?: string
+  invoiceDate?: ISODate
+  cashCollected?: boolean
+  cashCollectedAt?: ISODate
+  deliveryNoteCut?: boolean
   // Admin actions
   approvedBy?: ID
   approvedAt?: ISODate
@@ -144,6 +153,8 @@ export interface Dealer extends AuditMeta {
   totalOrders: number
   totalRevenue: Currency
   lastOrderAt?: ISODate
+  riskScore?: number
+  riskLevel?: string
   // Actions
   approvedBy?: ID
   approvedAt?: ISODate
@@ -267,6 +278,7 @@ export interface SiteSettings {
   // Branding
   siteName: string
   contactEmail: string
+  introEnabled: boolean
 }
 
 // ───── Audit ─────────────────────────────────────────────────────────────────

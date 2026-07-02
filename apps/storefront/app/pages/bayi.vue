@@ -80,7 +80,8 @@ const loadDashboard = async () => {
       headers: import.meta.client ? { Authorization: `Bearer ${localStorage.getItem('user-token')}` } : {},
     })
     riskScore.value = riskData?.score ?? 0
-    riskLevel.value = riskScore.value >= 80 ? 'Düşük Risk' : riskScore.value >= 50 ? 'Orta Risk' : 'Yüksek Risk'
+    // 0-29: Düşük Risk, 30-59: Orta Risk, 60+: Yüksek Risk
+    riskLevel.value = riskScore.value >= 60 ? 'Yüksek Risk' : riskScore.value >= 30 ? 'Orta Risk' : 'Düşük Risk'
   } catch { riskScore.value = 0; riskLevel.value = 'Bilinmiyor' }
   loading.value = false
 }
@@ -115,8 +116,8 @@ const proformaStatusLabel = (s: string) => s === 'sent' ? 'Gönderildi' : s === 
 // Risk skoru
 const riskScore = ref(0)
 const riskLevel = ref('Hesaplanıyor...')
-const riskScoreColor = computed(() => riskScore.value >= 80 ? 'text-emerald-600' : riskScore.value >= 50 ? 'text-amber-600' : 'text-red-600')
-const riskScoreTextColor = computed(() => riskScore.value >= 80 ? 'text-emerald-600' : riskScore.value >= 50 ? 'text-amber-600' : 'text-red-600')
+const riskScoreColor = computed(() => riskScore.value >= 60 ? 'text-red-600' : riskScore.value >= 30 ? 'text-amber-600' : 'text-emerald-600')
+const riskScoreTextColor = computed(() => riskScore.value >= 60 ? 'text-red-600' : riskScore.value >= 30 ? 'text-amber-600' : 'text-emerald-600')
 
 const downloadReport = async (reportType: string) => {
   downloadingReport.value = reportType

@@ -119,6 +119,8 @@ model Dealer {
   // Stats
   totalOrders       Int         @default(0)
   totalRevenue      Float       @default(0)
+  riskScore         Int         @default(0)
+  riskLevel         String      @default("LOW")
   lastOrderAt       DateTime?
 
   // Admin notes
@@ -344,6 +346,14 @@ model Order {
   balanceTransactions BalanceTransaction[]
   bankTransfers      BankTransfer[]
   statusHistory     OrderStatusHistory[]
+
+  // Financial tracking
+  invoiceCut        Boolean     @default(false)
+  invoiceNo         String?
+  invoiceDate       DateTime?
+  cashCollected     Boolean     @default(false)
+  cashCollectedAt   DateTime?
+  deliveryNoteCut   Boolean     @default(false)
 
   // Audit
   createdAt         DateTime    @default(now())
@@ -607,6 +617,7 @@ model SiteSettings {
   netsisApiUrl          String?
   netsisUsername        String?
   whatsappNumber        String?
+  introEnabled          Boolean   @default(true)
 
   updatedAt             DateTime  @updatedAt
 }
@@ -717,6 +728,7 @@ model PromoCode {
   usageLimit      Int       @default(0)
   usedCount       Int       @default(0)
   dealerOnly      Boolean   @default(false)
+  dealerId        String?
   isActive        Boolean   @default(true)
   validFrom       DateTime  @default(now())
   validUntil      DateTime?

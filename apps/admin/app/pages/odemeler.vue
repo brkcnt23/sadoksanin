@@ -89,7 +89,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR', { year
       </div>
 
       <!-- Table -->
-      <table v-else-if="transfers.length > 0" class="w-full">
+      <div v-else-if="transfers.length > 0" class="overflow-x-auto"><table class="w-full">
         <thead class="bg-ink-50 border-b border-ink-200 text-left">
           <tr>
             <th class="px-5 py-3 text-xs font-semibold text-ink-700 uppercase">Tarih</th>
@@ -122,7 +122,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR', { year
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
       <EmptyState v-else icon="lucide:banknote" title="Havale bildirimi bulunamadı" />
     </div>
 

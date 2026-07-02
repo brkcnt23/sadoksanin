@@ -26,6 +26,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { label: 'Siparişler', icon: 'lucide:package', to: '/siparisler', badge: () => orders.pendingCount },
       { label: 'Ödemeler', icon: 'lucide:banknote', to: '/odemeler' },
       { label: 'Bayiler', icon: 'lucide:users', to: '/bayiler', badge: () => dealers.pendingCount },
+      { label: 'Plasiyerler', icon: 'lucide:briefcase', to: '/plasiyerler' },
       { label: 'CRM', icon: 'lucide:headset', to: '/crm' },
     ],
   },

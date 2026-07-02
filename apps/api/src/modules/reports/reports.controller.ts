@@ -35,7 +35,7 @@ export class ReportsController {
   // ─── 3. Bayi Risk Skoru ─────────────────────────────────────────────────
 
   @Get('dealer-risk')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'PLASIYER')
   async dealerRisk(@Query('dealerId') dealerId?: string) {
     return this.reportsService.dealerRisk({ dealerId })
   }

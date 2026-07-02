@@ -10,7 +10,7 @@ interface State {
   items: Dealer[]
   loaded: boolean
   search: string
-  filter: { status: 'all' | DealerStatus; region: string | null }
+  filter: { status: 'all' | DealerStatus; region: string | null; city: string | null }
 }
 
 export const useDealersStore = defineStore('dealers', {
@@ -18,7 +18,7 @@ export const useDealersStore = defineStore('dealers', {
     items: [],
     loaded: false,
     search: '',
-    filter: { status: 'all', region: null },
+    filter: { status: 'all', region: null, city: null },
   }),
 
   getters: {
@@ -39,10 +39,12 @@ export const useDealersStore = defineStore('dealers', {
         )
       if (s.filter.status !== 'all') list = list.filter((d) => d.status === s.filter.status)
       if (s.filter.region) list = list.filter((d) => d.region === s.filter.region)
+      if (s.filter.city) list = list.filter((d) => d.city === s.filter.city)
       return list
     },
 
     regions: (s) => Array.from(new Set(s.items.map((d) => d.region))).sort(),
+    cities: (s) => Array.from(new Set(s.items.map((d) => d.city).filter(Boolean))).sort(),
   },
 
   actions: {
@@ -70,6 +72,8 @@ export const useDealersStore = defineStore('dealers', {
           totalOrders: d.totalOrders ?? 0,
           totalRevenue: d.totalRevenue ?? 0,
           lastOrderAt: d.lastOrderAt || undefined,
+          riskScore: d.riskScore ?? 0,
+          riskLevel: d.riskLevel || 'LOW',
           approvedBy: d.approvedBy || undefined,
           approvedAt: d.approvedAt || undefined,
           rejectionReason: d.rejectionReason || undefined,

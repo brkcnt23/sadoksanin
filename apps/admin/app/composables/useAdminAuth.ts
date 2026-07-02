@@ -50,7 +50,7 @@ export const useAdminAuth = () => {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const api = useApi()
-      const result = await api.post<LoginResponse>('/auth/login', { email, password })
+      const result = await api.post<LoginResponse>('/auth/login', { login: email, password })
 
       // Reject non-admin roles at the gate. The admin panel must not accept
       // DEALER tokens even if the credentials are valid backend-side.

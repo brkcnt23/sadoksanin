@@ -65,3 +65,34 @@
 - **Test hesapları**: Hala admin@admin.com / bayi@test.com aktif
 - **H5**: Test hesapları silinecek (prod öncesi)
 - **Backup cron**: H6 henüz yapılandırılmadı
+
+---
+
+## 2026-06-11 — Bayi Login Fix (Kullanıcı Adı + Email Desteği)
+
+### 🔧 Auth Sistemi Değişiklikleri
+- **Login DTO**: `email` alanı → `login` olarak değiştirildi (email veya kullanıcı adı kabul eder)
+  - `apps/api/src/modules/auth/dto/login.dto.ts`
+- **Şifre minimum uzunluk**: 6 → 4 karakter
+  - `login.dto.ts` + `create-user.dto.ts`
+- **Auth service login()**: `@` içeriyorsa email ile, içermiyorsa name ile arama yapar
+  - `apps/api/src/modules/auth/auth.service.ts`
+- **Admin login composable**: API çağrısı `{email}` → `{login: email}` olarak güncellendi
+  - `apps/admin/app/composables/useAdminAuth.ts`
+- **Storefront login composable**: API çağrısı `{email}` → `{login: email}` olarak güncellendi
+  - `apps/storefront/app/composables/useAuth.ts`
+
+### 🗄️ Veritabanı
+- `bayi@test.com` kullanıcısının şifresi `bayi` olarak güncellendi (bcrypt hash)
+- `name` alanı `bayi` olarak güncellendi
+
+### 🐳 Deploy
+- API, Admin, Storefront rebuild + deploy edildi
+- Container'lar healthy çalışıyor
+
+### ✅ Test
+```
+Kullanıcı adı: bayi       → DEALER token ✅
+Email:         bayi@test.com → DEALER token ✅
+Şifre:         bayi
+```

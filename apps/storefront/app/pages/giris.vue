@@ -118,13 +118,6 @@ const handleForgotPassword = () => {
         <p class="text-ink-500 mt-2">Hesabınıza giriş yapın</p>
       </div>
 
-      <!-- Demo Credentials -->
-      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p class="text-xs font-semibold text-blue-900 mb-2">Demo Bayi Girişi:</p>
-        <p class="text-xs text-blue-800">Email: <code class="font-mono font-bold">bayi@test.com</code></p>
-        <p class="text-xs text-blue-800">Şifre: <code class="font-mono font-bold">asd123</code></p>
-      </div>
-
       <!-- Error Message -->
       <transition name="fade">
         <div v-if="serverError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -221,37 +214,14 @@ const handleForgotPassword = () => {
         </div>
       </form>
 
-      <!-- Divider -->
-      <div class="relative my-8">
-        <div class="absolute inset-0 flex items-center">
-          <div class="w-full border-t border-ink-200"></div>
-        </div>
-        <div class="relative flex justify-center text-sm">
-          <span class="px-2 bg-white text-ink-600">veya</span>
-        </div>
-      </div>
-
-      <!-- Registration Link -->
-      <div class="bg-primary-50 rounded-xl p-6 text-center">
-        <p class="text-sm text-ink-600 mb-3">
-          Henüz bayi hesabınız yok mu?
-        </p>
+      <!-- Back to Home -->
+      <div class="text-center mt-8">
         <NuxtLink
-          to="/uye-ol"
-          class="inline-block w-full px-4 py-3 bg-primary-100 hover:bg-primary-200 text-primary-900 font-semibold rounded-lg transition-colors"
-        >
-          Yeni Üyelik Oluştur
-        </NuxtLink>
-      </div>
-
-      <!-- Back to Program -->
-      <div class="text-center mt-6">
-        <NuxtLink
-          to="/bayilik"
+          to="/"
           class="text-sm text-accent-600 hover:text-accent-700 font-semibold transition flex items-center justify-center gap-1"
         >
           <Icon name="lucide:arrow-left" class="h-4 w-4" />
-          Bayi Programı
+          Ana Sayfa
         </NuxtLink>
       </div>
 

@@ -143,10 +143,54 @@ const formatTimeAgo = (d: string) => {
   if (hours < 24) return `${hours}s önce`
   return `${Math.floor(hours / 24)}g önce`
 }
+
+// ── Quick Test Order ──
+const quickTestRunning = ref(false)
+
+async function quickTestOrder() {
+  if (quickTestRunning.value) return
+  quickTestRunning.value = true
+
+  try {
+    if (!products.loaded) await products.load()
+
+    const product = products.items.find((p) => p.displayStock > 0 && p.purchasable)
+    if (!product) {
+      useToast().push('Stokta satın alınabilir ürün bulunamadı', 'error')
+      return
+    }
+
+    const order = await api.post<any>('/orders', {
+      items: [{ productId: product.id, quantity: 1, unitPrice: product.basePrice, taxRate: product.taxRate ?? 0.2 }],
+      customerType: 'B2C',
+      shippingCity: 'İstanbul',
+      shippingAddress: 'Test Adres, No: 1, İstanbul',
+      paymentMethod: 'CREDIT_CARD',
+    })
+
+    await api.post(`/orders/${order.id}/pay`, {
+      cardNumber: '4111111111111111',
+      expiry: '12/28',
+      cvv: '123',
+      cardHolder: 'Test Kart',
+    })
+
+    await orders.load()
+    await stock.load()
+    useToast().push(`✅ Hızlı test siparişi oluşturuldu: ${order.orderNo || order.id}`, 'success')
+  } catch (err: any) {
+    useToast().push(err?.message || 'Test siparişi başarısız', 'error')
+  } finally {
+    quickTestRunning.value = false
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6">
+    <!-- Intro Banner (toggleable from settings) -->
+    <IntroBanner v-if="settings.data.introEnabled" />
+
     <!-- Hero Section -->
     <DashboardHero
       :stats="[
@@ -158,6 +202,28 @@ const formatTimeAgo = (d: string) => {
 
     <!-- Quick Actions -->
     <QuickActionCards />
+
+    <!-- Quick Test Order Card -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2">
+      <button
+        @click="quickTestOrder"
+        :disabled="quickTestRunning"
+        class="w-full bg-white rounded-2xl border border-purple-200/60 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group text-left disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+            <Icon
+              :name="quickTestRunning ? 'lucide:loader-2' : 'lucide:flask-conical'"
+              :class="['w-5 h-5 text-white', quickTestRunning && 'animate-spin']"
+            />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold text-ink-900 group-hover:text-purple-900 transition-colors">Hızlı Test Siparişi</h3>
+            <p class="text-sm text-ink-500 mt-0.5">Tek tıkla B2C test siparişi oluştur</p>
+          </div>
+        </div>
+      </button>
+    </div>
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

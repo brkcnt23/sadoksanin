@@ -329,6 +329,26 @@ export class OrdersService {
   }
 
   /**
+   * Undo approval — revert APPROVED back to PENDING_APPROVAL
+   */
+  async unapproveOrder(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException(`Order ${orderId} not found`);
+    if (order.status !== 'APPROVED') {
+      throw new BadRequestException(`Sadece APPROVED durumundaki siparişler geri alınabilir. Mevcut: ${order.status}`);
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'PENDING_APPROVAL', approvedAt: null, approvedBy: null },
+    });
+
+    this.logger.log(`Order ${orderId} approval undone by ${userId}`);
+    await this.logStatusChange(orderId, 'PENDING_APPROVAL', 'Onay geri alındı', userId, undefined);
+    return updated;
+  }
+
+  /**
    * Mark order as shipped
    * Release stock reservations when Netsis syncs "shipped" status
    */
@@ -488,12 +508,16 @@ export class OrdersService {
     holder: 'Test Kart',
   };
 
-  private validateDemoCard(cardNumber?: string, expiry?: string, cvv?: string): boolean {
+  /** Herhangi bir kart numarasını temel formatta kabul et (13-19 hane) */
+  private isValidCardNumber(cardNumber?: string): boolean {
     const clean = (cardNumber || '').replace(/\s/g, '');
-    if (clean !== this.DEMO_CARD.number) return false;
-    if (expiry && expiry !== this.DEMO_CARD.expiry) return false;
-    if (cvv && cvv !== this.DEMO_CARD.cvv) return false;
-    return true;
+    return /^\d{13,19}$/.test(clean);
+  }
+
+  /** Sadece demo kartın B2B otomatik onay ayrıcalığı için tam eşleşme */
+  private isDemoCard(cardNumber?: string): boolean {
+    const clean = (cardNumber || '').replace(/\s/g, '');
+    return clean === this.DEMO_CARD.number;
   }
 
   async payOrder(
@@ -505,19 +529,19 @@ export class OrdersService {
     if (!order) throw new NotFoundException(`Order ${orderId} not found`);
     if (order.customerId !== userId) throw new BadRequestException('Bu sipariş size ait değil');
 
-    const isDemoCard = this.validateDemoCard(
-      cardDetails?.cardNumber,
-      cardDetails?.expiry,
-      cardDetails?.cvv,
-    );
+    if (!cardDetails?.cardNumber || !this.isValidCardNumber(cardDetails.cardNumber)) {
+      throw new BadRequestException('Geçersiz kart numarası');
+    }
+
+    const isDemo = this.isDemoCard(cardDetails.cardNumber);
 
     // Demo kartla ödeme → B2B siparişler de otomatik onaylanır
-    const newStatus = order.customerType === 'B2C' || isDemoCard
+    const newStatus = order.customerType === 'B2C' || isDemo
       ? 'APPROVED'
       : order.status;
 
     // Kredi limiti kontrolü — demo kart ile B2B auto-approval
-    if (isDemoCard && newStatus === 'APPROVED' && order.customerType === 'B2B' && order.dealerId) {
+    if (isDemo && newStatus === 'APPROVED' && order.customerType === 'B2B' && order.dealerId) {
       const dealer = await this.prisma.dealer.findUnique({
         where: { id: order.dealerId },
         select: { creditLimit: true, cariBalance: true, company: true },
@@ -545,7 +569,7 @@ export class OrdersService {
     });
 
     // B2B onaylandıysa bayi cari bakiyesini ve istatistiklerini güncelle
-    if (isDemoCard && order.customerType === 'B2B' && order.dealerId) {
+    if (isDemo && order.customerType === 'B2B' && order.dealerId) {
       await this.prisma.dealer.update({
         where: { id: order.dealerId },
         data: {
@@ -562,14 +586,14 @@ export class OrdersService {
       await this.logStatusChange(orderId, newStatus, undefined, userId, undefined);
     }
 
-    this.logger.log(`Order ${orderId} payment ${isDemoCard ? '(demo card)' : '(mock)'}: PAID → ${newStatus}`);
+    this.logger.log(`Order ${orderId} payment ${isDemo ? '(demo card)' : '(mock)'}: PAID → ${newStatus}`);
     return {
       ...updated,
-      paymentMessage: isDemoCard
+      paymentMessage: isDemo
         ? `✅ Demo kart ile ödeme alındı! Sipariş ${newStatus === 'APPROVED' ? 'otomatik onaylandı' : 'güncellendi'}.`
         : 'Ödeme alındı.',
-      cardLast4: isDemoCard ? '1111' : undefined,
-      autoApproved: isDemoCard,
+      cardLast4: isDemo ? '1111' : (cardDetails.cardNumber || '').slice(-4),
+      autoApproved: isDemo,
     };
   }
 
@@ -597,6 +621,8 @@ export class OrdersService {
             include: { product: true },
           },
           stockReservations: true,
+          dealer: { select: { company: true, cariNo: true, contactPerson: true, city: true } },
+          customer: { select: { name: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: limit,

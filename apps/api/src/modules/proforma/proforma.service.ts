@@ -9,6 +9,13 @@ import { AxiosResponse } from 'axios';
 export class ProformaService {
   private readonly logger = new Logger(ProformaService.name);
   private readonly pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://python-service:5000';
+  private readonly storefrontUrl = process.env.STOREFRONT_URL || 'https://sadoksan.smartinnventory.com';
+
+  private fixImageUrl(url: string | null | undefined): string | null {
+    if (!url) return null
+    if (url.startsWith('http')) return url
+    return this.storefrontUrl + (url.startsWith('/') ? '' : '/') + url
+  }
 
   constructor(
     private httpService: HttpService,
@@ -53,7 +60,7 @@ export class ProformaService {
                 quantity: item.quantity,
                 unitPrice: item.price,
                 lineTotal: item.quantity * item.price,
-                imageUrl: item.imageUrl,
+                imageUrl: this.fixImageUrl(item.imageUrl),
               })),
             },
           },
@@ -143,7 +150,7 @@ export class ProformaService {
                 quantity: item.quantity,
                 unitPrice: item.price,
                 lineTotal: item.quantity * item.price,
-                imageUrl: item.imageUrl,
+                imageUrl: this.fixImageUrl(item.imageUrl),
               })),
             },
           },
@@ -300,7 +307,7 @@ export class ProformaService {
         brand: item.brand || '',
         quantity: Number(item.quantity),
         price: Number(item.unitPrice),
-        imageUrl: item.imageUrl,
+        imageUrl: this.fixImageUrl(item.imageUrl),
       })),
       companyInfo: {
         name: proforma.companyName,
@@ -467,7 +474,7 @@ export class ProformaService {
           brand: line.product?.brand || '',
           quantity: Number(line.quantity),
           price: Number(line.unitPrice),
-          imageUrl: line.product?.imageUrl || null,
+          imageUrl: this.fixImageUrl(line.product?.imageUrl),
         })),
         companyInfo: {
           name: 'Sadöksan',

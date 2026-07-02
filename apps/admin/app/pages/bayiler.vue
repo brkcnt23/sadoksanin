@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { formatPrice, formatRelative } from '~/utils/storage'
 import type { Dealer, DealerStatus } from '~/types'
+import DealerCreateModal from '~/components/DealerCreateModal.vue'
 
 definePageMeta({
   layout: 'default',
@@ -10,6 +11,11 @@ definePageMeta({
 
 const dealers = useDealersStore()
 const auth = useAdminAuth()
+const api = useApi()
+const toast = useToast()
+const showCreateModal = ref(false)
+const showTestCreateModal = ref(false)
+const editingCredit = ref<{ id: string; value: number } | null>(null)
 
 onMounted(() => {
   if (!dealers.loaded) dealers.load()
@@ -54,6 +60,20 @@ const setStatus = (d: Dealer, s: DealerStatus) => {
   dealers.setStatus(d.id, s)
 }
 
+async function saveCreditLimit() {
+  if (!editingCredit.value) return
+  try {
+    await api.patch(`/dealer/${editingCredit.value.id}/credit-limit`, {
+      creditLimit: editingCredit.value.value,
+    })
+    toast.push('Kredi limiti güncellendi', 'success')
+    await dealers.load()
+    editingCredit.value = null
+  } catch (err: any) {
+    toast.push(err?.message || 'Güncelleme başarısız', 'error')
+  }
+}
+
 const statusBadge = (s: DealerStatus) => {
   const m: Record<DealerStatus, { variant: 'success' | 'warning' | 'danger' | 'neutral' | 'info'; label: string }> = {
     active: { variant: 'success', label: 'Aktif' },
@@ -70,11 +90,30 @@ const statusBadge = (s: DealerStatus) => {
     <PageHeader
       title="Bayiler"
       :description="`${dealers.items.length} bayi — ${dealers.activeCount} aktif, ${dealers.pendingCount} onay bekliyor`"
-    />
+    >
+      <template #actions>
+        <div class="flex gap-2">
+          <button
+            @click="showTestCreateModal = true"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Icon name="lucide:flask-conical" class="w-4 h-4" />
+            Test Bayi
+          </button>
+          <button
+            @click="showCreateModal = true"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Icon name="lucide:building-2" class="w-4 h-4" />
+            Yeni Bayi
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-ink-200 p-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div class="relative">
           <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
           <input
@@ -104,6 +143,14 @@ const statusBadge = (s: DealerStatus) => {
           <option value="">Tüm Bölgeler</option>
           <option v-for="r in dealers.regions" :key="r" :value="r" class="capitalize">{{ r }}</option>
         </select>
+        <select
+          :value="dealers.filter.city ?? ''"
+          @change="dealers.setFilter('city', ($event.target as HTMLSelectElement).value || null)"
+          class="px-3 py-2 border border-ink-300 rounded-md text-sm bg-white"
+        >
+          <option value="">Tüm Şehirler</option>
+          <option v-for="c in dealers.cities" :key="c" :value="c">{{ c }}</option>
+        </select>
       </div>
     </div>
 
@@ -119,7 +166,15 @@ const statusBadge = (s: DealerStatus) => {
             <h3 class="font-semibold text-ink-900 truncate">{{ d.name }}</h3>
             <p class="text-xs text-ink-500 mt-0.5">{{ d.contactPerson }} · {{ d.city }}</p>
           </div>
-          <StatusBadge v-bind="statusBadge(d.status)" />
+          <div class="flex items-center gap-2">
+            <span :class="['px-2 py-0.5 rounded text-xs font-bold',
+              d.riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' :
+              d.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+              'bg-green-100 text-green-700']">
+              {{ d.riskScore || 0 }}
+            </span>
+            <StatusBadge v-bind="statusBadge(d.status)" />
+          </div>
         </div>
 
         <div class="space-y-1.5 mb-4 pb-4 border-b border-ink-100 text-sm">
@@ -233,7 +288,32 @@ const statusBadge = (s: DealerStatus) => {
           </div>
           <div>
             <p class="text-xs text-ink-500">Kredi Limiti</p>
-            <p class="font-bold text-lg text-ink-900">{{ formatPrice(detail.creditLimit) }}</p>
+            <div v-if="editingCredit && editingCredit.id === detail.id" class="flex items-center gap-2 mt-1">
+              <input
+                v-model.number="editingCredit.value"
+                type="number"
+                min="0"
+                step="1000"
+                class="w-32 px-2 py-1 border border-ink-300 rounded text-sm font-mono"
+                @keyup.enter="saveCreditLimit()"
+              />
+              <button @click="saveCreditLimit()" class="p-1 text-emerald-600 hover:text-emerald-700" title="Kaydet">
+                <Icon name="lucide:check" class="w-4 h-4" />
+              </button>
+              <button @click="editingCredit = null" class="p-1 text-ink-400 hover:text-red-600" title="İptal">
+                <Icon name="lucide:x" class="w-4 h-4" />
+              </button>
+            </div>
+            <div v-else class="flex items-center gap-2">
+              <p class="font-bold text-lg text-ink-900">{{ formatPrice(detail.creditLimit) }}</p>
+              <button
+                @click="editingCredit = { id: detail.id, value: detail.creditLimit }"
+                class="p-0.5 text-ink-400 hover:text-blue-600 transition-colors"
+                title="Düzenle"
+              >
+                <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <div>
             <p class="text-xs text-ink-500">Toplam Ciro</p>
@@ -294,5 +374,16 @@ const statusBadge = (s: DealerStatus) => {
         </div>
       </template>
     </Modal>
+
+    <!-- Create Dealer Modals -->
+    <DealerCreateModal
+      :open="showCreateModal"
+      @close="showCreateModal = false"
+    />
+    <DealerCreateModal
+      :open="showTestCreateModal"
+      mode="test"
+      @close="showTestCreateModal = false"
+    />
   </div>
 </template>

@@ -118,6 +118,7 @@ const notifyViaWhatsApp = () => {
       <h3 class="mt-1 text-sm font-semibold text-ink-900 line-clamp-2 leading-snug">
         {{ product.name }}
       </h3>
+      <p v-if="product.sku" class="mt-0.5 text-[10px] text-ink-400 font-mono">{{ product.sku }}</p>
 
       <!-- Price -->
       <div class="mt-auto pt-4 flex items-end justify-between gap-2">

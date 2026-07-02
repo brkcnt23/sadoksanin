@@ -64,6 +64,7 @@ export class CmsService {
     albarakaMerchantId?: string;
     netsisApiUrl?: string;
     netsisUsername?: string;
+    introEnabled?: boolean;
   }) {
     return this.prisma.siteSettings.update({
       where: { id: 'main' },

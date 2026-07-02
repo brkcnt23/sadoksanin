@@ -71,7 +71,7 @@ export const useAuth = () => {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const api = useApi()
-      const result = await api.post<LoginResponse>('/auth/login', { email, password })
+      const result = await api.post<LoginResponse>('/auth/login', { login: email, password })
       user.value = result.user
       isAuthenticated.value = true
       persist(result.access_token, result.user)

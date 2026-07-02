@@ -79,6 +79,35 @@ const toggleMaintenance = () => {
       </label>
     </div>
 
+    <!-- Intro Banner Toggle -->
+    <div class="bg-white rounded-xl border border-ink-200 p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h3 class="font-semibold text-ink-900 flex items-center gap-2">
+            <Icon name="lucide:presentation" class="w-4 h-4 text-indigo-600" />
+            Dashboard Tanıtım Panosu
+          </h3>
+          <p class="text-sm text-ink-500 mt-1">
+            Dashboard'un üst kısmında sistem modülleri, raporlama yapısı ve entegrasyon durumu hakkında bilgi panosu gösterir.
+          </p>
+        </div>
+        <button
+          @click="settings.save({ introEnabled: !settings.data.introEnabled })"
+          :class="[
+            'relative inline-flex h-6 w-11 rounded-full transition-colors shrink-0',
+            settings.data.introEnabled ? 'bg-indigo-600' : 'bg-ink-300',
+          ]"
+        >
+          <span
+            :class="[
+              'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+              settings.data.introEnabled ? 'translate-x-5' : 'translate-x-0.5',
+            ]"
+          />
+        </button>
+      </div>
+    </div>
+
     <!-- Notifications -->
     <div class="bg-white rounded-xl border border-ink-200 p-5">
       <h3 class="font-semibold text-ink-900 flex items-center gap-2 mb-4">
