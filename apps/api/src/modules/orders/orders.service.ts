@@ -343,6 +343,20 @@ export class OrdersService {
       data: { status: 'PENDING_APPROVAL', approvedAt: null, approvedBy: null },
     });
 
+    // approveOrder()'ın artırdığı bayi bakiyesi/istatistikleri geri al —
+    // yoksa onayla→geri al→tekrar onayla döngüsü bakiyeyi her seferinde
+    // gerçek sipariş tutarının katları kadar şişirir.
+    if (order.dealerId) {
+      await this.prisma.dealer.update({
+        where: { id: order.dealerId },
+        data: {
+          cariBalance: { decrement: order.total },
+          totalOrders: { decrement: 1 },
+          totalRevenue: { decrement: order.total },
+        },
+      });
+    }
+
     this.logger.log(`Order ${orderId} approval undone by ${userId}`);
     await this.logStatusChange(orderId, 'PENDING_APPROVAL', 'Onay geri alındı', userId, undefined);
     return updated;
@@ -431,6 +445,20 @@ export class OrdersService {
 
     if (!order) {
       throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    // Sipariş daha önce onaylanmış bir durumdan iptal ediliyorsa
+    // (approveOrder/payOrder bayi bakiyesini artırmıştı), geri al.
+    const wasApprovedState = ['APPROVED', 'PREPARING', 'SHIPPED', 'COMPLETED'].includes(order.status);
+    if (wasApprovedState && order.dealerId) {
+      await this.prisma.dealer.update({
+        where: { id: order.dealerId },
+        data: {
+          cariBalance: { decrement: order.total },
+          totalOrders: { decrement: 1 },
+          totalRevenue: { decrement: order.total },
+        },
+      });
     }
 
     // Release all active reservations
@@ -569,7 +597,12 @@ export class OrdersService {
     });
 
     // B2B onaylandıysa bayi cari bakiyesini ve istatistiklerini güncelle
-    if (isDemo && order.customerType === 'B2B' && order.dealerId) {
+    // NOT: order.status !== 'APPROVED' kontrolü şart — sipariş zaten admin
+    // tarafından onaylanmışsa (approveOrder çoktan increment etmiştir),
+    // burada TEKRAR increment etmek bakiyeyi çifte sayardı (bkz. 2026-07-03
+    // doğrulama: Erzurum bayisi 492 TL gerçek sipariş için 75.000 TL bakiye
+    // göstermişti).
+    if (isDemo && order.customerType === 'B2B' && order.dealerId && order.status !== 'APPROVED') {
       await this.prisma.dealer.update({
         where: { id: order.dealerId },
         data: {
