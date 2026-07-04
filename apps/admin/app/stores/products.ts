@@ -149,6 +149,7 @@ interface State {
   search: string
   filter: {
     category: string | null
+    brand: string | null
     visibility: 'all' | 'visible' | 'hidden'
     purchasable: 'all' | 'yes' | 'no'
     syncStatus: 'all' | 'synced' | 'pending' | 'error' | 'never'
@@ -168,7 +169,7 @@ export const useProductsStore = defineStore('products', {
     loading: false,
     loaded: false,
     search: '',
-    filter: { category: null, visibility: 'all', purchasable: 'all', syncStatus: 'all', stock: 'all' },
+    filter: { category: null, brand: null, visibility: 'all', purchasable: 'all', syncStatus: 'all', stock: 'all' },
     sort: { key: 'name', dir: 'asc' },
     page: 1,
     pageSize: 25,
@@ -208,6 +209,7 @@ export const useProductsStore = defineStore('products', {
         )
       }
       if (s.filter.category) list = list.filter((p) => p.category === s.filter.category)
+      if (s.filter.brand) list = list.filter((p) => p.brand === s.filter.brand)
       if (s.filter.visibility !== 'all')
         list = list.filter((p) => (s.filter.visibility === 'visible' ? p.visible : !p.visible))
       if (s.filter.purchasable !== 'all')

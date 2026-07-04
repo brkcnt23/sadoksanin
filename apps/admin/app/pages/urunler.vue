@@ -237,6 +237,14 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
           <option v-for="c in products.categories" :key="c" :value="c">{{ c }}</option>
         </select>
         <select
+          :value="products.filter.brand ?? ''"
+          @change="products.setFilter('brand', ($event.target as HTMLSelectElement).value || null)"
+          class="px-3 py-2 border border-ink-300 rounded-md text-sm bg-white"
+        >
+          <option value="">Tüm Markalar</option>
+          <option v-for="b in products.allBrands" :key="b" :value="b">{{ b }}</option>
+        </select>
+        <select
           :value="products.filter.visibility"
           @change="products.setFilter('visibility', ($event.target as HTMLSelectElement).value as 'all' | 'visible' | 'hidden')"
           class="px-3 py-2 border border-ink-300 rounded-md text-sm bg-white"
