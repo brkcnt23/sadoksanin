@@ -9,6 +9,55 @@ export class DealerService {
   constructor(private prisma: PrismaService, private mailerService: MailerService) {}
 
   /**
+   * Bayi sepetleri — aktif/terkedilen (admin). addedAt guncellenmedigi icin
+   * (schema'da @updatedAt yok) "son eklenen urun" tarihini yaklasik son
+   * aktivite olarak kullaniyoruz. 3+ gun guncellenmemis sepetler "terkedilmis"
+   * sayilir.
+   */
+  async getDealerCarts() {
+    const items = await this.prisma.cartItem.findMany({
+      include: {
+        product: { select: { name: true, sku: true, basePrice: true } },
+        user: { select: { dealer: { select: { id: true, company: true, city: true } } } },
+      },
+    });
+
+    const byDealer = new Map<
+      string,
+      { dealerId: string; dealerName: string; city: string; itemCount: number; totalValue: number; lastUpdatedAt: Date; items: any[] }
+    >();
+
+    for (const item of items) {
+      const dealer = item.user.dealer;
+      if (!dealer) continue; // sadece bayi (B2B) sepetleri
+
+      const existing = byDealer.get(dealer.id) || {
+        dealerId: dealer.id,
+        dealerName: dealer.company,
+        city: dealer.city || '',
+        itemCount: 0,
+        totalValue: 0,
+        lastUpdatedAt: item.addedAt,
+        items: [] as any[],
+      };
+      existing.itemCount += item.quantity;
+      existing.totalValue += item.quantity * item.product.basePrice;
+      if (item.addedAt > existing.lastUpdatedAt) existing.lastUpdatedAt = item.addedAt;
+      existing.items.push({ productName: item.product.name, sku: item.product.sku, quantity: item.quantity, addedAt: item.addedAt });
+      byDealer.set(dealer.id, existing);
+    }
+
+    const now = Date.now();
+    return [...byDealer.values()]
+      .map((d) => ({
+        ...d,
+        daysSinceUpdate: Math.floor((now - d.lastUpdatedAt.getTime()) / (24 * 60 * 60 * 1000)),
+        isAbandoned: now - d.lastUpdatedAt.getTime() > 3 * 24 * 60 * 60 * 1000,
+      }))
+      .sort((a, b) => a.lastUpdatedAt.getTime() - b.lastUpdatedAt.getTime());
+  }
+
+  /**
    * List all active dealers (for admin dropdowns)
    */
   async getAllDealers() {

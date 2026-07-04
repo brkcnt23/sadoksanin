@@ -19,7 +19,39 @@ const editingCredit = ref<{ id: string; value: number } | null>(null)
 
 onMounted(() => {
   if (!dealers.loaded) dealers.load()
+  loadCarts()
 })
+
+// ── Bayi Sepetleri (aktif/terkedilen) ──────────────────────────────────────
+interface DealerCart {
+  dealerId: string
+  dealerName: string
+  city: string
+  itemCount: number
+  totalValue: number
+  lastUpdatedAt: string
+  daysSinceUpdate: number
+  isAbandoned: boolean
+  items: { productName: string; sku: string; quantity: number }[]
+}
+const dealerCarts = ref<DealerCart[]>([])
+const loadingCarts = ref(true)
+const cartsExpanded = ref(false)
+const loadCarts = async () => {
+  loadingCarts.value = true
+  try {
+    dealerCarts.value = await api.get<DealerCart[]>('/dealer/carts')
+  } catch (e) {
+    console.warn('Sepetler yüklenemedi:', e)
+  } finally {
+    loadingCarts.value = false
+  }
+}
+const cartAgeLabel = (d: DealerCart) => {
+  if (d.daysSinceUpdate < 1) return { label: 'Bugün', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+  if (d.daysSinceUpdate <= 3) return { label: `${d.daysSinceUpdate} gün önce`, color: 'text-amber-700 bg-amber-50 border-amber-200' }
+  return { label: `${d.daysSinceUpdate} gün — Terkedilmiş`, color: 'text-red-700 bg-red-50 border-red-200' }
+}
 
 const detail = ref<Dealer | null>(null)
 const cariCheck = ref<{ loading: boolean; result: { valid: boolean; reason?: string; balance?: number } | null }>({
@@ -110,6 +142,36 @@ const statusBadge = (s: DealerStatus) => {
         </div>
       </template>
     </PageHeader>
+
+    <!-- Bayi Sepetleri (Aktif / Terkedilen) -->
+    <div class="bg-white rounded-xl border border-ink-200">
+      <button
+        @click="cartsExpanded = !cartsExpanded"
+        class="w-full flex items-center justify-between px-5 py-4 text-left"
+      >
+        <div class="flex items-center gap-2">
+          <Icon name="lucide:shopping-cart" class="w-4 h-4 text-ink-500" />
+          <h3 class="font-semibold text-ink-900">Bayi Sepetleri</h3>
+          <span class="text-xs text-ink-500">({{ dealerCarts.length }} dolu sepet{{ dealerCarts.filter(d => d.isAbandoned).length ? `, ${dealerCarts.filter(d => d.isAbandoned).length} terkedilmiş` : '' }})</span>
+        </div>
+        <Icon :name="cartsExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="w-4 h-4 text-ink-400" />
+      </button>
+      <div v-if="cartsExpanded" class="border-t border-ink-100">
+        <div v-if="loadingCarts" class="p-5 text-sm text-ink-500">Yükleniyor...</div>
+        <EmptyState v-else-if="dealerCarts.length === 0" icon="lucide:shopping-cart" title="Dolu sepet yok" />
+        <div v-else class="divide-y divide-ink-100">
+          <div v-for="d in dealerCarts" :key="d.dealerId" class="px-5 py-3 flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-sm text-ink-900">{{ d.dealerName }} <span class="text-ink-400 font-normal">· {{ d.city }}</span></p>
+              <p class="text-xs text-ink-500">{{ d.itemCount }} adet ürün · {{ formatPrice(d.totalValue) }}</p>
+            </div>
+            <span :class="['inline-flex px-2.5 py-1 rounded-full text-xs font-medium border shrink-0', cartAgeLabel(d).color]">
+              {{ cartAgeLabel(d).label }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-ink-200 p-4">

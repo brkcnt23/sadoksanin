@@ -116,6 +116,14 @@ export class DealerController {
   /**
    * GET /api/dealer/admin/list — Tüm bayiler (admin için)
    */
+  /**
+   * GET /api/dealer/carts - Aktif/terkedilen bayi sepetleri (admin)
+   */
+  @Get('carts')
+  async getDealerCarts() {
+    return await this.dealerService.getDealerCarts();
+  }
+
   @Get('admin/list')
   async adminListAll() {
     return await this.dealerService.adminListAll();
