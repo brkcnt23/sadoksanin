@@ -149,15 +149,15 @@ const formatTimeAgo = (d: string) => {
 
 <template>
   <div class="fixed inset-0 z-50 flex justify-end">
-    <div class="absolute inset-0 bg-black/30" @click="emit('close')" />
-    <div class="relative w-full sm:max-w-xl bg-white shadow-xl flex flex-col h-full overflow-y-auto">
+    <div class="no-print absolute inset-0 bg-black/30" @click="emit('close')" />
+    <div id="order-print-area" class="relative w-full sm:max-w-xl bg-white shadow-xl flex flex-col h-full overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-ink-200 shrink-0 sticky top-0 bg-white z-10">
         <div>
-          <h3 class="font-semibold text-ink-900">{{ order.orderNo }}</h3>
+          <h3 class="font-semibold text-ink-900">SADÖKSAN — Sipariş {{ order.orderNo }}</h3>
           <p class="text-xs text-ink-500">{{ formatDate(order.createdAt) }}</p>
         </div>
-        <button @click="emit('close')" class="p-1.5 hover:bg-ink-100 rounded-md"><Icon name="lucide:x" class="w-5 h-5 text-ink-500" /></button>
+        <button @click="emit('close')" class="no-print p-1.5 hover:bg-ink-100 rounded-md"><Icon name="lucide:x" class="w-5 h-5 text-ink-500" /></button>
       </div>
 
       <div v-if="loading" class="p-8 text-center text-ink-500">Yükleniyor...</div>
@@ -297,7 +297,7 @@ const formatTimeAgo = (d: string) => {
       </div>
 
       <!-- Aksiyon Bar -->
-      <div class="border-t border-ink-200 p-4 bg-ink-50 shrink-0 sticky bottom-0 flex flex-wrap gap-2">
+      <div class="no-print border-t border-ink-200 p-4 bg-ink-50 shrink-0 sticky bottom-0 flex flex-wrap gap-2">
         <button v-if="order.status === 'PENDING_APPROVAL'" @click="doApprove" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50">Onayla</button>
         <button v-if="order.status === 'PENDING_APPROVAL'" @click="doReject" :disabled="saving" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">Reddet</button>
         <button v-if="order.status === 'APPROVED'" @click="doUnapprove" :disabled="saving" class="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md disabled:opacity-50">Onayı Geri Al</button>
@@ -311,3 +311,27 @@ const formatTimeAgo = (d: string) => {
     </div>
   </div>
 </template>
+
+<style>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #order-print-area,
+  #order-print-area * {
+    visibility: visible;
+  }
+  #order-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+</style>
