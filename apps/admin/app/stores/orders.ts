@@ -36,7 +36,7 @@ export const useOrdersStore = defineStore('orders', {
   }),
 
   getters: {
-    pendingCount: (s) => s.items.filter((o) => o.status === 'pending-approval').length,
+    pendingCount: (s) => s.items.filter((o) => o.status === 'PENDING_APPROVAL').length,
 
     filtered(s): Order[] {
       const q = s.search.trim().toLowerCase()
@@ -72,11 +72,11 @@ export const useOrdersStore = defineStore('orders', {
     },
 
     totalRevenue: (s) =>
-      s.items.filter((o) => o.status !== 'cancelled' && o.status !== 'rejected').reduce((sum, o) => sum + o.total, 0),
+      s.items.filter((o) => o.status !== 'CANCELLED' && o.status !== 'REJECTED').reduce((sum, o) => sum + o.total, 0),
 
     revenueByType: (s) => ({
-      b2c: s.items.filter((o) => o.customerType === 'B2C' && o.status !== 'cancelled').reduce((a, b) => a + b.total, 0),
-      b2b: s.items.filter((o) => o.customerType === 'B2B' && o.status !== 'cancelled').reduce((a, b) => a + b.total, 0),
+      b2c: s.items.filter((o) => o.customerType === 'B2C' && o.status !== 'CANCELLED').reduce((a, b) => a + b.total, 0),
+      b2b: s.items.filter((o) => o.customerType === 'B2B' && o.status !== 'CANCELLED').reduce((a, b) => a + b.total, 0),
     }),
   },
 

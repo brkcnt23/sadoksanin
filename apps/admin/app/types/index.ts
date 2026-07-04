@@ -72,13 +72,13 @@ export interface Product extends AuditMeta {
 
 // ───── Orders ────────────────────────────────────────────────────────────────
 export type OrderStatus =
-  | 'pending-approval' // B2B awaiting admin approval
-  | 'approved'
-  | 'preparing'
-  | 'shipped'
-  | 'completed'
-  | 'cancelled'
-  | 'rejected'
+  | 'PENDING_APPROVAL' // B2B awaiting admin approval
+  | 'APPROVED'
+  | 'PREPARING'
+  | 'SHIPPED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'REJECTED'
 
 export type CustomerType = 'B2C' | 'B2B'
 

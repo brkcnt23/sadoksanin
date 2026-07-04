@@ -22,7 +22,7 @@ const actingIds = ref<Set<string>>(new Set())
 const selectedIds = ref<Set<string>>(new Set())
 
 const pendingOnly = computed(() =>
-  orders.paginated.filter((o) => o.status === 'pending-approval'),
+  orders.paginated.filter((o) => o.status === 'PENDING_APPROVAL'),
 )
 
 const allSelected = computed(() =>
@@ -104,7 +104,7 @@ const toast = useToast()
 async function approveAllPending() {
   const u = auth.getUser()
   if (!u) return
-  const pending = orders.items.filter((o) => o.status === 'pending-approval')
+  const pending = orders.items.filter((o) => o.status === 'PENDING_APPROVAL')
   if (pending.length === 0) { toast.push('Onay bekleyen sipariş yok', 'info'); return }
   if (!confirm(`${pending.length} sipariş onaylansın mı?`)) return
 
@@ -195,13 +195,13 @@ const reject = async (o: Order) => {
           class="px-3 py-2 border border-ink-300 rounded-md text-sm bg-white"
         >
           <option value="all">Tüm Durumlar</option>
-          <option value="pending-approval">Onay Bekliyor</option>
-          <option value="approved">Onaylandı</option>
-          <option value="preparing">Hazırlanıyor</option>
-          <option value="shipped">Sevk Edildi</option>
-          <option value="completed">Tamamlandı</option>
-          <option value="cancelled">İptal</option>
-          <option value="rejected">Reddedildi</option>
+          <option value="PENDING_APPROVAL">Onay Bekliyor</option>
+          <option value="APPROVED">Onaylandı</option>
+          <option value="PREPARING">Hazırlanıyor</option>
+          <option value="SHIPPED">Sevk Edildi</option>
+          <option value="COMPLETED">Tamamlandı</option>
+          <option value="CANCELLED">İptal</option>
+          <option value="REJECTED">Reddedildi</option>
         </select>
         <select
           :value="orders.filter.customerType"
@@ -277,7 +277,7 @@ const reject = async (o: Order) => {
             <tr v-for="o in orders.paginated" :key="o.id" class="hover:bg-ink-50" :class="{ 'bg-primary-50': selectedIds.has(o.id) }">
               <td class="px-4 py-3">
                 <input
-                  v-if="o.status === 'pending-approval'"
+                  v-if="o.status === 'PENDING_APPROVAL'"
                   type="checkbox"
                   :checked="selectedIds.has(o.id)"
                   class="rounded border-ink-300"
@@ -313,7 +313,7 @@ const reject = async (o: Order) => {
                   <Icon name="lucide:eye" class="w-4 h-4" />
                 </button>
                 <button
-                  v-if="o.status === 'pending-approval'"
+                  v-if="o.status === 'PENDING_APPROVAL'"
                   @click="approve(o)"
                   :disabled="actingIds.has(o.id)"
                   class="p-1.5 text-ink-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
@@ -322,7 +322,7 @@ const reject = async (o: Order) => {
                   <Icon :name="actingIds.has(o.id) ? 'lucide:loader-2' : 'lucide:check'" class="w-4 h-4" :class="actingIds.has(o.id) && 'animate-spin'" />
                 </button>
                 <button
-                  v-if="o.status === 'pending-approval'"
+                  v-if="o.status === 'PENDING_APPROVAL'"
                   @click="reject(o)"
                   :disabled="actingIds.has(o.id)"
                   class="p-1.5 text-ink-500 hover:bg-red-50 hover:text-red-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"

@@ -26,7 +26,7 @@ onMounted(() => {
 
 const pendingOrders = computed(() =>
   orders.items
-    .filter((o) => o.status === 'pending-approval')
+    .filter((o) => o.status === 'PENDING_APPROVAL')
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8),
 )
@@ -50,7 +50,7 @@ const pendingByAge = computed(() => {
   const now = Date.now()
   const groups = { '24s': 0, '48s': 0, '72s': 0, '72s+': 0 }
   orders.items
-    .filter((o) => o.status === 'pending-approval')
+    .filter((o) => o.status === 'PENDING_APPROVAL')
     .forEach((o) => {
       const age = now - new Date(o.createdAt).getTime()
       const hours = age / 3600000
@@ -108,7 +108,7 @@ const approve = (id: string) => {
 
 const orderStatusBadge = (s: string) => {
   const m: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'; label: string }> = {
-    'pending-approval': { variant: 'warning', label: 'Onay Bekliyor' },
+    'PENDING_APPROVAL': { variant: 'warning', label: 'Onay Bekliyor' },
     approved: { variant: 'info', label: 'Onaylandı' },
     preparing: { variant: 'info', label: 'Hazırlanıyor' },
     shipped: { variant: 'purple', label: 'Sevk Edildi' },
