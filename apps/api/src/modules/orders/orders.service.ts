@@ -519,6 +519,19 @@ export class OrdersService {
     if (!bt) throw new NotFoundException('Bekleyen havale bildirimi bulunamadı');
     await this.prisma.bankTransfer.update({ where: { id: bt.id }, data: { status: 'APPROVED', approvedBy: adminId, approvedAt: new Date() } });
     await this.prisma.order.update({ where: { id: orderId }, data: { paymentStatus: 'PAID' } });
+
+    // Açık hesap (cari) mantığı: ödeme onaylanınca bayinin borcu düşer.
+    // (Netsis bağlandığında syncCari() bu alanı gerçek Netsis bakiyesiyle
+    // periyodik olarak zaten güncelleyecek — bu, ara dönem için yerel
+    // yaklaşık hesaptır.)
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { dealerId: true } });
+    if (order?.dealerId) {
+      await this.prisma.dealer.update({
+        where: { id: order.dealerId },
+        data: { cariBalance: { decrement: bt.amount } },
+      });
+    }
+
     return { success: true };
   }
 
