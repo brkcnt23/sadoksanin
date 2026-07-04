@@ -202,7 +202,7 @@ export class ProductsService {
 
   // ─── Category CRUD ────────────────────────────────────────────────────
 
-  async createCategory(dto: { name: string; description?: string; imageUrl?: string; order?: number }) {
+  async createCategory(dto: { name: string; description?: string; imageUrl?: string; order?: number; parentId?: string }) {
     const slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     return this.prisma.category.create({ data: { ...dto, slug } });
   }

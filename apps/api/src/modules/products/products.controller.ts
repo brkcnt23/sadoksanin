@@ -68,7 +68,7 @@ export class ProductsController {
   @Post('categories')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  async createCategory(@Body() body: { name: string; description?: string; imageUrl?: string; order?: number }) {
+  async createCategory(@Body() body: { name: string; description?: string; imageUrl?: string; order?: number; parentId?: string }) {
     return this.productsService.createCategory(body);
   }
 

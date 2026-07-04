@@ -130,6 +130,47 @@ const syncVariations = async (productId: string) => {
   }
 }
 
+// Yeni marka / kategori hizli ekleme
+const showNewBrand = ref(false)
+const newBrandName = ref('')
+const addingBrand = ref(false)
+const addBrand = async () => {
+  const name = newBrandName.value.trim()
+  if (!name) return
+  addingBrand.value = true
+  try {
+    await products.createBrand({ name })
+    form.value.brand = name
+    newBrandName.value = ''
+    showNewBrand.value = false
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Marka eklenemedi'
+  } finally {
+    addingBrand.value = false
+  }
+}
+
+const showNewCategory = ref(false)
+const newCategoryName = ref('')
+const addingCategory = ref(false)
+const addCategory = async () => {
+  const name = newCategoryName.value.trim()
+  if (!name) return
+  addingCategory.value = true
+  try {
+    const created = await products.createCategory({ name })
+    selectedParent.value = name
+    form.category = name
+    ;(form.value as any).categoryId = created.id
+    newCategoryName.value = ''
+    showNewCategory.value = false
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Kategori eklenemedi'
+  } finally {
+    addingCategory.value = false
+  }
+}
+
 const save = async () => {
   if (!form.value.name.trim() || !form.value.sku.trim()) {
     error.value = 'Ürün adı ve SKU zorunludur'
@@ -239,24 +280,76 @@ const save = async () => {
         </div>
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1">Marka</label>
-          <select
-            v-model="form.brand"
-            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">Marka Seçin</option>
-            <option v-for="b in products.allBrands" :key="b" :value="b">{{ b }}</option>
-          </select>
+          <div class="flex gap-1.5">
+            <select
+              v-model="form.brand"
+              class="flex-1 min-w-0 px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Marka Seçin</option>
+              <option v-for="b in products.allBrands" :key="b" :value="b">{{ b }}</option>
+            </select>
+            <button
+              type="button"
+              @click="showNewBrand = !showNewBrand"
+              class="px-2.5 py-2 text-xs font-medium text-primary-700 border border-primary-300 rounded-md hover:bg-primary-50 whitespace-nowrap"
+            >
+              + Yeni
+            </button>
+          </div>
+          <div v-if="showNewBrand" class="flex gap-1.5 mt-1.5">
+            <input
+              v-model="newBrandName"
+              type="text"
+              placeholder="Yeni marka adı"
+              class="flex-1 min-w-0 px-2.5 py-1.5 border border-ink-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+              @keydown.enter.prevent="addBrand"
+            />
+            <button
+              type="button"
+              :disabled="addingBrand || !newBrandName.trim()"
+              @click="addBrand"
+              class="px-2.5 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-40"
+            >
+              Ekle
+            </button>
+          </div>
         </div>
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1">Kategori</label>
-          <select
-            v-model="selectedParent"
-            class="w-full px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
-            @change="form.category = ''; selectedSubCategoryId = null; (form as any).categoryId = undefined"
-          >
-            <option value="">Ana Kategori Seçin</option>
-            <option v-for="c in products.allCategories" :key="c.id" :value="c.name">{{ c.name }}</option>
-          </select>
+          <div class="flex gap-1.5 mb-1.5">
+            <select
+              v-model="selectedParent"
+              class="flex-1 min-w-0 px-3 py-2 border border-ink-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              @change="form.category = ''; selectedSubCategoryId = null; (form as any).categoryId = undefined"
+            >
+              <option value="">Ana Kategori Seçin</option>
+              <option v-for="c in products.allCategories" :key="c.id" :value="c.name">{{ c.name }}</option>
+            </select>
+            <button
+              type="button"
+              @click="showNewCategory = !showNewCategory"
+              class="px-2.5 py-2 text-xs font-medium text-primary-700 border border-primary-300 rounded-md hover:bg-primary-50 whitespace-nowrap"
+            >
+              + Yeni
+            </button>
+          </div>
+          <div v-if="showNewCategory" class="flex gap-1.5 mb-1.5">
+            <input
+              v-model="newCategoryName"
+              type="text"
+              placeholder="Yeni ana kategori adı"
+              class="flex-1 min-w-0 px-2.5 py-1.5 border border-ink-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+              @keydown.enter.prevent="addCategory"
+            />
+            <button
+              type="button"
+              :disabled="addingCategory || !newCategoryName.trim()"
+              @click="addCategory"
+              class="px-2.5 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-40"
+            >
+              Ekle
+            </button>
+          </div>
           <select
             v-if="selectedParent && subcategories.length > 0"
             v-model="selectedSubCategoryId"

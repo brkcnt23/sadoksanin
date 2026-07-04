@@ -267,6 +267,20 @@ export const useProductsStore = defineStore('products', {
       }
     },
 
+    async createCategory(data: { name: string; parentId?: string }) {
+      const api = useApi()
+      const created = await api.post<{ id: string; name: string }>('/products/categories', data)
+      await this.fetchCategories()
+      return created
+    },
+
+    async createBrand(data: { name: string }) {
+      const api = useApi()
+      const created = await api.post<{ id: string; name: string }>('/products/brands', data)
+      await this.fetchBrands()
+      return created
+    },
+
     async load() {
       if (this.loaded) return
 
