@@ -496,7 +496,14 @@ export const useProducts = () => {
       const response = await api.get<{ products: ApiProduct[]; total: number }>('/products', {
         limit: 1000,
       })
-      products.value = response.products.map(mapApiProduct)
+      const mapped = response.products.map(mapApiProduct)
+      const seen = new Map<string, number>()
+      for (const p of mapped) {
+        const count = seen.get(p.slug) ?? 0
+        if (count > 0) p.slug = `${p.slug}-${p.sku}`
+        seen.set(p.slug, count + 1)
+      }
+      products.value = mapped
       fetched = true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Ürünler yüklenemedi'
