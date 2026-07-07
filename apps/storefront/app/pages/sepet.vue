@@ -15,23 +15,8 @@ const { getIsAuthenticated, getUser } = useAuth()
 const { push: pushToast } = useToast()
 
 const isLoading = ref(false)
-const checkoutStep = ref<'cart' | 'review' | 'complete'>('cart')
+const checkoutStep = ref<'cart' | 'complete'>('cart')
 const lastOrder = ref<any>(null)
-const paymentMethod = ref<'bank-transfer' | 'credit-card' | 'installment'>('bank-transfer')
-const cardForm = ref({ cardNumber: '', expiry: '', cvv: '', cardHolder: '' })
-
-const formatCardNumber = (e: Event) => {
-  const input = e.target as HTMLInputElement
-  let val = input.value.replace(/\D/g, '').slice(0, 16)
-  cardForm.value.cardNumber = val.replace(/(.{4})/g, '$1 ').trim()
-}
-const formatExpiry = (e: Event) => {
-  const input = e.target as HTMLInputElement
-  let val = input.value.replace(/\D/g, '')
-  if (val.length >= 2) val = val.slice(0, 2) + '/' + val.slice(2, 4)
-  cardForm.value.expiry = val
-}
-const checkoutError = ref<string | null>(null)
 const shippingCity = ref('')
 const shippingAddress = ref('')
 const orderNotes = ref('')
@@ -71,9 +56,17 @@ const handleCheckout = async () => {
     return
   }
 
-  checkoutError.value = null
-  checkoutStep.value = 'review'
+  // Bayi için şehir/adres bilgisini dealer profilinden otomatik al
+  if (userIsDealer.value && dealer.value) {
+    shippingCity.value = dealer.value.city || ''
+    shippingAddress.value = dealer.value.address || dealer.value.company || ''
+  }
+
+  // Direkt siparişi onaya gönder, ödeme ekranı yok
+  await handlePlaceOrder()
 }
+
+const userIsDealer = computed(() => getUser()?.role === 'DEALER')
 
 const applyPromoCode = async () => {
   promoError.value = null
@@ -104,16 +97,13 @@ const removePromoCode = () => {
   promoError.value = null
 }
 
-const userIsDealer = computed(() => getUser()?.role === 'DEALER')
-
 const handlePlaceOrder = async () => {
   if (!shippingCity.value || !shippingAddress.value) {
-    checkoutError.value = 'Lütfen şehir ve adres bilgilerini girin'
+    pushToast({ variant: 'error', title: 'Eksik bilgi', description: 'Lütfen şehir ve adres bilgilerini girin', duration: 4000 })
     return
   }
 
   isLoading.value = true
-  checkoutError.value = null
 
   try {
     // Resolve dealer ID: prefer from useDealer, fallback to API call
@@ -131,24 +121,12 @@ const handlePlaceOrder = async () => {
       shippingCity: shippingCity.value,
       shippingAddress: shippingAddress.value,
       dealerId: userIsDealer.value ? resolvedDealerId : undefined,
-      promoCode: promoApplied.value ? promoCodeInput.value : undefined,
       notes: orderNotes.value || undefined,
-      paymentMethod: paymentMethod.value,
+      promoCode: promoApplied.value ? promoCodeInput.value : undefined,
     })
 
     if (order) {
-      // If credit card, auto-pay via mock endpoint
-      if (paymentMethod.value === 'credit-card') {
-        try {
-          const api = useApi()
-          const paidOrder = await api.post(`/orders/${order.id}/pay`, cardForm.value)
-          lastOrder.value = paidOrder
-        } catch {
-          lastOrder.value = order
-        }
-      } else {
-        lastOrder.value = order
-      }
+      lastOrder.value = order
       checkoutStep.value = 'complete'
       const isDealerOrder = userIsDealer.value
       pushToast({
@@ -166,7 +144,6 @@ const handlePlaceOrder = async () => {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Sipariş oluşturma başarısız oldu'
-    checkoutError.value = msg
     pushToast({ variant: 'error', title: 'Sipariş hatası', description: msg, duration: 5000 })
     console.error('Order error:', err)
   } finally {
@@ -273,7 +250,7 @@ const handleClearCart = () => {
                     <!-- Price & Remove -->
                     <div class="text-right">
                       <p class="text-lg font-bold text-accent-600">
-                        ₺{{ (item.product.price * item.quantity).toLocaleString('tr-TR') }}
+                        ₺{{ (item.product.basePrice * item.quantity).toLocaleString('tr-TR') }}
                       </p>
                       <button
                         @click="removeItem(item.productId)"
@@ -327,54 +304,62 @@ const handleClearCart = () => {
                   ₺{{ totals.dealerSurcharge.toLocaleString('tr-TR') }}
                 </span>
               </div>
+
+              <div v-if="promoApplied" class="flex justify-between text-sm">
+                <span class="text-green-600">İndirim ({{ promoCodeInput }})</span>
+                <span class="font-semibold text-green-600">−₺{{ promoDiscount.toLocaleString('tr-TR') }}</span>
+              </div>
+            </div>
+
+            <!-- Promosyon Kodu -->
+            <div class="py-4 border-b border-ink-100">
+              <p class="text-xs font-semibold text-ink-700 uppercase tracking-wider mb-2">Promosyon Kodu</p>
+              <div class="flex gap-2">
+                <input
+                  v-model="promoCodeInput"
+                  type="text"
+                  placeholder="Kodu girin"
+                  class="flex-1 px-3 py-2 border border-ink-200 rounded-lg text-sm uppercase focus:ring-2 focus:ring-primary-500"
+                  :disabled="promoApplied"
+                  @keydown.enter.prevent="applyPromoCode"
+                />
+                <button
+                  v-if="!promoApplied"
+                  @click="applyPromoCode"
+                  type="button"
+                  class="px-3 py-2 bg-accent-600 text-white rounded-lg text-sm font-medium hover:bg-accent-700 whitespace-nowrap"
+                >
+                  Uygula
+                </button>
+                <button
+                  v-else
+                  @click="removePromoCode"
+                  type="button"
+                  class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 whitespace-nowrap"
+                >
+                  Kaldır
+                </button>
+              </div>
+              <p v-if="promoError" class="text-red-600 text-xs mt-2">{{ promoError }}</p>
+              <p v-if="promoApplied" class="text-green-600 text-xs mt-2">{{ promoCodeInput }} kodu uygulandı</p>
             </div>
 
             <div class="mb-6 pt-6">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-semibold text-primary-900">Toplam</span>
                 <span class="text-3xl font-bold text-accent-600">
-                  ₺{{ totals.total.toLocaleString('tr-TR') }}
+                  ₺{{ (totals.total - (promoApplied ? promoDiscount : 0)).toLocaleString('tr-TR') }}
                 </span>
               </div>
 
               <p class="text-xs text-ink-600 mt-2">
                 <Icon name="lucide:info" class="h-3 w-3 inline mr-1" />
-                Bayi Modu: Sipariş onay beklemede
+                {{ userIsDealer ? 'Bayi Modu: Sipariş onay beklemede' : 'Sipariş onaylandıktan sonra hazırlanacaktır' }}
               </p>
             </div>
 
-            <button
-              @click="handleCheckout"
-              type="button"
-              class="w-full bg-gradient-to-r from-primary-900 to-accent-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-all active:scale-95"
-            >
-              <Icon name="lucide:arrow-right" class="h-5 w-5 inline mr-2" />
-              Ödemeye Geç
-            </button>
-          </div>
-        </aside>
-      </div>
-
-      <!-- Review Step -->
-      <div v-else-if="checkoutStep === 'review'" class="max-w-2xl mx-auto">
-        <!-- Error Banner -->
-        <div v-if="checkoutError" class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
-          <div class="flex">
-            <Icon name="lucide:alert-circle" class="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-            <div>
-              <p class="text-red-800 font-semibold">Sipariş oluşturma hatası</p>
-              <p class="text-red-700 text-sm mt-1">{{ checkoutError }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-md p-8">
-          <h2 class="text-2xl font-bold text-primary-900 mb-6">Siparişi Onayla</h2>
-
-          <!-- Shipping Info -->
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <h3 class="font-semibold text-primary-900 mb-4">Teslimat Bilgileri</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- B2C: dealer olmayan kullanıcılar için teslimat bilgisi -->
+            <div v-if="!userIsDealer" class="mb-6 space-y-3">
               <div>
                 <label class="block text-sm font-medium text-ink-700 mb-1">Şehir *</label>
                 <select v-model="shippingCity" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
@@ -387,180 +372,24 @@ const handleClearCart = () => {
                 <textarea v-model="shippingAddress" rows="2" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" placeholder="Teslimat adresinizi yazın"></textarea>
               </div>
             </div>
-          </div>
 
-          <!-- Order Notes -->
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <h3 class="font-semibold text-primary-900 mb-4">Sipariş Notu (İsteğe Bağlı)</h3>
-            <textarea
-              v-model="orderNotes"
-              rows="3"
-              class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 max-w-lg"
-              placeholder="Siparişinizle ilgili eklemek istediğiniz bir not varsa yazabilirsiniz..."
-            ></textarea>
-          </div>
-
-          <!-- Promo Code -->
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <h3 class="font-semibold text-primary-900 mb-4">Promosyon Kodu</h3>
-            <div class="flex gap-2 max-w-md">
-              <input
-                v-model="promoCodeInput"
-                type="text"
-                placeholder="Kodu girin"
-                class="flex-1 px-3 py-2 border border-ink-200 rounded-lg text-sm uppercase focus:ring-2 focus:ring-primary-500"
-                :disabled="promoApplied"
-                @keydown.enter.prevent
-              />
-              <button
-                v-if="!promoApplied"
-                @click="applyPromoCode"
-                class="px-4 py-2 bg-accent-600 text-white rounded-lg text-sm font-medium hover:bg-accent-700"
-              >
-                Uygula
-              </button>
-              <button
-                v-else
-                @click="removePromoCode"
-                class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600"
-              >
-                Kaldır
-              </button>
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-ink-700 mb-1">Sipariş Notu (İsteğe Bağlı)</label>
+              <textarea v-model="orderNotes" rows="2" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500" placeholder="Eklemek istediğiniz not..."></textarea>
             </div>
-            <p v-if="promoError" class="text-red-600 text-sm mt-2">{{ promoError }}</p>
-            <p v-if="promoApplied" class="text-green-600 text-sm mt-2">
-              {{ promoCodeInput }} kodu uygulandı — {{ promoDiscount }} TL indirim
-            </p>
-          </div>
 
-          <!-- Payment Method -->
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <h3 class="font-semibold text-primary-900 mb-4">Ödeme Yöntemi</h3>
-            <div class="space-y-3">
-              <label class="flex items-center p-4 border-2 border-ink-200 rounded-lg cursor-pointer hover:border-primary-300 transition-colors" :class="{ 'border-accent-600 bg-accent-50': paymentMethod === 'bank-transfer' }">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="bank-transfer"
-                  class="w-4 h-4 text-accent-600"
-                />
-                <span class="ml-3">
-                  <p class="font-semibold text-primary-900">Banka Transferi</p>
-                  <p class="text-sm text-ink-600">Siparişiniz onaylandıktan sonra</p>
-                </span>
-              </label>
-              <label class="flex items-center p-4 border-2 border-ink-200 rounded-lg cursor-pointer hover:border-primary-300 transition-colors" :class="{ 'border-accent-600 bg-accent-50': paymentMethod === 'credit-card' }">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="credit-card"
-                  class="w-4 h-4 text-accent-600"
-                />
-                <span class="ml-3">
-                  <p class="font-semibold text-primary-900">Kredi Kartı</p>
-                  <p class="text-sm text-ink-600">Test kart bilgilerini girin</p>
-                </span>
-              </label>
-              <!-- Card details form -->
-              <div v-if="paymentMethod === 'credit-card'" class="ml-8 p-4 bg-ink-50 rounded-lg border border-ink-100 space-y-3 animate-fade-up">
-                <div>
-                  <label class="block text-xs font-semibold text-primary-900 mb-1">Kart Numarası</label>
-                  <input :value="cardForm.cardNumber" @input="formatCardNumber" type="text" maxlength="19" placeholder="0000 0000 0000 0000" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="block text-xs font-semibold text-primary-900 mb-1">Son Kullanma</label>
-                    <input :value="cardForm.expiry" @input="formatExpiry" type="text" maxlength="5" placeholder="AA/YY" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-semibold text-primary-900 mb-1">CVV</label>
-                    <input v-model="cardForm.cvv" type="text" maxlength="4" placeholder="123" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-primary-900 mb-1">Kart Üzerindeki İsim</label>
-                  <input v-model="cardForm.cardHolder" type="text" placeholder="Ad Soyad" class="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent" />
-                </div>
-              </div>
-              <label v-if="!isDealer" class="flex items-center p-4 border-2 border-ink-200 rounded-lg cursor-pointer hover:border-primary-300 transition-colors" :class="{ 'border-accent-600 bg-accent-50': paymentMethod === 'installment' }">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="installment"
-                  class="w-4 h-4 text-accent-600"
-                />
-                <span class="ml-3">
-                  <p class="font-semibold text-primary-900">Taksit</p>
-                  <p class="text-sm text-ink-600">Kredi kartı ile 3-12 ay taksit imkanı</p>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <h3 class="font-semibold text-primary-900 mb-4">Ürünler</h3>
-            <div class="space-y-3">
-              <div v-for="item in items" :key="item.productId" class="flex justify-between text-sm">
-                <span class="text-ink-700">
-                  {{ item.product.name }} × {{ item.quantity }}
-                </span>
-                <span class="font-semibold text-primary-900">
-                  ₺{{ (item.product.price * item.quantity).toLocaleString('tr-TR') }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-8 pb-8 border-b border-ink-100">
-            <div class="space-y-3">
-              <div class="flex justify-between text-sm">
-                <span class="text-ink-600">Ürün Toplamı</span>
-                <span class="font-semibold">₺{{ totals.subtotal.toLocaleString('tr-TR') }}</span>
-              </div>
-              <div v-if="isDealer && totals.dealerSurcharge > 0" class="flex justify-between text-sm">
-                <span class="text-ink-600">Lojistik Bedeli</span>
-                <span class="font-semibold">₺{{ totals.dealerSurcharge.toLocaleString('tr-TR') }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-8">
-            <div class="flex justify-between items-center">
-              <span class="text-lg font-bold text-primary-900">Toplam Tutar</span>
-              <span class="text-3xl font-bold text-accent-600">
-                ₺{{ totals.total.toLocaleString('tr-TR') }}
-              </span>
-            </div>
-            <p v-if="isDealer" class="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg mt-4">
-              <Icon name="lucide:alert-circle" class="h-4 w-4 inline mr-2" />
-              Bayi olarak siparişiniz yönetim onayı bekleyecektir.
-            </p>
-            <p v-else class="text-sm text-green-700 bg-green-50 p-3 rounded-lg mt-4">
-              <Icon name="lucide:check-circle" class="h-4 w-4 inline mr-2" />
-              Siparişiniz hemen tamamlanacaktır.
-            </p>
-          </div>
-
-          <div class="flex gap-4">
             <button
-              @click="checkoutStep = 'cart'"
-              type="button"
-              class="flex-1 px-6 py-3 border border-ink-200 text-primary-900 font-semibold rounded-lg hover:bg-ink-50 transition-colors"
-            >
-              Geri Dön
-            </button>
-            <button
-              @click="handlePlaceOrder"
+              @click="handleCheckout"
               :disabled="isLoading"
               type="button"
-              class="flex-1 px-6 py-3 bg-gradient-to-r from-primary-900 to-accent-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="w-full bg-gradient-to-r from-primary-900 to-accent-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Icon v-if="isLoading" name="lucide:loader" class="h-5 w-5 animate-spin" />
-              <span v-if="!isLoading">Siparişi Onayla</span>
-              <span v-else>İşleniyor...</span>
+              <Icon v-if="isLoading" name="lucide:loader" class="h-5 w-5 inline mr-2 animate-spin" />
+              <Icon v-else name="lucide:check-circle" class="h-5 w-5 inline mr-2" />
+              {{ isLoading ? 'İşleniyor...' : 'Siparişi Onayla' }}
             </button>
           </div>
-        </div>
+        </aside>
       </div>
 
       <!-- Complete Step -->
