@@ -224,22 +224,10 @@ export class OrdersService {
       throw new BadRequestException(`Order cannot be approved from status: ${order.status}`);
     }
 
-    // Kredi limiti kontrolü — bayi bakiyesi + yeni sipariş limiti aşmamalı
+    // Kredi limiti artık siparişi ENGELLEMİYOR — bayiler her şartta sipariş
+    // onaylanabilir, sadece belirli eşiklerde yetkililere uyarı e-postası gider.
     if (order.dealerId) {
-      const dealer = await this.prisma.dealer.findUnique({
-        where: { id: order.dealerId },
-        select: { creditLimit: true, cariBalance: true, company: true },
-      });
-
-      if (dealer && dealer.creditLimit > 0) {
-        const newBalance = dealer.cariBalance + order.total;
-        if (newBalance > dealer.creditLimit) {
-          const asim = newBalance - dealer.creditLimit;
-          throw new BadRequestException(
-            `Kredi limiti aşıldı! ${dealer.company} — Mevcut bakiye: ${this.formatTL(dealer.cariBalance)}, Limit: ${this.formatTL(dealer.creditLimit)}, Sipariş: ${this.formatTL(order.total)}, Aşım: ${this.formatTL(asim)}`,
-          );
-        }
-      }
+      this.notifyCreditThreshold(order.dealerId, order.total).catch(() => {});
     }
 
     const updated = await this.prisma.order.update({
@@ -581,21 +569,9 @@ export class OrdersService {
       ? 'APPROVED'
       : order.status;
 
-    // Kredi limiti kontrolü — demo kart ile B2B auto-approval
+    // Kredi limiti artık ödemeyi/onayı ENGELLEMİYOR — sadece eşik uyarısı gider.
     if (isDemo && newStatus === 'APPROVED' && order.customerType === 'B2B' && order.dealerId) {
-      const dealer = await this.prisma.dealer.findUnique({
-        where: { id: order.dealerId },
-        select: { creditLimit: true, cariBalance: true, company: true },
-      });
-      if (dealer && dealer.creditLimit > 0) {
-        const newBalance = dealer.cariBalance + order.total;
-        if (newBalance > dealer.creditLimit) {
-          const asim = newBalance - dealer.creditLimit;
-          throw new BadRequestException(
-            `Kredi limiti aşıldı! ${dealer.company} — Mevcut bakiye: ${this.formatTL(dealer.cariBalance)}, Limit: ${this.formatTL(dealer.creditLimit)}, Sipariş: ${this.formatTL(order.total)}, Aşım: ${this.formatTL(asim)}`,
-          );
-        }
-      }
+      this.notifyCreditThreshold(order.dealerId, order.total).catch(() => {});
     }
 
     const updated = await this.prisma.order.update({
@@ -825,5 +801,41 @@ export class OrdersService {
 
   private formatTL(value: number): string {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(value);
+  }
+
+  /**
+   * Bayi kredi limiti eşiklerini (%50/%80/%100) geçince yetkililere e-posta
+   * uyarısı gönderir. Siparişi ASLA engellemez — sadece bilgilendirir.
+   */
+  private async notifyCreditThreshold(dealerId: string, orderTotal: number) {
+    const dealer = await this.prisma.dealer.findUnique({
+      where: { id: dealerId },
+      select: { creditLimit: true, cariBalance: true, company: true },
+    });
+    if (!dealer || dealer.creditLimit <= 0) return;
+
+    const prevBalance = dealer.cariBalance;
+    const newBalance = prevBalance + orderTotal;
+    const prevPct = (prevBalance / dealer.creditLimit) * 100;
+    const newPct = (newBalance / dealer.creditLimit) * 100;
+
+    const thresholds = [
+      { pct: 100, label: 'Kredi limiti AŞILDI' },
+      { pct: 80, label: 'Kredi limitinin %80\'i kullanıldı (kritik)' },
+      { pct: 50, label: 'Kredi limitinin %50\'si kullanıldı' },
+    ];
+
+    const crossed = thresholds.find((t) => prevPct < t.pct && newPct >= t.pct);
+    if (!crossed) return;
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+      select: { email: true, name: true },
+    });
+    const msg = `${crossed.label}: ${dealer.company} — Bakiye: ${this.formatTL(newBalance)} / Limit: ${this.formatTL(dealer.creditLimit)} (%${newPct.toFixed(0)})`;
+    for (const admin of admins) {
+      this.mailerService.sendNotification(admin.email, `Kredi Limiti Uyarısı — ${dealer.company}`, msg).catch(() => {});
+    }
+    this.logger.log(`Credit threshold warning sent: ${msg}`);
   }
 }
