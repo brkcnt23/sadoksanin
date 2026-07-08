@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { formatPrice } from '~/utils/storage'
 import { PROVINCES } from '~/utils/turkish-provinces'
 import { REGIONS, getRegionNameByProvince } from '~/utils/regions'
-import { exportAllSurchargesToCSV, downloadCSV, parseCSV } from '~/utils/excel'
+import { exportXlsx, type ExcelColumn } from '~/utils/excel'
 import type { LogisticsRule, RegionalPricingSurcharge, ProvincePricingSurcharge } from '~/types'
 
 const toast = useToast()
@@ -169,104 +169,110 @@ const addNewProvinceSurcharge = () => {
 // Export/Import functionality
 const fileInput = ref<HTMLInputElement | null>(null)
 
+// ── Excel export (tek merkezi exportXlsx üreticisi) ──────────────
+const REGIONAL_COLS: ExcelColumn[] = [
+  { header: 'Bölge Adı', key: 'name', type: 'text' },
+  { header: 'Ek Ücret', key: 'surcharge', type: 'money' },
+  { header: 'Açıklama', key: 'description', type: 'text' },
+  { header: 'Aktif', key: 'active', type: 'text' },
+]
+const PROVINCE_COLS: ExcelColumn[] = [
+  { header: 'İl Adı', key: 'name', type: 'text' },
+  { header: 'Ek Ücret', key: 'surcharge', type: 'money' },
+  { header: 'Açıklama', key: 'description', type: 'text' },
+  { header: 'Aktif', key: 'active', type: 'text' },
+]
+const regionalRows = () =>
+  pricing.regionalSurcharges.map((r) => ({
+    name: REGIONS[r.regionKey as keyof typeof REGIONS]?.name || r.regionKey,
+    surcharge: r.surcharge,
+    description: r.description,
+    active: r.active ? 'EVET' : 'HAYIR',
+  }))
+const provinceRows = () =>
+  pricing.provinceSurcharges.map((p) => ({
+    name: p.province,
+    surcharge: p.surcharge,
+    description: p.description,
+    active: p.active ? 'EVET' : 'HAYIR',
+  }))
+const today = () => new Date().toISOString().split('T')[0]
+
 const exportAllSurcharges = () => {
-  const csv = exportAllSurchargesToCSV(pricing.regionalSurcharges, pricing.provinceSurcharges)
-  downloadCSV(csv, `sadoksan-fiyatlandirma-${new Date().toISOString().split('T')[0]}.csv`)
+  exportXlsx(
+    [
+      { name: 'Bölge Fiyatlandırma', columns: REGIONAL_COLS, rows: regionalRows() },
+      { name: 'İl Fiyatlandırma', columns: PROVINCE_COLS, rows: provinceRows() },
+    ],
+    `sadoksan-fiyatlandirma-${today()}.xlsx`,
+  )
 }
 
 const exportRegionalOnly = () => {
-  const csv = `Bölge Adı,Ek Ücret (₺),Açıklama,Aktif\n${pricing.regionalSurcharges.map(r => `"${REGIONS[r.regionKey as keyof typeof REGIONS]?.name || r.regionKey}","${r.surcharge}","${r.description}","${r.active ? 'EVET' : 'HAYIR'}"`).join('\n')}`
-  downloadCSV(csv, `sadoksan-bolge-fiyatlandirma-${new Date().toISOString().split('T')[0]}.csv`)
+  exportXlsx(
+    { name: 'Bölge Fiyatlandırma', columns: REGIONAL_COLS, rows: regionalRows() },
+    `sadoksan-bolge-fiyatlandirma-${today()}.xlsx`,
+  )
 }
 
 const exportProvinceOnly = () => {
-  const csv = `İl Adı,Ek Ücret (₺),Açıklama,Aktif\n${pricing.provinceSurcharges.map(p => `"${p.province}","${p.surcharge}","${p.description}","${p.active ? 'EVET' : 'HAYIR'}"`).join('\n')}`
-  downloadCSV(csv, `sadoksan-il-fiyatlandirma-${new Date().toISOString().split('T')[0]}.csv`)
+  exportXlsx(
+    { name: 'İl Fiyatlandırma', columns: PROVINCE_COLS, rows: provinceRows() },
+    `sadoksan-il-fiyatlandirma-${today()}.xlsx`,
+  )
 }
 
 const triggerFileInput = () => {
   fileInput.value?.click()
 }
 
-const handleFileImport = (event: Event) => {
+const num = (v: any) => {
+  const n = parseFloat(String(v ?? '').replace(/\s|₺/g, '').replace(',', '.'))
+  return isNaN(n) ? 0 : n
+}
+const isActive = (v: any) => ['evet', 'true', '1', 'aktif'].includes(String(v ?? '').trim().toLowerCase())
+
+const handleFileImport = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
 
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const csv = e.target?.result as string
-    try {
-      const lines = csv.split('\n').filter(line => line.trim())
-      let currentSection = ''
-      let headerLine = true
+  try {
+    const XLSX = await import('xlsx')
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+    let regionalCount = 0
+    let provinceCount = 0
 
-      for (const line of lines) {
-        if (line.includes('=== BÖLGE BAZLI')) {
-          currentSection = 'regional'
-          headerLine = true
-          continue
-        }
-        if (line.includes('=== İL BAZLI')) {
-          currentSection = 'province'
-          headerLine = true
-          continue
-        }
+    for (const sheetName of wb.SheetNames) {
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[sheetName], { defval: '' })
+      for (const row of rows) {
+        const surcharge = num(row['Ek Ücret'] ?? row['Ek Ücret (₺)'])
+        const description = String(row['Açıklama'] ?? '')
+        const active = isActive(row['Aktif'])
 
-        if (headerLine && (currentSection === 'regional' || currentSection === 'province')) {
-          headerLine = false
-          continue
-        }
+        // Bölge satırı mı, il satırı mı? — başlık kolonuna göre ayır
+        const regionName = String(row['Bölge Adı'] ?? '').trim()
+        const provinceName = String(row['İl Adı'] ?? '').trim()
 
-        if (!line.trim() || !currentSection) continue
-
-        // Parse CSV line (handle quoted fields)
-        const fields = line.match(/(".*?"|[^,]*)/g) || []
-        const cleaned = fields.map(f => f.replace(/^"|"$/g, '').trim()).filter(f => f)
-
-        if (currentSection === 'regional' && cleaned.length >= 2) {
-          const regionName = cleaned[0] || ''
-          const surcharge = cleaned[1] ? parseFloat(cleaned[1]) : 0
-          const description = cleaned[2] || ''
-          const active = cleaned[3]?.toUpperCase() === 'EVET'
-
-          // Find region key by name
+        if (regionName) {
           const regionKey = Object.entries(REGIONS).find(([, r]) => r.name === regionName)?.[0]
-          if (regionKey && !isNaN(surcharge)) {
-            pricing.upsertRegionalSurcharge({
-              regionKey: regionKey as keyof typeof REGIONS,
-              surcharge,
-              description,
-              active,
-            })
+          if (regionKey) {
+            pricing.upsertRegionalSurcharge({ regionKey: regionKey as keyof typeof REGIONS, surcharge, description, active })
+            regionalCount++
           }
-        }
-
-        if (currentSection === 'province' && cleaned.length >= 2) {
-          const province = cleaned[0] || ''
-          const surcharge = cleaned[1] ? parseFloat(cleaned[1]) : 0
-          const description = cleaned[2] || ''
-          const active = cleaned[3]?.toUpperCase() === 'EVET'
-
-          if (province && PROVINCES.some((p) => p === province) && !isNaN(surcharge)) {
-            pricing.upsertProvinceSurcharge({
-              province,
-              surcharge,
-              description,
-              active,
-            })
-          }
+        } else if (provinceName && PROVINCES.some((p) => p === provinceName)) {
+          pricing.upsertProvinceSurcharge({ province: provinceName, surcharge, description, active })
+          provinceCount++
         }
       }
-
-      // Reset file input
-      target.value = ''
-    } catch (error) {
-      console.error('CSV import error:', error)
-      toast.push('CSV işlenirken hata oluştu', 'error')
     }
+
+    target.value = ''
+    toast.push(`İçe aktarıldı: ${regionalCount} bölge, ${provinceCount} il`, 'success')
+  } catch (error) {
+    console.error('Excel import error:', error)
+    toast.push('Dosya işlenirken hata oluştu (xlsx veya csv bekleniyor)', 'error')
   }
-  reader.readAsText(file)
 }
 </script>
 
@@ -316,8 +322,8 @@ const handleFileImport = (event: Event) => {
               @click="exportAllSurcharges"
               class="px-3 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 flex items-center gap-2"
             >
-              <Icon name="lucide:download" class="w-4 h-4" />
-              Tümünü İndir (CSV)
+              <Icon name="lucide:file-spreadsheet" class="w-4 h-4" />
+              Tümünü İndir (Excel)
             </button>
             <button
               @click="exportRegionalOnly"
@@ -338,12 +344,12 @@ const handleFileImport = (event: Event) => {
               class="px-3 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 flex items-center gap-2"
             >
               <Icon name="lucide:upload" class="w-4 h-4" />
-              CSV Yükle
+              Excel Yükle
             </button>
             <input
               ref="fileInput"
               type="file"
-              accept=".csv"
+              accept=".xlsx,.xls,.csv"
               style="display: none"
               @change="handleFileImport"
             />

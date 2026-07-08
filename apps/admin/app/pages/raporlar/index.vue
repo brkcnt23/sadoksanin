@@ -63,7 +63,10 @@
             <input v-model="dateFrom" type="date" class="px-3 py-2 border border-ink-300 rounded-lg text-sm" />
             <input v-model="dateTo" type="date" class="px-3 py-2 border border-ink-300 rounded-lg text-sm" />
             <button @click="loadReport" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Getir</button>
-            <button @click="exportCSV" class="border border-ink-300 text-ink-700 px-4 py-2 rounded-lg text-sm hover:bg-ink-50">CSV</button>
+            <button @click="exportExcel" class="border border-ink-300 text-ink-700 px-4 py-2 rounded-lg text-sm hover:bg-ink-50 flex items-center gap-1.5">
+              <Icon name="lucide:file-spreadsheet" class="w-3.5 h-3.5" />
+              Excel
+            </button>
           </div>
         </div>
 
@@ -147,6 +150,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import Modal from '~/components/Modal.vue'
+import { exportXlsx, type ExcelColumn, type ExcelCellType } from '~/utils/excel'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -311,7 +315,7 @@ const formatTL = (val: number) => {
 const apiFetch = async (path: string) => {
   const token = localStorage.getItem('admin-token')
   const base = useRuntimeConfig().public.apiBase.replace(/\/+$/, '')
-  const res = await fetch(`${base}/api${path}`, { headers: { Authorization: `Bearer ${token}` } })
+  const res = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -338,20 +342,26 @@ const loadReport = async () => {
   reportLoading.value = false
 }
 
-const exportCSV = () => {
+// Başlık metninden hücre tipini çıkar (şablondaki biçimlendirmeyle aynı mantık)
+const inferType = (col: string): ExcelCellType => {
+  if (/Tutar|TL|Limit|Bakiye|Değer|Ciro/.test(col)) return 'money'
+  if (/%|Dönüşüm/.test(col)) return 'pct'
+  if (/Sayısı|Proforma|Onaylı|Bekleyen|Red|Stok|Minimum|Açık|Skor|Gün|Adet/.test(col)) return 'int'
+  return 'text'
+}
+
+const exportExcel = () => {
   if (!reportData.value.length) return
   const meta = reportMeta[activeReport.value || '']
-  const cols = meta?.cols || []
-  const fields = meta?.fields || []
-  let csv = cols.join(',') + '\n'
-  for (const row of reportData.value) {
-    csv += fields.map((f: string) => `"${String(row[f] ?? '').replace(/"/g, '""')}"`).join(',') + '\n'
-  }
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = `${activeReport.value}-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click(); URL.revokeObjectURL(url)
+  const columns: ExcelColumn[] = (meta?.cols || []).map((header: string, i: number) => ({
+    header,
+    key: meta.fields[i],
+    type: inferType(header),
+  }))
+  exportXlsx(
+    { name: activeReportTitle.value || 'Rapor', columns, rows: reportData.value },
+    `${activeReport.value}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  )
 }
 
 // Load KPIs on mount
