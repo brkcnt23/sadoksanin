@@ -44,7 +44,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br ink-800 flex items-center justify-center p-4">
+  <div class="min-h-screen bg-gradient-to-br from-primary-900 to-ink-900 flex items-center justify-center p-4">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-10">
       <div class="absolute top-0 -left-40 w-80 h-80 bg-white rounded-full blur-3xl" />
@@ -118,7 +118,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
           <button
             type="submit"
             :disabled="isLoading"
-            class="w-full bg-gradient-to-r primary-600 text-white font-semibold py-3 rounded-lg hover: transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap' }}
           </button>
