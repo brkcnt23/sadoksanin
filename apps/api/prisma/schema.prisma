@@ -26,7 +26,8 @@ model User {
   city      String?
 
   // Relationships
-  dealer    Dealer?
+  dealer    Dealer?    @relation("DealerAccount")
+  assignedDealers Dealer[] @relation("DealerSalesRep") // Plasiyer'in sorumlu olduğu bayiler
   orders    Order[]
   favorites Favorite[]
 
@@ -90,7 +91,11 @@ enum UserRole {
 model Dealer {
   id                String      @id @default(cuid())
   userId            String      @unique
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User        @relation("DealerAccount", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sorumlu plasiyer (satış temsilcisi) — bayi başına tek plasiyer
+  salesRepId        String?
+  salesRep          User?       @relation("DealerSalesRep", fields: [salesRepId], references: [id], onDelete: SetNull)
 
   // Business info
   name              String
@@ -138,6 +143,7 @@ model Dealer {
 
   @@index([cariNo])
   @@index([status])
+  @@index([salesRepId])
 }
 
 enum DealerStatus {

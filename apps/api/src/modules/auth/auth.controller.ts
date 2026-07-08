@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Patch, Delete, Param, UseGuards, Request, Get } from '@nestjs/common';
+import { Controller, Post, Body, Patch, Delete, Param, UseGuards, Request, Get, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -47,8 +47,9 @@ export class AuthController {
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  async listUsers(@Request() req) {
-    return this.authService.listUsers(req.user.role);
+  async listUsers(@Query('role') role?: string) {
+    // role belirtilirse ona göre filtrele (örn. ?role=PLASIYER), yoksa hepsi
+    return this.authService.listUsers(role);
   }
 
   @Post('forgot-password')

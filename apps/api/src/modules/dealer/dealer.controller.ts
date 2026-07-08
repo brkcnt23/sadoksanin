@@ -14,6 +14,8 @@ import {
 import { Response } from 'express';
 import { DealerService } from './dealer.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('dealer')
 @UseGuards(JwtAuthGuard)
@@ -125,8 +127,23 @@ export class DealerController {
   }
 
   @Get('admin/list')
-  async adminListAll() {
-    return await this.dealerService.adminListAll();
+  async adminListAll(@Request() req) {
+    // PLASIYER ise service kendi bayileriyle filtreler
+    return await this.dealerService.adminListAll(req.user);
+  }
+
+  /**
+   * PATCH /api/dealer/:id/plasiyer — Bayiye sorumlu plasiyer ata/kaldır
+   * (sadece ADMIN/SUPER_ADMIN)
+   */
+  @Patch(':id/plasiyer')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async assignSalesRep(
+    @Param('id') dealerId: string,
+    @Body() body: { plasiyerId: string | null },
+  ) {
+    return await this.dealerService.assignSalesRep(dealerId, body.plasiyerId ?? null);
   }
 
   /**

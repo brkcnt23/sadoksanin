@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 const route = useRoute()
 const { logout, getUser } = useAdminAuth()
 const settings = useSettingsStore()
@@ -16,48 +16,61 @@ interface NavItem {
   icon: string
   to: string
   badge?: () => number
+  roles?: string[]  // bos = herkes, dolu = sadece listedeki roller
 }
 
-const navGroups: { title: string; items: NavItem[] }[] = [
-  {
-    title: 'Operasyon',
-    items: [
-      { label: 'Dashboard', icon: 'lucide:layout-dashboard', to: '/' },
-      { label: 'Siparişler', icon: 'lucide:package', to: '/siparisler', badge: () => orders.pendingCount },
-      { label: 'Ödemeler', icon: 'lucide:banknote', to: '/odemeler' },
-      { label: 'Bayiler', icon: 'lucide:users', to: '/bayiler', badge: () => dealers.pendingCount },
-      { label: 'Plasiyerler', icon: 'lucide:briefcase', to: '/plasiyerler' },
-      { label: 'CRM', icon: 'lucide:headset', to: '/crm' },
-    ],
-  },
-  {
-    title: 'Katalog',
-    items: [
-      { label: 'Ürünler', icon: 'lucide:boxes', to: '/urunler' },
-      { label: 'Stok', icon: 'lucide:warehouse', to: '/stok' },
-      { label: 'Fiyat & Lojistik', icon: 'lucide:wallet', to: '/fiyatlandirma' },
-      { label: 'Döviz Kurları', icon: 'lucide:coins', to: '/doviz' },
-    ],
-  },
-  {
-    title: 'Pazarlama',
-    items: [
-      { label: 'Popup & Kampanya', icon: 'lucide:megaphone', to: '/popup' },
-      { label: 'İndirimler', icon: 'lucide:percent', to: '/indirimler' },
-      { label: 'Bildirimler', icon: 'lucide:bell', to: '/bildirimler', badge: () => notifications.pendingCount },
-    ],
-  },
-  {
-    title: 'Yönetim',
-    items: [
-      { label: 'Proforma', icon: 'lucide:file-text', to: '/proforma' },
-      { label: 'Raporlar', icon: 'lucide:bar-chart-3', to: '/raporlar' },
-      { label: 'İçerik (CMS)', icon: 'lucide:globe', to: '/icerik' },
-      { label: 'Denetim Kaydı', icon: 'lucide:scroll-text', to: '/denetim' },
-      { label: 'Ayarlar', icon: 'lucide:settings', to: '/ayarlar' },
-    ],
-  },
-]
+const navGroups = computed(() => {
+  const role = currentUser.value?.role || ''
+
+  const allGroups: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'Operasyon',
+      items: [
+        { label: 'Dashboard', icon: 'lucide:layout-dashboard', to: '/', roles: ['ADMIN', 'SUPER_ADMIN', 'PLASIYER'] },
+        { label: 'Siparişler', icon: 'lucide:package', to: '/siparisler', badge: () => orders.pendingCount, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Ödemeler', icon: 'lucide:banknote', to: '/odemeler', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Bayiler', icon: 'lucide:users', to: '/bayiler', badge: () => dealers.pendingCount, roles: ['ADMIN', 'SUPER_ADMIN', 'PLASIYER'] },
+        { label: 'Plasiyerler', icon: 'lucide:briefcase', to: '/plasiyerler', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'CRM', icon: 'lucide:headset', to: '/crm', roles: ['ADMIN', 'SUPER_ADMIN'] },
+      ],
+    },
+    {
+      title: 'Katalog',
+      items: [
+        { label: 'Ürünler', icon: 'lucide:boxes', to: '/urunler', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Stok', icon: 'lucide:warehouse', to: '/stok', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Fiyat & Lojistik', icon: 'lucide:wallet', to: '/fiyatlandirma', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Döviz Kurları', icon: 'lucide:coins', to: '/doviz', roles: ['ADMIN', 'SUPER_ADMIN'] },
+      ],
+    },
+    {
+      title: 'Pazarlama',
+      items: [
+        { label: 'Popup & Kampanya', icon: 'lucide:megaphone', to: '/popup', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'İndirimler', icon: 'lucide:percent', to: '/indirimler', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Bildirimler', icon: 'lucide:bell', to: '/bildirimler', badge: () => notifications.pendingCount, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      ],
+    },
+    {
+      title: 'Yönetim',
+      items: [
+        { label: 'Proforma', icon: 'lucide:file-text', to: '/proforma', roles: ['ADMIN', 'SUPER_ADMIN', 'PLASIYER'] },
+        { label: 'Raporlar', icon: 'lucide:bar-chart-3', to: '/raporlar', roles: ['ADMIN', 'SUPER_ADMIN', 'PLASIYER'] },
+        { label: 'İçerik (CMS)', icon: 'lucide:globe', to: '/icerik', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Denetim Kaydı', icon: 'lucide:scroll-text', to: '/denetim', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Ayarlar', icon: 'lucide:settings', to: '/ayarlar', roles: ['ADMIN', 'SUPER_ADMIN'] },
+      ],
+    },
+  ]
+
+  // Sadece kullanıcının rolüne uygun menüleri göster, boş grupları gizle
+  return allGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.roles || item.roles.includes(role)),
+    }))
+    .filter(group => group.items.length > 0)
+})
 
 const isActive = (to: string) => {
   if (to === '/') return route.path === '/'
@@ -65,7 +78,7 @@ const isActive = (to: string) => {
 }
 
 const activeLabel = computed(() => {
-  for (const g of navGroups) {
+  for (const g of navGroups.value) {
     const found = g.items.find((i) => isActive(i.to))
     if (found) return found.label
   }

@@ -74,6 +74,8 @@ export const useDealersStore = defineStore('dealers', {
           lastOrderAt: d.lastOrderAt || undefined,
           riskScore: d.riskScore ?? 0,
           riskLevel: d.riskLevel || 'LOW',
+          salesRepId: d.salesRepId || undefined,
+          salesRep: d.salesRep || undefined,
           approvedBy: d.approvedBy || undefined,
           approvedAt: d.approvedAt || undefined,
           rejectionReason: d.rejectionReason || undefined,

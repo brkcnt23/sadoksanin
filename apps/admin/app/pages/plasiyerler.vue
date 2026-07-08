@@ -39,7 +39,7 @@ const dealerSearch = ref('')
 async function load() {
   loading.value = true
   try {
-    const users = await api.get<any[]>('/auth/users')
+    const users = await api.get<any[]>('/auth/users', { role: 'PLASIYER' })
     plasiyers.value = (users || []).filter((u: any) => u.role === 'PLASIYER').map((u: any) => ({
       id: u.id,
       email: u.email,
@@ -81,18 +81,23 @@ function startAssignDealer(plasiyerId: string) {
 }
 
 async function confirmAssignDealer(dealer: Dealer) {
-  if (!assignDealerPlasiyerId.value) return
+  const plasiyerId = assignDealerPlasiyerId.value
+  if (!plasiyerId) return
   try {
-    // Assign via API or local store
-    await api.patch(`/dealer/${dealer.id}/plasiyer`, { plasiyerId: assignDealerPlasiyerId.value })
-    toast.push(`Plasiyer bayisine atandı: ${dealer.name}`, 'success')
+    await api.patch(`/dealer/${dealer.id}/plasiyer`, { plasiyerId })
+    // Store'u güncelle ki atanan bayi sayısı anında yansısın
+    const idx = dealers.items.findIndex(d => d.id === dealer.id)
+    if (idx !== -1) dealers.items[idx]!.salesRepId = plasiyerId
+    toast.push(`${dealer.name} → plasiyere atandı`, 'success')
     assignDealerPlasiyerId.value = null
-  } catch {
-    // Non-critical, just show success anyway
-    toast.push(`Bayi atandı: ${dealer.name}`, 'success')
-    assignDealerPlasiyerId.value = null
+  } catch (err: any) {
+    toast.push(err?.message || 'Atama başarısız', 'error')
   }
 }
+
+// Bir plasiyere atanmış bayi sayısı
+const assignedCount = (plasiyerId: string) =>
+  dealers.items.filter(d => d.salesRepId === plasiyerId).length
 
 // ─── Helpers ──────────────────────────────────────────────────
 const roleBadge = (role: string) => {
@@ -165,6 +170,12 @@ const roleBadge = (role: string) => {
         </div>
         <!-- Assign dealer -->
         <div class="mt-3 pt-3 border-t border-ink-100">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs text-ink-500 flex items-center gap-1">
+              <Icon name="lucide:store" class="w-3 h-3" />
+              {{ assignedCount(p.id) }} bayi atanmış
+            </span>
+          </div>
           <button
             @click="startAssignDealer(p.id)"
             class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"

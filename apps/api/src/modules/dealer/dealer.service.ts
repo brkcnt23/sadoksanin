@@ -619,11 +619,46 @@ export class DealerService {
   /**
    * Admin: List all dealers with full details
    */
-  async adminListAll() {
+  async adminListAll(user?: { sub?: string; id?: string; role?: string }) {
+    // PLASIYER sadece kendisine atanmış bayileri görür; ADMIN/SUPER_ADMIN hepsini.
+    const where =
+      user?.role === 'PLASIYER' ? { salesRepId: user.sub || user.id } : {};
+
     return this.prisma.dealer.findMany({
-      include: { user: { select: { email: true, name: true, phone: true } } },
+      where,
+      include: {
+        user: { select: { email: true, name: true, phone: true } },
+        salesRep: { select: { id: true, name: true, email: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Bayiye sorumlu plasiyer ata (veya kaldır: plasiyerId=null).
+   * Sadece ADMIN/SUPER_ADMIN çağırır (controller guard'ı ile korunur).
+   */
+  async assignSalesRep(dealerId: string, plasiyerId: string | null) {
+    const dealer = await this.prisma.dealer.findUnique({ where: { id: dealerId } });
+    if (!dealer) throw new NotFoundException('Bayi bulunamadı');
+
+    if (plasiyerId) {
+      const plasiyer = await this.prisma.user.findUnique({ where: { id: plasiyerId } });
+      if (!plasiyer) throw new NotFoundException('Plasiyer bulunamadı');
+      if (plasiyer.role !== 'PLASIYER') {
+        throw new BadRequestException('Seçilen kullanıcı plasiyer değil');
+      }
+    }
+
+    const updated = await this.prisma.dealer.update({
+      where: { id: dealerId },
+      data: { salesRepId: plasiyerId },
+      include: { salesRep: { select: { id: true, name: true, email: true } } },
+    });
+    this.logger.log(
+      `Dealer ${dealer.company} → plasiyer ${plasiyerId ?? '(kaldırıldı)'}`,
+    );
+    return updated;
   }
 
   /**

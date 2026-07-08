@@ -156,6 +156,9 @@ export interface Dealer extends AuditMeta {
   lastOrderAt?: ISODate
   riskScore?: number
   riskLevel?: string
+  // Sorumlu plasiyer (satış temsilcisi)
+  salesRepId?: ID
+  salesRep?: { id: ID; name: string; email: string }
   // Actions
   approvedBy?: ID
   approvedAt?: ISODate
