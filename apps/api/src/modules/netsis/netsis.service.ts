@@ -5,10 +5,15 @@ import { PrismaService } from '../../common/prisma.service'
 import type {
   NetsisLoginRequest,
   NetsisTokenResponse,
-  NetsisItem,
+  NetsisApiResponse,
+  NetsisItemResponse,
+  NetsisItemTemelBilgi,
+  NetsisItemEkBilgi,
   NetsisItemPrimInfo,
-  NetsisARPs,
+  NetsisARPsResponse,
+  NetsisCariTemelBilgi,
   NetsisExRate,
+  NetsisForEx,
   NetsisSyncResult,
 } from './netsis.types'
 
@@ -77,10 +82,25 @@ export class NetsisService {
     this.logger.debug('Yeni access token alınıyor...')
 
     try {
+      // NetOpenX REST token endpoint'i OAuth2 password grant formatında
+      // application/x-www-form-urlencoded bekler (JSON değil!)
+      const params = new URLSearchParams()
+      params.append('grant_type', 'password')
+      params.append('username', this.loginRequest.NetsisUser)
+      params.append('password', this.loginRequest.NetsisPassword)
+      params.append('DbName', this.loginRequest.DbName)
+      params.append('DbUser', this.loginRequest.DbUser)
+      params.append('DbPassword', this.loginRequest.DbPassword)
+      params.append('BranchCode', String(this.loginRequest.BranchCode))
+      params.append('DbType', String(this.loginRequest.DbType))
+
       const res = await axios.post<NetsisTokenResponse>(
         `${this.apiUrl}/token`,
-        this.loginRequest,
-        { timeout: 15000 },
+        params.toString(),
+        {
+          timeout: 15000,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
       )
 
       const { access_token, expires_in } = res.data
@@ -105,7 +125,7 @@ export class NetsisService {
     // Önce varsa revoke et (best-effort)
     if (this.tokenCache?.accessToken) {
       try {
-        await axios.get(`${this.apiUrl}/api/v2/revoke`, {
+        await axios.get(`${this.apiUrl}/revoke`, {
           headers: { Authorization: `Bearer ${this.tokenCache.accessToken}` },
           timeout: 5000,
         })
@@ -134,6 +154,7 @@ export class NetsisService {
 
   /**
    * Sayfalı GET isteği yapar — tüm kayıtları toplar.
+   * NetOpenX REST response formatı: { IsSuccessful: true, Data: [...], TotalCount: N }
    */
   private async fetchAllPages<T>(
     endpoint: string,
@@ -150,21 +171,15 @@ export class NetsisService {
       const url = `${endpoint}?${params.toString()}`
 
       try {
-        const res = await client.get<T[]>(url)
+        const res = await client.get<NetsisApiResponse<T>>(url)
+        const body = res.data
 
-        // NetOpenX REST farklı response formatları dönebilir:
-        // - direkt array: [...]
-        // - DataList içeren obje: { DataList: [...], Count: N }
-        // - Data içeren obje: { Data: [...], Count: N }
-        let items: T[] = []
-        if (Array.isArray(res.data)) {
-          items = res.data
-        } else if ((res.data as any)?.DataList) {
-          items = (res.data as any).DataList
-        } else if ((res.data as any)?.Data) {
-          items = (res.data as any).Data
+        if (!body.IsSuccessful) {
+          this.logger.warn(`${endpoint}: IsSuccessful=false, ${body.ErrorDesc || ''}`)
+          break
         }
 
+        const items = body.Data || []
         all.push(...items)
         offset += items.length
         hasMore = items.length === pageSize
@@ -174,18 +189,14 @@ export class NetsisService {
           this.logger.debug('Token expired, yenileniyor...')
           this.tokenCache = null
           const newClient = await this.apiClient()
-          const retryRes = await newClient.get<T[]>(url)
-          let items: T[] = []
-          if (Array.isArray(retryRes.data)) {
-            items = retryRes.data
-          } else if ((retryRes.data as any)?.DataList) {
-            items = (retryRes.data as any).DataList
-          } else if ((retryRes.data as any)?.Data) {
-            items = (retryRes.data as any).Data
+          const retryRes = await newClient.get<NetsisApiResponse<T>>(url)
+          const body = retryRes.data
+          if (body.IsSuccessful) {
+            const items = body.Data || []
+            all.push(...items)
+            offset += items.length
+            hasMore = items.length === pageSize
           }
-          all.push(...items)
-          offset += items.length
-          hasMore = items.length === pageSize
           continue
         }
         throw err
@@ -220,48 +231,44 @@ export class NetsisService {
     await this.markSyncRunning('products')
 
     try {
-      // Önce temel bilgileri al (daha hızlı)
-      const items = await this.fetchAllPages<NetsisItem>('/api/v2/Items', 500)
+      // Items endpoint'i her kaydı {StokTemelBilgi, StokEkBilgi} olarak döner
+      const items = await this.fetchAllPages<NetsisItemResponse>('/Items', 500)
 
       let created = 0, updated = 0, errors = 0
 
-      for (const item of items) {
+      for (const row of items) {
+        const item = row.StokTemelBilgi
+        const ek = row.StokEkBilgi
         try {
           await this.prisma.product.upsert({
-            where: { netsisCode: item.STOK_KODU },
+            where: { netsisCode: item.Stok_Kodu },
             create: {
-              netsisCode: item.STOK_KODU,
-              sku: item.STOK_KODU,
-              name: item.STOK_ADI || item.STOK_KODU,
-              brand: item.MARKA || '',
-              category: item.KATEGORI || '',
-              unit: item.BIRIM || 'adet',
-              basePrice: item.SAT_FIYAT || 0,
-              taxRate: item.KDV_ORANI || 0.2,
-              netsisStock: Math.round(item.STOK_BAKIYE || 0),
-              displayStock: Math.round(item.STOK_BAKIYE || 0),
+              netsisCode: item.Stok_Kodu,
+              sku: item.Stok_Kodu,
+              name: item.Stok_Adi || item.Stok_Kodu,
+              brand: '',
+              category: '',
+              unit: 'adet',
+              basePrice: item.Satis_Fiat1 || 0,
+              taxRate: item.KDV_Orani || 0.2,
+              netsisStock: Math.round(item.Miktar || 0),
+              displayStock: Math.round(item.Miktar || 0),
               syncStatus: 'SYNCED',
               lastNetsisSync: new Date(),
             },
             update: {
-              name: item.STOK_ADI || undefined,
-              brand: item.MARKA || undefined,
-              category: item.KATEGORI || undefined,
-              unit: item.BIRIM || undefined,
-              basePrice: item.SAT_FIYAT ?? undefined,
-              taxRate: item.KDV_ORANI ?? undefined,
-              netsisStock: Math.round(item.STOK_BAKIYE || 0),
-              // displayStock hesapla: netsisStock - pendingQuantity - reservedStock
+              name: item.Stok_Adi || undefined,
+              basePrice: item.Satis_Fiat1 ?? undefined,
+              taxRate: item.KDV_Orani ?? undefined,
+              netsisStock: Math.round(item.Miktar || 0),
               syncStatus: 'SYNCED',
               lastNetsisSync: new Date(),
             },
           })
-          // İlk kez oluşturuluyorsa created, varsa updated
-          // (upsert'te ayırt edemesek de count için kullanacağız)
           updated++
         } catch (err) {
           errors++
-          this.logger.error(`Ürün sync hatası [${item.STOK_KODU}]:`, (err as Error).message)
+          this.logger.error(`Ürün sync hatası [${item.Stok_Kodu}]:`, (err as Error).message)
         }
       }
 
@@ -296,24 +303,23 @@ export class NetsisService {
     await this.markSyncRunning('stock')
 
     try {
-      const items = await this.fetchAllPages<NetsisItemPrimInfo>('/api/v2/Items/PrimInfo', 1000)
+      const items = await this.fetchAllPages<NetsisItemPrimInfo>('/Items/PrimInfo', 1000)
 
       let updated = 0, errors = 0
 
       for (const item of items) {
         try {
           await this.prisma.product.updateMany({
-            where: { netsisCode: item.STOK_KODU },
+            where: { netsisCode: item.Stok_Kodu },
             data: {
-              netsisStock: Math.round(item.STOK_BAKIYE || 0),
+              netsisStock: Math.round(item.Miktar || 0),
               lastNetsisSync: new Date(),
-              // displayStock hesabı için mevcut pending/reserved değerler korunur
             },
           })
           updated++
         } catch (err) {
           errors++
-          this.logger.error(`Stok sync hatası [${item.STOK_KODU}]:`, (err as Error).message)
+          this.logger.error(`Stok sync hatası [${item.Stok_Kodu}]:`, (err as Error).message)
         }
       }
 
@@ -361,24 +367,25 @@ export class NetsisService {
     await this.markSyncRunning('cari')
 
     try {
-      const arpsList = await this.fetchAllPages<NetsisARPs>('/api/v2/ARPs', 500)
+      const arpsList = await this.fetchAllPages<NetsisARPsResponse>('/ARPs', 500)
 
       let updated = 0, errors = 0
 
-      for (const arp of arpsList) {
+      for (const row of arpsList) {
+        const arp = row.CariTemelBilgi
         try {
           const result = await this.prisma.dealer.updateMany({
-            where: { cariNo: arp.CARI_KOD },
+            where: { cariNo: arp.Cari_Kod },
             data: {
-              cariBalance: -(arp.BORCLANAN_TUTAR || 0), // -borç = bize borçlu
-              creditLimit: arp.KREDI_LIMITI || 0,
+              cariBalance: -(arp.Borclanan_Tutar || 0), // -borç = bize borçlu
+              creditLimit: arp.Kredi_Limiti || 0,
               cariValidated: true,
             },
           })
           updated += result.count
         } catch (err) {
           errors++
-          this.logger.error(`Cari sync hatası [${arp.CARI_KOD}]:`, (err as Error).message)
+          this.logger.error(`Cari sync hatası [${arp.Cari_Kod}]:`, (err as Error).message)
         }
       }
 
@@ -411,17 +418,28 @@ export class NetsisService {
     await this.markSyncRunning('exchangeRates')
 
     try {
-      const rates = await this.fetchAllPages<NetsisExRate>('/api/v2/ExRates', 100)
+      // ExRates ve ForExs'i paralel çek — ExRates'te ISIM yok, ForExs ile Sira üzerinden eşleşir
+      const [rates, forexList] = await Promise.all([
+        this.fetchAllPages<NetsisExRate>('/ExRates', 100),
+        this.fetchAllPages<NetsisForEx>('/ForExs', 100),
+      ])
+
+      // Sira → ISIM map
+      const forexMap = new Map<number, string>()
+      for (const fx of forexList) {
+        forexMap.set(fx.Sira, fx.ISIM)
+      }
 
       let updated = 0, errors = 0
 
       for (const rate of rates) {
-        if (!rate.ISIM || !rate.DOV_ALIS) continue
+        const currency = forexMap.get(rate.Sira)
+        if (!currency || !rate.DOV_ALIS) continue
         try {
           await this.prisma.exchangeRate.upsert({
-            where: { currency: rate.ISIM.toUpperCase() },
+            where: { currency: currency.toUpperCase() },
             create: {
-              currency: rate.ISIM.toUpperCase(),
+              currency: currency.toUpperCase(),
               rate: rate.DOV_ALIS,
               liveRate: rate.DOV_ALIS,
               source: 'netsis',
@@ -437,7 +455,7 @@ export class NetsisService {
           updated++
         } catch (err) {
           errors++
-          this.logger.error(`Kur sync hatası [${rate.ISIM}]:`, (err as Error).message)
+          this.logger.error(`Kur sync hatası [${currency}]:`, (err as Error).message)
         }
       }
 
@@ -489,8 +507,8 @@ export class NetsisService {
     try {
       const client = await this.apiClient()
       const [pingRes, versionRes] = await Promise.all([
-        client.get('/api/v2/public/Ping'),
-        client.get('/api/v2/public/Version'),
+        client.get('/public/Ping'),
+        client.get('/public/Version'),
       ])
       return { ok: true, version: versionRes.data }
     } catch (err) {
@@ -548,5 +566,171 @@ export class NetsisService {
       default: next.setHours(next.getHours() + 1); break                 // 1 saat (products)
     }
     return next
+  }
+
+  // ─── Push: Fabrika PC'den veri kabul etme ──────────────────────────────
+
+  /**
+   * Fabrikadaki push-agent'tan gelen stok kartlarını alır, Product tablosuna yazar.
+   * Pull-sync'ten farklı olarak Netsis API'yi çağırmaz — veri zaten hazır gelir.
+   */
+  async pushProducts(items: NetsisItemTemelBilgi[]): Promise<NetsisSyncResult> {
+    const startTime = Date.now()
+    let created = 0, updated = 0, errors = 0
+
+    await this.markSyncRunning('products-push')
+
+    for (const item of items) {
+      try {
+        await this.prisma.product.upsert({
+          where: { netsisCode: item.Stok_Kodu },
+          create: {
+            netsisCode: item.Stok_Kodu,
+            sku: item.Stok_Kodu,
+            name: item.Stok_Adi || item.Stok_Kodu,
+            brand: '',
+            category: '',
+            unit: 'adet',
+            basePrice: item.Satis_Fiat1 || 0,
+            taxRate: item.KDV_Orani || 0.2,
+            netsisStock: Math.round(item.Miktar || 0),
+            displayStock: Math.round(item.Miktar || 0),
+            syncStatus: 'SYNCED',
+            lastNetsisSync: new Date(),
+          },
+          update: {
+            name: item.Stok_Adi || undefined,
+            basePrice: item.Satis_Fiat1 ?? undefined,
+            taxRate: item.KDV_Orani ?? undefined,
+            netsisStock: Math.round(item.Miktar || 0),
+            syncStatus: 'SYNCED',
+            lastNetsisSync: new Date(),
+          },
+        })
+        updated++
+      } catch (err) {
+        errors++
+        this.logger.error(`Push ürün hatası [${item.Stok_Kodu}]:`, (err as Error).message)
+      }
+    }
+
+    const duration = Date.now() - startTime
+    await this.updateSyncStatus('products', updated, errors, 'success', duration)
+    this.logger.log(`Push ürün tamamlandı: ${updated} kayıt, ${errors} hata, ${duration}ms`)
+    return { syncType: 'products', status: 'success', itemsSynced: updated, errors, duration }
+  }
+
+  /**
+   * Fabrikadaki push-agent'tan gelen stok özetlerini alır.
+   */
+  async pushStock(items: NetsisItemPrimInfo[]): Promise<NetsisSyncResult> {
+    const startTime = Date.now()
+    let updated = 0, errors = 0
+
+    await this.markSyncRunning('stock-push')
+
+    for (const item of items) {
+      try {
+        const result = await this.prisma.product.updateMany({
+          where: { netsisCode: item.Stok_Kodu },
+          data: {
+            netsisStock: Math.round(item.Miktar || 0),
+            lastNetsisSync: new Date(),
+          },
+        })
+        updated += result.count
+      } catch (err) {
+        errors++
+        this.logger.error(`Push stok hatası [${item.Stok_Kodu}]:`, (err as Error).message)
+      }
+    }
+
+    // displayStock = netsisStock - pending - reserved
+    await this.prisma.$executeRawUnsafe(`
+      UPDATE "Product"
+      SET "displayStock" = "netsisStock" - "netsisPendingQuantity" - "reservedStock"
+      WHERE "lastNetsisSync" >= NOW() - INTERVAL '2 minutes'
+    `)
+
+    const duration = Date.now() - startTime
+    await this.updateSyncStatus('stock', updated, errors, 'success', duration)
+    this.logger.log(`Push stok tamamlandı: ${updated} kayıt, ${duration}ms`)
+    return { syncType: 'stock', status: 'success', itemsSynced: updated, errors, duration }
+  }
+
+  /**
+   * Fabrikadaki push-agent'tan gelen cari hesap verilerini alır.
+   */
+  async pushCari(arpsList: NetsisCariTemelBilgi[]): Promise<NetsisSyncResult> {
+    const startTime = Date.now()
+    let updated = 0, errors = 0
+
+    await this.markSyncRunning('cari-push')
+
+    for (const arp of arpsList) {
+      try {
+        const result = await this.prisma.dealer.updateMany({
+          where: { cariNo: arp.Cari_Kod },
+          data: {
+            cariBalance: -(arp.Borclanan_Tutar || 0),
+            creditLimit: arp.Kredi_Limiti || 0,
+            cariValidated: true,
+          },
+        })
+        updated += result.count
+      } catch (err) {
+        errors++
+        this.logger.error(`Push cari hatası [${arp.Cari_Kod}]:`, (err as Error).message)
+      }
+    }
+
+    const duration = Date.now() - startTime
+    await this.updateSyncStatus('cari', updated, errors, 'success', duration)
+    this.logger.log(`Push cari tamamlandı: ${updated} bayi, ${duration}ms`)
+    return { syncType: 'cari', status: 'success', itemsSynced: updated, errors, duration }
+  }
+
+  /**
+   * Fabrikadaki push-agent'tan gelen döviz kurlarını alır.
+   */
+  async pushExchangeRates(rates: NetsisExRate[]): Promise<NetsisSyncResult> {
+    const startTime = Date.now()
+    let updated = 0, errors = 0
+
+    await this.markSyncRunning('exchangeRates-push')
+
+    // Not: ExRates'te ISIM yok. Push-agent forexMap'i zaten çözmüş olarak
+    // her rate'e currency eklemiş olmalı. Biz (rate as any).currency bekleriz.
+    for (const rate of rates) {
+      const currency = (rate as any).currency || (rate as any).ISIM
+      if (!currency || !rate.DOV_ALIS) continue
+      try {
+        await this.prisma.exchangeRate.upsert({
+          where: { currency: currency.toUpperCase() },
+          create: {
+            currency: currency.toUpperCase(),
+            rate: rate.DOV_ALIS,
+            liveRate: rate.DOV_ALIS,
+            source: 'netsis',
+            lastUpdated: new Date(),
+          },
+          update: {
+            rate: rate.DOV_ALIS,
+            liveRate: rate.DOV_ALIS,
+            source: 'netsis',
+            lastUpdated: new Date(),
+          },
+        })
+        updated++
+      } catch (err) {
+        errors++
+        this.logger.error(`Push kur hatası [${currency}]:`, (err as Error).message)
+      }
+    }
+
+    const duration = Date.now() - startTime
+    await this.updateSyncStatus('exchangeRates', updated, errors, 'success', duration)
+    this.logger.log(`Push kur tamamlandı: ${updated} kur, ${duration}ms`)
+    return { syncType: 'exchangeRates', status: 'success', itemsSynced: updated, errors, duration }
   }
 }
