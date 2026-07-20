@@ -575,6 +575,60 @@ export class NetsisService {
     return this.prisma.netsisSync.findMany({ orderBy: { syncType: 'asc' } })
   }
 
+  /**
+   * Stok verisinin tazeliğini raporlar.
+   *
+   * Neden gerekli: Netsis bağlantısı koptuğunda site çalışmaya devam eder
+   * ama stok/fiyat dondurulmuş kalır — Netsis'te biten mal sitede "var"
+   * görünür ve olmayan mal satılır. 2026-07'de tünel 9 gün kopuk kaldı ve
+   * bu durum panelden görülemiyordu.
+   *
+   * Eşikler: 1 günden yeni = taze, 3 güne kadar = uyarı, sonrası = bayat.
+   */
+  async getDataFreshness(): Promise<{
+    lastSync: Date | null
+    hoursStale: number | null
+    daysStale: number | null
+    status: 'fresh' | 'warning' | 'stale' | 'never'
+    syncedProducts: number
+    message: string
+  }> {
+    const agg = await this.prisma.product.aggregate({
+      _max: { lastNetsisSync: true },
+      _count: { lastNetsisSync: true },
+    })
+
+    const lastSync = agg._max.lastNetsisSync
+    const syncedProducts = agg._count.lastNetsisSync
+
+    if (!lastSync) {
+      return {
+        lastSync: null,
+        hoursStale: null,
+        daysStale: null,
+        status: 'never',
+        syncedProducts: 0,
+        message: 'Netsis senkronizasyonu hiç çalışmadı.',
+      }
+    }
+
+    const hoursStale = Math.floor((Date.now() - lastSync.getTime()) / 3_600_000)
+    const daysStale = Math.floor(hoursStale / 24)
+
+    const status: 'fresh' | 'warning' | 'stale' =
+      hoursStale < 24 ? 'fresh' : daysStale < 3 ? 'warning' : 'stale'
+
+    const message =
+      status === 'fresh'
+        ? 'Stok verisi güncel.'
+        : status === 'warning'
+          ? `Stok verisi ${daysStale} gündür güncellenmedi.`
+          : `Stok verisi ${daysStale} gündür güncellenmedi — ` +
+            `Netsis bağlantısı kopuk olabilir. Stok ve fiyatlar gerçeği yansıtmıyor olabilir.`
+
+    return { lastSync, hoursStale, daysStale, status, syncedProducts, message }
+  }
+
   /** API bağlantısını test et — ping atar */
   async healthCheck(): Promise<{ ok: boolean; version?: string; error?: string }> {
     if (!this.configured) {

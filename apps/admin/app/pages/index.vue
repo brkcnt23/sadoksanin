@@ -22,6 +22,7 @@ onMounted(() => {
   if (!stock.loaded) stock.load()
   if (!settings.loaded) settings.load()
   loadAuditFeed()
+  loadFreshness()
 })
 
 const pendingOrders = computed(() =>
@@ -99,6 +100,33 @@ async function loadAuditFeed() {
     auditFeed.value = result.items ?? []
   } catch { /* silent */ }
 }
+
+// ── Netsis veri tazeliği ──
+// Netsis bağlantısı koptuğunda site çalışmaya devam eder ama stok/fiyat
+// donar; Netsis'te biten mal sitede "var" görünür. Bu bant o durumu
+// panelden görünür kılar.
+interface DataFreshness {
+  status: 'fresh' | 'warning' | 'stale' | 'never'
+  daysStale: number | null
+  message: string
+  lastSync: string | null
+}
+const freshness = ref<DataFreshness | null>(null)
+async function loadFreshness() {
+  try {
+    freshness.value = await api.get<DataFreshness>('/netsis/data-freshness')
+  } catch { /* silent — uyarı bandı yoksa panel yine çalışsın */ }
+}
+const showFreshnessAlert = computed(
+  () => freshness.value && freshness.value.status !== 'fresh',
+)
+const freshnessStyle = computed(() => {
+  const s = freshness.value?.status
+  if (s === 'stale' || s === 'never') {
+    return { box: 'bg-red-50 border-red-300 text-red-800', icon: 'lucide:alert-triangle' }
+  }
+  return { box: 'bg-amber-50 border-amber-300 text-amber-800', icon: 'lucide:clock-alert' }
+})
 
 const approve = (id: string) => {
   const u = auth.getUser()
@@ -188,6 +216,23 @@ async function quickTestOrder() {
 
 <template>
   <div class="space-y-6">
+    <!-- Netsis veri tazeliği uyarısı — stok/fiyat donmuşsa görünür -->
+    <div
+      v-if="showFreshnessAlert"
+      class="border rounded-lg px-4 py-3 flex items-start gap-3"
+      :class="freshnessStyle.box"
+    >
+      <Icon :name="freshnessStyle.icon" class="w-5 h-5 shrink-0 mt-0.5" />
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold text-sm">Netsis stok verisi güncel değil</p>
+        <p class="text-sm mt-0.5">{{ freshness?.message }}</p>
+        <p v-if="freshness?.status === 'stale' || freshness?.status === 'never'" class="text-xs mt-1.5 opacity-90">
+          Fabrika bağlantısı kopuk olabilir. Bu süre boyunca stoğu tükenen ürünler
+          sitede "stokta var" görünmeye devam eder.
+        </p>
+      </div>
+    </div>
+
     <!-- Intro Banner (toggleable from settings) -->
     <IntroBanner v-if="settings.data.introEnabled" />
 

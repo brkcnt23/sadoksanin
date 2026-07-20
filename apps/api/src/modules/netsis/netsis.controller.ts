@@ -19,6 +19,18 @@ export class NetsisController {
     return this.netsisService.healthCheck()
   }
 
+  /**
+   * Stok verisinin ne kadar güncel olduğunu döner.
+   * Admin panelde "veri bayat" uyarı bandı bunu kullanır.
+   * Plasiyer de görebilir — bayat stokla satış yapmasın.
+   */
+  @Get('data-freshness')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN', 'PLASIYER')
+  async dataFreshness() {
+    return this.netsisService.getDataFreshness()
+  }
+
   // ─── Manuel Sync (Pull — sunucudan Netsis'e bağlanır) ────────────────────
 
   @Post('sync/products')
