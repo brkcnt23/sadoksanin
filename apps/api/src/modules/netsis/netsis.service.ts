@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import axios, { AxiosInstance } from 'axios'
+import * as bcrypt from 'bcryptjs'
+import { randomBytes } from 'crypto'
 import { PrismaService } from '../../common/prisma.service'
 import type {
   NetsisLoginRequest,
@@ -807,5 +809,170 @@ export class NetsisService {
     await this.updateSyncStatus('exchangeRates', updated, errors, 'success', duration)
     this.logger.log(`Push kur tamamlandı: ${updated} kur, ${duration}ms`)
     return { syncType: 'exchangeRates', status: 'success', itemsSynced: updated, errors, duration }
+  }
+
+  // ─── Bayi İçe Aktarma (ARPs → Dealer) ───────────────────────────────────
+
+  /** İl → lojistik bölge eşlemesi (Dealer.region). */
+  private static readonly IL_BOLGE: Record<string, string> = {
+    İSTANBUL: 'Marmara', BURSA: 'Marmara', KOCAELİ: 'Marmara', BALIKESİR: 'Marmara',
+    TEKİRDAĞ: 'Marmara', EDİRNE: 'Marmara', KIRKLARELİ: 'Marmara', ÇANAKKALE: 'Marmara',
+    YALOVA: 'Marmara', BİLECİK: 'Marmara', SAKARYA: 'Marmara',
+    İZMİR: 'Ege', MANİSA: 'Ege', AYDIN: 'Ege', DENİZLİ: 'Ege', MUĞLA: 'Ege',
+    AFYONKARAHİSAR: 'Ege', KÜTAHYA: 'Ege', UŞAK: 'Ege',
+    ANTALYA: 'Akdeniz', ADANA: 'Akdeniz', MERSİN: 'Akdeniz', HATAY: 'Akdeniz',
+    ISPARTA: 'Akdeniz', BURDUR: 'Akdeniz', OSMANİYE: 'Akdeniz', KAHRAMANMARAŞ: 'Akdeniz',
+    ANKARA: 'İç Anadolu', KONYA: 'İç Anadolu', KAYSERİ: 'İç Anadolu', ESKİŞEHİR: 'İç Anadolu',
+    SİVAS: 'İç Anadolu', YOZGAT: 'İç Anadolu', AKSARAY: 'İç Anadolu', KARAMAN: 'İç Anadolu',
+    KIRIKKALE: 'İç Anadolu', KIRŞEHİR: 'İç Anadolu', NEVŞEHİR: 'İç Anadolu',
+    NİĞDE: 'İç Anadolu', ÇANKIRI: 'İç Anadolu',
+    SAMSUN: 'Karadeniz', TRABZON: 'Karadeniz', ORDU: 'Karadeniz', RİZE: 'Karadeniz',
+    GİRESUN: 'Karadeniz', TOKAT: 'Karadeniz', AMASYA: 'Karadeniz', ÇORUM: 'Karadeniz',
+    KASTAMONU: 'Karadeniz', SİNOP: 'Karadeniz', BARTIN: 'Karadeniz', ZONGULDAK: 'Karadeniz',
+    KARABÜK: 'Karadeniz', BOLU: 'Karadeniz', DÜZCE: 'Karadeniz', ARTVİN: 'Karadeniz',
+    GÜMÜŞHANE: 'Karadeniz', BAYBURT: 'Karadeniz',
+    ERZURUM: 'Doğu Anadolu', VAN: 'Doğu Anadolu', MALATYA: 'Doğu Anadolu',
+    ELAZIĞ: 'Doğu Anadolu', ERZİNCAN: 'Doğu Anadolu', AĞRI: 'Doğu Anadolu',
+    KARS: 'Doğu Anadolu', MUŞ: 'Doğu Anadolu', BİTLİS: 'Doğu Anadolu',
+    HAKKARİ: 'Doğu Anadolu', IĞDIR: 'Doğu Anadolu', ARDAHAN: 'Doğu Anadolu',
+    BİNGÖL: 'Doğu Anadolu', TUNCELİ: 'Doğu Anadolu',
+    GAZİANTEP: 'Güneydoğu', ŞANLIURFA: 'Güneydoğu', DİYARBAKIR: 'Güneydoğu',
+    MARDİN: 'Güneydoğu', BATMAN: 'Güneydoğu', ADIYAMAN: 'Güneydoğu',
+    SİİRT: 'Güneydoğu', ŞIRNAK: 'Güneydoğu', KİLİS: 'Güneydoğu',
+  }
+
+  private ilToBolge(il?: string | null): string {
+    if (!il) return 'Marmara'
+    return NetsisService.IL_BOLGE[il.trim().toLocaleUpperCase('tr-TR')] || 'Marmara'
+  }
+
+  /**
+   * Netsis cari hesaplarını (ARPs) Dealer olarak içe aktarır.
+   *
+   * MANUEL çağrılır — otomatik scheduler'a BAĞLI DEĞİL. Netsis'te binlerce
+   * cari var ve hepsi bayi değil; kendiliğinden bayi üretmesi istenmez.
+   *
+   * Güvenlik davranışı:
+   *   - Varsayılan `dryRun: true` — hiçbir şey yazmaz, sadece ne olacağını raporlar
+   *   - Sadece `cariPrefix` ile başlayan hesaplar (varsayılan '120' = alıcılar;
+   *     320 satıcı/tedarikçi hesaplarını almaz)
+   *   - Vergi no'su olmayan kayıt atlanır (taxNo @unique, boşlar çakışır)
+   *   - Mevcut cariNo/taxNo varsa DOKUNULMAZ (mevcut bayi ezilmez)
+   *   - Oluşan bayi `PENDING` durumunda gelir — admin onaylayana kadar pasif
+   *
+   * Netsis'te e-posta alanı yok; giriş için yer tutucu bir adres üretilir
+   * (`cari-<kod>@netsis.local`) ve şifre rastgele atanır. Bayi gerçekten
+   * kullanacaksa admin e-postayı düzeltip şifre sıfırlatmalı.
+   */
+  async importDealers(options?: {
+    dryRun?: boolean
+    cariPrefix?: string
+    limit?: number
+  }): Promise<{
+    dryRun: boolean
+    totalFetched: number
+    eligible: number
+    created: number
+    skipped: { existing: number; noTaxNo: number; noCode: number; otherPrefix: number }
+    errors: number
+    samples: Array<{ cariNo: string; company: string; city: string; region: string; taxNo: string }>
+  }> {
+    const dryRun = options?.dryRun !== false // varsayılan: TRUE (güvenli)
+    const cariPrefix = options?.cariPrefix ?? '120'
+
+    if (!this.configured) {
+      throw new Error('Netsis yapılandırılmadı — bayi içe aktarma yapılamaz')
+    }
+
+    const arpsList = await this.fetchAllPages<NetsisARPsResponse>('/ARPs', 500)
+
+    const skipped = { existing: 0, noTaxNo: 0, noCode: 0, otherPrefix: 0 }
+    const samples: Array<{ cariNo: string; company: string; city: string; region: string; taxNo: string }> = []
+    let eligible = 0, created = 0, errors = 0
+
+    for (const row of arpsList) {
+      if (options?.limit && created >= options.limit) break
+
+      const arp: Record<string, any> = (row.CariTemelBilgi ?? {}) as any
+      const cariNo = this.normalizeCode(arp.CARI_KOD ?? arp.Cari_Kod)
+      if (!cariNo) { skipped.noCode++; continue }
+      if (!cariNo.startsWith(cariPrefix)) { skipped.otherPrefix++; continue }
+
+      const taxNo = this.normalizeCode(arp.VERGI_NUMARASI ?? arp.Vergi_No)
+      if (!taxNo) { skipped.noTaxNo++; continue }
+
+      const company = this.normalizeCode(arp.CARI_ISIM ?? arp.Cari_Isim) || cariNo
+      const city = this.normalizeCode(arp.CARI_IL) || ''
+      const region = this.ilToBolge(city)
+
+      // Mevcut kayıt kontrolü — cariNo VEYA taxNo eşleşirse dokunma
+      const exists = await this.prisma.dealer.findFirst({
+        where: { OR: [{ cariNo }, { taxNo }] },
+        select: { id: true },
+      })
+      if (exists) { skipped.existing++; continue }
+
+      eligible++
+      if (samples.length < 10) {
+        samples.push({ cariNo, company, city, region, taxNo })
+      }
+
+      if (dryRun) continue
+
+      try {
+        const placeholderEmail = `cari-${cariNo.toLowerCase()}@netsis.local`
+        const randomPw = await bcrypt.hash(randomBytes(16).toString('hex'), 10)
+
+        await this.prisma.user.create({
+          data: {
+            email: placeholderEmail,
+            password: randomPw,
+            name: company,
+            role: 'DEALER',
+            phone: this.normalizeCode(arp.CARI_TEL) || undefined,
+            city: city || undefined,
+            dealer: {
+              create: {
+                name: company,
+                company,
+                taxNo,
+                taxOffice: this.normalizeCode(arp.VERGI_DAIRESI) || '-',
+                cariNo,
+                cariValidated: true,
+                contactPerson: company,
+                phone: this.normalizeCode(arp.CARI_TEL) || '-',
+                city: city || '-',
+                region,
+                address: this.normalizeCode(arp.CARI_ADRES) || '-',
+                status: 'PENDING', // admin onaylayana kadar pasif
+              },
+            },
+          },
+        })
+        created++
+      } catch (err) {
+        errors++
+        this.logger.error(`Bayi import hatası [${cariNo}]:`, (err as Error).message)
+      }
+    }
+
+    const result = {
+      dryRun,
+      totalFetched: arpsList.length,
+      eligible,
+      created,
+      skipped,
+      errors,
+      samples,
+    }
+
+    this.logger.log(
+      `Bayi import ${dryRun ? '(DENEME)' : '(UYGULANDI)'}: ` +
+      `${arpsList.length} cari tarandı, ${eligible} uygun, ${created} oluşturuldu, ` +
+      `atlanan(mevcut:${skipped.existing} vergiNo yok:${skipped.noTaxNo} ` +
+      `başka önek:${skipped.otherPrefix}), ${errors} hata`,
+    )
+
+    return result
   }
 }

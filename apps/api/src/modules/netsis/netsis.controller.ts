@@ -56,6 +56,28 @@ export class NetsisController {
     return this.netsisService.syncAll()
   }
 
+  // ─── Bayi İçe Aktarma (manuel — scheduler'a bağlı değil) ─────────────────
+
+  /**
+   * Netsis cari hesaplarından bayi oluşturur.
+   *
+   * VARSAYILAN DENEME MODUDUR — hiçbir şey yazmaz, sadece ne olacağını
+   * raporlar. Gerçekten yazmak için body'de açıkça `{"dryRun": false}`
+   * gönderilmeli.
+   *
+   * Örnek:
+   *   POST /api/netsis/import/dealers            → deneme (yazmaz)
+   *   POST /api/netsis/import/dealers {"dryRun": false, "limit": 5}
+   */
+  @Post('import/dealers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async importDealers(
+    @Body() body?: { dryRun?: boolean; cariPrefix?: string; limit?: number },
+  ) {
+    return this.netsisService.importDealers(body)
+  }
+
   // ─── Push (Fabrika PC'den veri kabul eder — API Key auth) ────────────────
 
   @Post('push/products')
