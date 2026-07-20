@@ -1,0 +1,16 @@
+[Unit]
+Description=Netsis TCP proxy (Docker konteynerleri -> SSH ters tuneli)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sadok
+ExecStart=/usr/bin/python3 /home/sadok/netsis-proxy.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
