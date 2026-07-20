@@ -255,6 +255,13 @@ export class NetsisService {
               displayStock: Math.round(item.Miktar || 0),
               syncStatus: 'SYNCED',
               lastNetsisSync: new Date(),
+              // Netsis'ten YENİ gelen ürün asla otomatik yayına girmez:
+              // markası/kategorisi/görseli/açıklaması yok. Admin panelden
+              // tamamlanıp elle görünür yapılır. (Product.visible default'u
+              // true — burada açıkça ezilmezse SADOKSAN2026'daki 5000+ kayıt
+              // storefront'a çöp ürün olarak düşer.)
+              visible: false,
+              purchasable: false,
             },
             update: {
               name: item.Stok_Adi || undefined,
