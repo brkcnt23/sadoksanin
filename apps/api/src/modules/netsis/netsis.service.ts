@@ -209,16 +209,40 @@ export class NetsisService {
   // ─── Sync: Ürünler (Items → Product) ────────────────────────────────────
 
   /**
+   * Netsis kod alanlarını normalize eder.
+   *
+   * Netsis gerçek verisinde kodlar baş/son boşluk ve TAB içeriyor
+   * (ör. " 5082-3065-02-00014\t"). Trim edilmezse aynı ürün için
+   * mükerrer kayıt oluşur ve eşleşmeler tutmaz.
+   *
+   * Boş/eksik kod null döner — çağıran taraf bu kaydı ATLAMALI.
+   * Kritik: Prisma'da `where: { alan: undefined }` filtreyi tamamen
+   * yok sayar, updateMany o durumda TÜM tabloyu günceller.
+   */
+  private normalizeCode(value: unknown): string | null {
+    if (typeof value !== 'string') return null
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  /**
+   * Netsis KDV oranını Sadoksan formatına çevirir.
+   * Netsis yüzde olarak verir (20.0), şemamız oran bekler (0.20).
+   */
+  private normalizeTaxRate(value: unknown): number | undefined {
+    if (typeof value !== 'number' || !isFinite(value)) return undefined
+    return value > 1 ? value / 100 : value
+  }
+
+  /**
    * Netsis'ten tüm stok kartlarını çeker, Product tablosuna yazar.
    *
    * Netsis → Sadoksan mapping:
-   *   STOK_KODU    → netsisCode, sku
-   *   STOK_ADI     → name
-   *   STOK_BAKIYE  → netsisStock, displayStock hesaplanır
-   *   KDV_ORANI    → taxRate
-   *   SAT_FIYAT    → basePrice
-   *   BIRIM        → unit
-   *   MARKA        → brand
+   *   Stok_Kodu    → netsisCode, sku (trim edilir)
+   *   Stok_Adi     → name
+   *   Miktar       → netsisStock, displayStock hesaplanır
+   *   KDV_Orani    → taxRate (yüzde → oran)
+   *   Satis_Fiat1  → basePrice
    */
   async syncProducts(): Promise<NetsisSyncResult> {
     const startTime = Date.now()
@@ -236,21 +260,31 @@ export class NetsisService {
 
       let created = 0, updated = 0, errors = 0
 
+      let skipped = 0
+
       for (const row of items) {
         const item = row.StokTemelBilgi
-        const ek = row.StokEkBilgi
+        const code = this.normalizeCode(item?.Stok_Kodu)
+        if (!code) {
+          skipped++
+          continue
+        }
+
+        const name = this.normalizeCode(item.Stok_Adi) || code
+        const taxRate = this.normalizeTaxRate(item.KDV_Orani)
+
         try {
           await this.prisma.product.upsert({
-            where: { netsisCode: item.Stok_Kodu },
+            where: { netsisCode: code },
             create: {
-              netsisCode: item.Stok_Kodu,
-              sku: item.Stok_Kodu,
-              name: item.Stok_Adi || item.Stok_Kodu,
+              netsisCode: code,
+              sku: code,
+              name,
               brand: '',
               category: '',
               unit: 'adet',
               basePrice: item.Satis_Fiat1 || 0,
-              taxRate: item.KDV_Orani || 0.2,
+              taxRate: taxRate ?? 0.2,
               netsisStock: Math.round(item.Miktar || 0),
               displayStock: Math.round(item.Miktar || 0),
               syncStatus: 'SYNCED',
@@ -264,9 +298,9 @@ export class NetsisService {
               purchasable: false,
             },
             update: {
-              name: item.Stok_Adi || undefined,
+              name,
               basePrice: item.Satis_Fiat1 ?? undefined,
-              taxRate: item.KDV_Orani ?? undefined,
+              taxRate,
               netsisStock: Math.round(item.Miktar || 0),
               syncStatus: 'SYNCED',
               lastNetsisSync: new Date(),
@@ -275,8 +309,12 @@ export class NetsisService {
           updated++
         } catch (err) {
           errors++
-          this.logger.error(`Ürün sync hatası [${item.Stok_Kodu}]:`, (err as Error).message)
+          this.logger.error(`Ürün sync hatası [${code}]:`, (err as Error).message)
         }
+      }
+
+      if (skipped > 0) {
+        this.logger.warn(`Ürün sync: ${skipped} kayıt geçersiz stok kodu nedeniyle atlandı`)
       }
 
       const duration = Date.now() - startTime
@@ -314,10 +352,18 @@ export class NetsisService {
 
       let updated = 0, errors = 0
 
+      let skipped = 0
+
       for (const item of items) {
+        const code = this.normalizeCode(item?.Stok_Kodu)
+        if (!code) {
+          skipped++
+          continue
+        }
+
         try {
           await this.prisma.product.updateMany({
-            where: { netsisCode: item.Stok_Kodu },
+            where: { netsisCode: code },
             data: {
               netsisStock: Math.round(item.Miktar || 0),
               lastNetsisSync: new Date(),
@@ -326,8 +372,12 @@ export class NetsisService {
           updated++
         } catch (err) {
           errors++
-          this.logger.error(`Stok sync hatası [${item.Stok_Kodu}]:`, (err as Error).message)
+          this.logger.error(`Stok sync hatası [${code}]:`, (err as Error).message)
         }
+      }
+
+      if (skipped > 0) {
+        this.logger.warn(`Stok sync: ${skipped} kayıt geçersiz stok kodu nedeniyle atlandı`)
       }
 
       // displayStock = netsisStock - netsisPendingQuantity - reservedStock
@@ -357,11 +407,10 @@ export class NetsisService {
    * Netsis'ten cari hesap bilgilerini çeker, Dealer tablosuna yazar.
    *
    * Netsis → Sadoksan mapping:
-   *   CARI_KOD         → cariNo
-   *   CARI_ISIM        → company (ünvan)
-   *   VERGI_NO         → taxNo (doğrulama)
-   *   BORCLANAN_TUTAR  → cariBalance (-borç = bize borçlu)
-   *   KREDI_LIMITI     → creditLimit
+   *   CARI_KOD  → cariNo ile eşleştirme (sadece doğrulama)
+   *
+   * cariBalance / creditLimit BU SYNC'TE YAZILMAZ — gerekçe için
+   * aşağıdaki uygulama notuna bakın.
    */
   async syncCari(): Promise<NetsisSyncResult> {
     const startTime = Date.now()
@@ -378,22 +427,41 @@ export class NetsisService {
 
       let updated = 0, errors = 0
 
+      let skipped = 0
+
       for (const row of arpsList) {
-        const arp = row.CariTemelBilgi
+        const arp: Record<string, unknown> = (row.CariTemelBilgi ?? {}) as any
+        // Gerçek SADOKSAN2026 verisinde alan adı CARI_KOD (tamamen büyük harf).
+        // Eski kod Cari_Kod okuyordu → undefined → Prisma filtreyi yok sayıp
+        // TÜM bayileri güncelliyordu. Her iki yazımı da tolere ediyoruz.
+        const cariKod = this.normalizeCode(arp.CARI_KOD ?? arp.Cari_Kod)
+        if (!cariKod) {
+          skipped++
+          continue
+        }
+
         try {
+          // DİKKAT: cariBalance ve creditLimit BİLEREK güncellenmiyor.
+          // Netsis ARPs yanıtında Borclanan_Tutar / Kredi_Limiti alanları YOK
+          // (gerçek veriyle doğrulandı 2026-07-20). Eski kod bunları okuyup
+          // `|| 0` ile yazıyordu → tüm bayi bakiyeleri ve kredi limitleri
+          // sıfırlanırdı. Bakiye şu an Sadoksan içinde sipariş/ödeme
+          // akışından hesaplanıyor ve doğru; Netsis'ten bakiye çekmek için
+          // önce doğru kaynak (ARPTransactions / cari risk alanları)
+          // netleştirilmeli.
           const result = await this.prisma.dealer.updateMany({
-            where: { cariNo: arp.Cari_Kod },
-            data: {
-              cariBalance: -(arp.Borclanan_Tutar || 0), // -borç = bize borçlu
-              creditLimit: arp.Kredi_Limiti || 0,
-              cariValidated: true,
-            },
+            where: { cariNo: cariKod },
+            data: { cariValidated: true },
           })
           updated += result.count
         } catch (err) {
           errors++
-          this.logger.error(`Cari sync hatası [${arp.Cari_Kod}]:`, (err as Error).message)
+          this.logger.error(`Cari sync hatası [${cariKod}]:`, (err as Error).message)
         }
+      }
+
+      if (skipped > 0) {
+        this.logger.warn(`Cari sync: ${skipped} kayıt geçersiz cari kod nedeniyle atlandı`)
       }
 
       const duration = Date.now() - startTime
