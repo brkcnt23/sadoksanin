@@ -95,3 +95,34 @@ Bugüne kadar Netsis'e **hiç yazmadık.** Sırayla:
 3. **Sipariş serisi:** e-ticaret için ayrı prefiks var mı?
 4. **Bakiye kaynağı:** Netsis'ten mi çekilecek yoksa Sadoksan kendi mi hesaplasın?
    (şu an Sadoksan hesaplıyor ve doğru çalışıyor)
+
+---
+
+## 8. NETLEŞEN MİMARİ (2026-07-20 — müşteri onayı)
+
+Sistem bir **ödemesiz, kredili B2B sipariş kanalı**. Para akışı e-ticarette YOK.
+
+```
+Bayi giriş yapar
+  → Fiyat        : Netsis'ten OKUNUR (sync)
+  → Bakiye/limit : Netsis'ten OKUNUR (canlı kaynak Netsis)
+  → Kredi/bakiye kadar sipariş verir (ödeme ekranı yok, kart yok)
+  → Sipariş Netsis'e YAZILIR → irsaliye/fatura kesilir
+  → Bakiye Netsis'te düşer
+```
+
+### Kesinleşen kararlar
+- **Ödeme altyapısı yok.** Kart/banka/taksit kaldırıldı (sepette zaten yapıldı).
+- **Bakiye kaynağı = NETSIS.** Sadoksan kendi hesaplamayacak, Netsis'ten okuyup
+  gösterecek. (Karar bekleyenler #4 çözüldü: Netsis kaynak.)
+- **Netsis'e yazma ŞART** — projenin kalbi, opsiyonel değil.
+- **ENTEGRE9 = test kumbarası.** Yazma kodu önce burada denenecek, asla doğrudan
+  SADOKSAN2026'da deneme yazması yapılmayacak.
+
+### Hâlâ açık
+- **Belge tipi:** irsaliye mi (ftSIrs) fatura mı (ftSFat)? → MUHASEBE karar verecek.
+  Elimizde 1682 ftSFat + 54 ftSIrs örneği var, kullanım kalıbı oradan da okunacak.
+- **Canlı bakiye Netsis'te nerede?** ARPs yanıtında Borclanan_Tutar YOK. Doğru kaynak
+  muhtemelen ARPTransactions / cari risk alanları — tünel açılınca gerçek veriyle bulunacak.
+- **Fiyat kolonu:** Satis_Fiat1..4 hangisi bayi fiyatı? (Karar bekleyenler #1)
+- **Sipariş serisi:** e-ticaret için ayrı prefiks? (Karar bekleyenler #3)
