@@ -56,13 +56,14 @@ if (-not (Test-Path $KeyPath)) {
     Write-Host '  [OK] SSH anahtari zaten var' -ForegroundColor Green
 }
 
-# --- 3) Anahtari sunucuya yukle (sifre BIR KEZ sorulur) ---
+# --- 3) Anahtari sunucuya yukle (sifre 1-2 kez sorulur) ---
+# Anahtari komuta gommek yerine DOSYA olarak scp ile gonderiyoruz; SSH tirnak
+# sorunlarindan kacinmak icin. Ekleme + tekillestirme sunucuda temiz yapiliyor.
 Write-Host ''
 Write-Host '  Anahtar sunucuya yukleniyor. Sifre sorulursa yazin:  sadok' -ForegroundColor Cyan
-$pub = Get-Content "$KeyPath.pub"
-# authorized_keys'te yoksa ekle (tekrar calistirilirsa cift eklemez)
-$komut = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qF '$pub' ~/.ssh/authorized_keys || echo '$pub' >> ~/.ssh/authorized_keys"
-ssh -o StrictHostKeyChecking=no "$SunucuKullanici@$SunucuAdres" $komut
+scp -o StrictHostKeyChecking=no "$KeyPath.pub" "${SunucuKullanici}@${SunucuAdres}:/tmp/fabrika_key.pub"
+$ekle = 'mkdir -p ~/.ssh; chmod 700 ~/.ssh; cat /tmp/fabrika_key.pub >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; rm -f /tmp/fabrika_key.pub'
+ssh -o StrictHostKeyChecking=no "${SunucuKullanici}@${SunucuAdres}" $ekle
 Write-Host '  [OK] Anahtar yuklendi' -ForegroundColor Green
 
 # --- 4) Sifresiz baglanti testi ---
