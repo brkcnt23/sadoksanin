@@ -34,6 +34,22 @@ export class NetsisScheduler {
   /** Uyarısı gönderilmiş sync tipleri (düzelene kadar tekrar gönderilmez). */
   private uyariGonderildi = new Set<string>()
 
+  /**
+   * Aynı anda çalışan sync sayısı. Token (Netsis lisans koltuğu) yalnızca
+   * SON çalışan sync bitince bırakılır — yoksa saat başında aynı anda tetiklenen
+   * stok+ürün sync'lerinden biri, diğeri hâlâ çalışırken token'ı iptal edip
+   * onun isteklerini kırardı.
+   */
+  private aktifSync = 0
+
+  /** Bir sync bitince çağrılır: son sync ise token'ı (koltuğu) bırakır. */
+  private async koltuguBirakDenetle() {
+    if (--this.aktifSync <= 0) {
+      this.aktifSync = 0
+      await this.netsisService.releaseToken()
+    }
+  }
+
   constructor(
     private readonly netsisService: NetsisService,
     private readonly mailerService: MailerService,
@@ -98,6 +114,7 @@ export class NetsisScheduler {
 
   @Cron('0 */30 * * * *') // Her 30 dk
   async syncStock() {
+    this.aktifSync++
     this.logger.log('Planlı stok sync başlıyor...')
     try {
       const result = await this.netsisService.syncStock()
@@ -107,11 +124,14 @@ export class NetsisScheduler {
       await this.sonucuDegerlendir('stok', result)
     } catch (err) {
       this.logger.error('Planlı stok sync başarısız:', (err as Error).message)
+    } finally {
+      await this.koltuguBirakDenetle()
     }
   }
 
   @Cron(CronExpression.EVERY_HOUR)
   async syncProducts() {
+    this.aktifSync++
     this.logger.log('Planlı ürün sync başlıyor...')
     try {
       const result = await this.netsisService.syncProducts()
@@ -121,11 +141,14 @@ export class NetsisScheduler {
       await this.sonucuDegerlendir('ürün', result)
     } catch (err) {
       this.logger.error('Planlı ürün sync başarısız:', (err as Error).message)
+    } finally {
+      await this.koltuguBirakDenetle()
     }
   }
 
   @Cron(CronExpression.EVERY_2_HOURS)
   async syncCari() {
+    this.aktifSync++
     this.logger.log('Planlı cari sync başlıyor...')
     try {
       const result = await this.netsisService.syncCari()
@@ -135,11 +158,14 @@ export class NetsisScheduler {
       await this.sonucuDegerlendir('cari', result)
     } catch (err) {
       this.logger.error('Planlı cari sync başarısız:', (err as Error).message)
+    } finally {
+      await this.koltuguBirakDenetle()
     }
   }
 
   @Cron('0 0 */6 * * *') // Her 6 saatte bir (00:00, 06:00, 12:00, 18:00)
   async syncExchangeRates() {
+    this.aktifSync++
     this.logger.log('Planlı döviz kuru sync başlıyor...')
     try {
       const result = await this.netsisService.syncExchangeRates()
@@ -149,6 +175,8 @@ export class NetsisScheduler {
       await this.sonucuDegerlendir('döviz kuru', result)
     } catch (err) {
       this.logger.error('Planlı kur sync başarısız:', (err as Error).message)
+    } finally {
+      await this.koltuguBirakDenetle()
     }
   }
 }

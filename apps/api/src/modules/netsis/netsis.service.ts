@@ -137,6 +137,29 @@ export class NetsisService {
     return this.getAccessToken()
   }
 
+  /**
+   * Aktif token'ı Netsis'te iptal eder ve cache'i temizler.
+   *
+   * NEDEN ÖNEMLİ: Netsis lisansı EŞZAMANLI kullanıcı (koltuk) sayısıyla
+   * sınırlı. Her token bir koltuk tutar. Sync işi bitince token'ı bırakmazsak
+   * koltuk 20 dk boşuna dolu kalır ve fabrikanın muhasebe/entegra kullanıcıları
+   * "SsoMaxUserCountExceeded" hatası alabilir. Bu yüzden her sync turundan sonra
+   * token bırakılır — koltuk yalnızca senkron süresince (saniyeler) tutulur.
+   *
+   * Best-effort: iptal başarısız olsa da cache temizlenir (token 20 dk sonra
+   * zaten kendiliğinden düşer).
+   */
+  async releaseToken(): Promise<void> {
+    if (!this.tokenCache?.accessToken) return
+    try {
+      await axios.get(`${this.apiUrl}/revoke`, {
+        headers: { Authorization: `Bearer ${this.tokenCache.accessToken}` },
+        timeout: 5000,
+      })
+    } catch { /* önemsiz */ }
+    this.tokenCache = null
+  }
+
   // ─── HTTP Helpers ───────────────────────────────────────────────────────
 
   /**
@@ -558,9 +581,14 @@ export class NetsisService {
   async syncAll(): Promise<NetsisSyncResult[]> {
     const results: NetsisSyncResult[] = []
 
-    results.push(await this.syncProducts())
-    results.push(await this.syncCari())
-    results.push(await this.syncExchangeRates())
+    try {
+      results.push(await this.syncProducts())
+      results.push(await this.syncCari())
+      results.push(await this.syncExchangeRates())
+    } finally {
+      // Koltuğu bırak — hepsi tek token'ı paylaştı, iş bitti (bkz. releaseToken)
+      await this.releaseToken()
+    }
 
     return results
   }
