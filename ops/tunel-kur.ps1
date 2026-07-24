@@ -108,20 +108,32 @@ while (`$true) {
 Set-Content -Path $DonguScript -Value $DonguIcerik -Encoding UTF8
 Write-Host "  [OK] Dongu scripti yazildi" -ForegroundColor Green
 
-# --- 7) Zamanlanmis gorev (SYSTEM, acilista, koparsa yeniden) ---
+# --- 7) Zamanlanmis gorev (SYSTEM, acilista + oturumda + 3dk'da bir denetim) ---
 $mevcut = Get-ScheduledTask -TaskName $GorevAdi -ErrorAction SilentlyContinue
 if ($mevcut) { Unregister-ScheduledTask -TaskName $GorevAdi -Confirm:$false }
 
 $action  = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$DonguScript`""
-$trigger = New-ScheduledTaskTrigger -AtStartup
+
+# 3 KATMANLI TETIKLEME (koprü hep açık kalsın):
+#   1) Acilista  → PC kapanip acilinca otomatik baslar (SYSTEM, oturum gerekmez)
+#   2) Oturumda  → biri giris yapinca da garanti calisir
+#   3) 3 dk'da bir tekrar → gorev herhangi bir sebeple durursa Windows yeniden
+#      baslatir. IgnoreNew sayesinde zaten calisiyorsa ikinci kopya acilmaz.
+#      Boylece hem ic dongu (10sn) hem Windows denetimi (3dk) yedekli calisir.
+$tAcilis = New-ScheduledTaskTrigger -AtStartup
+$tOturum = New-ScheduledTaskTrigger -AtLogOn
+$tTekrar = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 3) -RepetitionDuration ([TimeSpan]::MaxValue)
+
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
-    -ExecutionTimeLimit ([TimeSpan]::Zero)
-Register-ScheduledTask -TaskName $GorevAdi -Action $action -Trigger $trigger `
+    -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName $GorevAdi -Action $action `
+    -Trigger @($tAcilis, $tOturum, $tTekrar) `
     -Principal $principal -Settings $settings | Out-Null
-Write-Host "  [OK] Acilis gorevi kaydedildi: $GorevAdi" -ForegroundColor Green
+Write-Host "  [OK] Gorev kaydedildi (acilis + oturum + 3dk denetim): $GorevAdi" -ForegroundColor Green
 
 # --- 8) Hemen baslat ---
 Start-ScheduledTask -TaskName $GorevAdi
