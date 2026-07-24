@@ -56,25 +56,27 @@ if (-not (Test-Path $KeyPath)) {
     Write-Host '  [OK] SSH anahtari zaten var' -ForegroundColor Green
 }
 
-# --- 3) Anahtari sunucuya yukle (sifre 1-2 kez sorulur) ---
-# Anahtari komuta gommek yerine DOSYA olarak scp ile gonderiyoruz; SSH tirnak
-# sorunlarindan kacinmak icin. Ekleme + tekillestirme sunucuda temiz yapiliyor.
+# --- 3) Anahtar zaten calisiyor mu? (Temmuz'dan kalmis olabilir) ---
 Write-Host ''
-Write-Host '  Anahtar sunucuya yukleniyor. Sifre sorulursa yazin:  sadok' -ForegroundColor Cyan
-scp -o StrictHostKeyChecking=no "$KeyPath.pub" "${SunucuKullanici}@${SunucuAdres}:/tmp/fabrika_key.pub"
-$ekle = 'mkdir -p ~/.ssh; chmod 700 ~/.ssh; cat /tmp/fabrika_key.pub >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; rm -f /tmp/fabrika_key.pub'
-ssh -o StrictHostKeyChecking=no "${SunucuKullanici}@${SunucuAdres}" $ekle
-Write-Host '  [OK] Anahtar yuklendi' -ForegroundColor Green
-
-# --- 4) Sifresiz baglanti testi ---
-Write-Host ''
-Write-Host '  Sifresiz baglanti test ediliyor...' -ForegroundColor Cyan
+Write-Host '  Baglanti kontrol ediliyor...' -ForegroundColor Cyan
 $test = ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$SunucuKullanici@$SunucuAdres" 'echo BAGLANTI_OK' 2>$null
+
+if ($test -ne 'BAGLANTI_OK') {
+    # Sifresiz calismiyor → anahtari yukle (sifre sorulur: sadok)
+    Write-Host ''
+    Write-Host '  >>> Sifre sorulacak. Yazin:  sadok  (yazarken gorunmez, normal)' -ForegroundColor Yellow
+    Write-Host ''
+    scp -o StrictHostKeyChecking=no "$KeyPath.pub" "${SunucuKullanici}@${SunucuAdres}:/tmp/fabrika_key.pub"
+    $ekle = 'mkdir -p ~/.ssh; chmod 700 ~/.ssh; cat /tmp/fabrika_key.pub >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; rm -f /tmp/fabrika_key.pub'
+    ssh -o StrictHostKeyChecking=no "${SunucuKullanici}@${SunucuAdres}" $ekle
+    # tekrar test
+    $test = ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$SunucuKullanici@$SunucuAdres" 'echo BAGLANTI_OK' 2>$null
+}
+
 if ($test -eq 'BAGLANTI_OK') {
     Write-Host '  [OK] Sifresiz baglanti calisiyor' -ForegroundColor Green
 } else {
-    Write-Host '  [HATA] Sifresiz baglanti kurulamadi. Anahtar yuklenememis olabilir.' -ForegroundColor Red
-    Write-Host '         Yukaridaki sifre adimini kontrol edin.' -ForegroundColor Yellow
+    Write-Host '  [HATA] Baglanti kurulamadi. Sifreyi (sadok) dogru yazdiniz mi?' -ForegroundColor Red
     return
 }
 
