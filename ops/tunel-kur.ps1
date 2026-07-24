@@ -1,17 +1,17 @@
 # ============================================================
 #  SADOKSAN — Netsis SSH Tuneli KALICI Kurulum (fabrika PC)
 #
-#  Bunu fabrika PC'sinde YONETICI PowerShell ile BIR KEZ calistirin.
-#
+#  YONETICI PowerShell'de BIR KEZ calistirin:
 #    powershell -ExecutionPolicy Bypass -File tunel-kur.ps1
 #
-#  Ne yapar:
-#    - Tuneli acan bir dongu scripti olusturur (koparsa 10sn'de yeniden baglanir)
-#    - Windows Zamanlanmis Gorev olarak kaydeder (acilista otomatik baslar)
-#    - Kimse oturum acmasa bile calisir
+#  Ne yapar (otomatik):
+#    1. SSH anahtari yoksa olusturur
+#    2. Anahtari sunucuya yukler (sifre BIR KEZ sorulur: sadok)
+#    3. PC'nin uyku/hazirda-bekleme modunu kapatir (tunel kopmasin)
+#    4. Tuneli acilista otomatik baslayan gorev yapar (koparsa 10sn'de doner)
+#    5. Tuneli hemen baslatir
 #
-#  NEDEN GEREKLI: Tunel daha once elle "ssh -R ..." ile aciliyordu.
-#  O pencere kapaninca tunel oldu ve 10 gun boyunca kimse fark etmedi.
+#  Kurulumdan sonra kimse oturum acmasa bile tunel calisir.
 # ============================================================
 
 $ErrorActionPreference = 'Stop'
@@ -25,65 +25,89 @@ $TunelPort       = 17070
 $Klasor      = 'C:\netsis-tunel'
 $DonguScript = Join-Path $Klasor 'tunel-dongu.ps1'
 $GorevAdi    = 'NetsisTunel'
+$KeyPath     = Join-Path $env:USERPROFILE '.ssh\id_ed25519'
 
 Write-Host ''
 Write-Host '=== Netsis Tuneli Kalici Kurulum ===' -ForegroundColor Cyan
 Write-Host ''
 
+# --- 0) Yonetici mi? ---
+$admin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+  ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $admin) {
+    Write-Host '  [HATA] Bu scripti YONETICI PowerShell ile calistirin.' -ForegroundColor Red
+    Write-Host '         (Baslat > PowerShell > sag tik > Yonetici olarak calistir)' -ForegroundColor Yellow
+    return
+}
+
 # --- 1) Klasor ---
-if (-not (Test-Path $Klasor)) {
-    New-Item -ItemType Directory -Path $Klasor -Force | Out-Null
-}
-Write-Host "  [OK] Klasor hazir: $Klasor" -ForegroundColor Green
+if (-not (Test-Path $Klasor)) { New-Item -ItemType Directory -Path $Klasor -Force | Out-Null }
+$sshDir = Join-Path $env:USERPROFILE '.ssh'
+if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
+Write-Host "  [OK] Klasorler hazir" -ForegroundColor Green
 
-# --- 2) SSH anahtari (sifresiz baglanti icin sart) ---
-$KeyPath = Join-Path $env:USERPROFILE '.ssh\id_ed25519'
+# --- 2) SSH anahtari ---
 if (-not (Test-Path $KeyPath)) {
-    Write-Host '  [!] SSH anahtari yok, olusturuluyor...' -ForegroundColor Yellow
-    ssh-keygen -t ed25519 -N '""' -f $KeyPath
-    Write-Host ''
-    Write-Host '  !!! ONEMLI: Asagidaki anahtari sunucuya eklemeniz gerekiyor:' -ForegroundColor Red
-    Write-Host ''
-    Get-Content "$KeyPath.pub"
-    Write-Host ''
-    Write-Host '  Sunucuda su komutu calistirin:' -ForegroundColor Yellow
-    Write-Host "    echo '<yukaridaki satir>' >> /home/sadok/.ssh/authorized_keys"
-    Write-Host ''
-    Read-Host '  Ekledikten sonra ENTER a basin'
+    Write-Host '  [..] SSH anahtari olusturuluyor...' -ForegroundColor Yellow
+    ssh-keygen -t ed25519 -N '""' -f $KeyPath -C 'netsis-tunnel' | Out-Null
+    Write-Host '  [OK] Anahtar olusturuldu' -ForegroundColor Green
 } else {
-    Write-Host '  [OK] SSH anahtari mevcut' -ForegroundColor Green
+    Write-Host '  [OK] SSH anahtari zaten var' -ForegroundColor Green
 }
 
-# --- 3) Dongu scripti ---
+# --- 3) Anahtari sunucuya yukle (sifre BIR KEZ sorulur) ---
+Write-Host ''
+Write-Host '  Anahtar sunucuya yukleniyor. Sifre sorulursa yazin:  sadok' -ForegroundColor Cyan
+$pub = Get-Content "$KeyPath.pub"
+# authorized_keys'te yoksa ekle (tekrar calistirilirsa cift eklemez)
+$komut = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qF '$pub' ~/.ssh/authorized_keys || echo '$pub' >> ~/.ssh/authorized_keys"
+ssh -o StrictHostKeyChecking=no "$SunucuKullanici@$SunucuAdres" $komut
+Write-Host '  [OK] Anahtar yuklendi' -ForegroundColor Green
+
+# --- 4) Sifresiz baglanti testi ---
+Write-Host ''
+Write-Host '  Sifresiz baglanti test ediliyor...' -ForegroundColor Cyan
+$test = ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$SunucuKullanici@$SunucuAdres" 'echo BAGLANTI_OK' 2>$null
+if ($test -eq 'BAGLANTI_OK') {
+    Write-Host '  [OK] Sifresiz baglanti calisiyor' -ForegroundColor Green
+} else {
+    Write-Host '  [HATA] Sifresiz baglanti kurulamadi. Anahtar yuklenememis olabilir.' -ForegroundColor Red
+    Write-Host '         Yukaridaki sifre adimini kontrol edin.' -ForegroundColor Yellow
+    return
+}
+
+# --- 5) Uyku / hazirda bekleme kapat (tunel kopmasin) ---
+try {
+    powercfg /change standby-timeout-ac 0
+    powercfg /change hibernate-timeout-ac 0
+    powercfg /hibernate off 2>$null
+    Write-Host '  [OK] Uyku/hazirda-bekleme kapatildi (prize takili modda)' -ForegroundColor Green
+} catch {
+    Write-Host '  [!] Uyku ayari degistirilemedi (kritik degil)' -ForegroundColor Yellow
+}
+
+# --- 6) Dongu scripti (koparsa yeniden baglanir) ---
 $DonguIcerik = @"
 # Netsis tuneli — koparsa yeniden baglanir. tunel-kur.ps1 tarafindan olusturuldu.
 while (`$true) {
-    try {
-        # -N: komut calistirma, sadece tunel
-        # ServerAliveInterval: 30sn'de bir canlilik testi, 3 kez cevapsizsa kopar
-        # ExitOnForwardFailure: port zaten doluysa sessizce takilma, cik ve yeniden dene
-        ssh -N ``
-            -o ExitOnForwardFailure=yes ``
-            -o ServerAliveInterval=30 ``
-            -o ServerAliveCountMax=3 ``
-            -o StrictHostKeyChecking=no ``
-            -R ${TunelPort}:${NetsisIP}:${NetsisPort} ``
-            ${SunucuKullanici}@${SunucuAdres}
-    } catch {
-        # yut, asagida yeniden denenecek
-    }
+    ssh -N ``
+        -o ExitOnForwardFailure=yes ``
+        -o ServerAliveInterval=30 ``
+        -o ServerAliveCountMax=3 ``
+        -o StrictHostKeyChecking=no ``
+        -o BatchMode=yes ``
+        -R ${TunelPort}:${NetsisIP}:${NetsisPort} ``
+        ${SunucuKullanici}@${SunucuAdres}
     Start-Sleep -Seconds 10
 }
 "@
 Set-Content -Path $DonguScript -Value $DonguIcerik -Encoding UTF8
-Write-Host "  [OK] Dongu scripti yazildi: $DonguScript" -ForegroundColor Green
+Write-Host "  [OK] Dongu scripti yazildi" -ForegroundColor Green
 
-# --- 4) Zamanlanmis gorev ---
+# --- 7) Zamanlanmis gorev (SYSTEM, acilista, koparsa yeniden) ---
 $mevcut = Get-ScheduledTask -TaskName $GorevAdi -ErrorAction SilentlyContinue
-if ($mevcut) {
-    Unregister-ScheduledTask -TaskName $GorevAdi -Confirm:$false
-    Write-Host '  [OK] Eski gorev kaldirildi' -ForegroundColor Green
-}
+if ($mevcut) { Unregister-ScheduledTask -TaskName $GorevAdi -Confirm:$false }
 
 $action  = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$DonguScript`""
@@ -92,24 +116,21 @@ $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccou
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
     -ExecutionTimeLimit ([TimeSpan]::Zero)
-
 Register-ScheduledTask -TaskName $GorevAdi -Action $action -Trigger $trigger `
     -Principal $principal -Settings $settings | Out-Null
-Write-Host "  [OK] Zamanlanmis gorev kaydedildi: $GorevAdi" -ForegroundColor Green
+Write-Host "  [OK] Acilis gorevi kaydedildi: $GorevAdi" -ForegroundColor Green
 
-# --- 5) Hemen baslat ---
+# --- 8) Hemen baslat ---
 Start-ScheduledTask -TaskName $GorevAdi
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 6
 $durum = (Get-ScheduledTask -TaskName $GorevAdi).State
-Write-Host "  [OK] Gorev baslatildi (durum: $durum)" -ForegroundColor Green
+Write-Host "  [OK] Tunel baslatildi (durum: $durum)" -ForegroundColor Green
 
 Write-Host ''
-Write-Host '=== KURULUM TAMAM ===' -ForegroundColor Cyan
+Write-Host '========================================' -ForegroundColor Green
+Write-Host '  KURULUM TAMAM — Tunel calisiyor.' -ForegroundColor Green
+Write-Host '  PC acik oldugu surece otomatik ayakta kalir.' -ForegroundColor Green
+Write-Host '========================================' -ForegroundColor Green
 Write-Host ''
-Write-Host 'Dogrulama — sunucuda su komutu calistirin:' -ForegroundColor Yellow
-Write-Host '  sudo ss -tlnp | grep 17070'
-Write-Host '  (bir satir donerse tunel ayakta demektir)'
-Write-Host ''
-Write-Host 'Gorevi durdurmak icin:  Stop-ScheduledTask -TaskName NetsisTunel'
-Write-Host 'Gorevi silmek icin:     Unregister-ScheduledTask -TaskName NetsisTunel'
+Write-Host 'Dogrulama (sunucuda): sudo ss -tlnp | grep 17070' -ForegroundColor DarkGray
 Write-Host ''
