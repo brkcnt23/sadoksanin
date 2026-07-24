@@ -465,18 +465,23 @@ export class NetsisService {
           continue
         }
 
+        // Bakiye kaynağı = CM_BORCT (Cari Muhasebe Borç Toplamı).
+        // 2026-07-24 gerçek SADOKSAN2026 verisiyle doğrulandı: 466 bayide
+        // sıfır-olmayan, gerçekçi değerler (ör. 1.6M, 321K TL). Pozitif =
+        // bize borçlu (bizim cariBalance konvansiyonuyla aynı). Eski denenen
+        // yollar yanlıştı: ARPs/Risk hep 0 (limit aşım riski), ARPTransactions
+        // ham toplamı döviz karışımından şişiyordu. CM_BORCT authoritative.
+        // Kredi limiti Netsis'ten GELMEZ — panelden manuel ayarlanıyor
+        // (updateCreditLimit), o yüzden burada limit'e DOKUNULMUYOR.
+        const cmBorct = typeof arp.CM_BORCT === 'number' ? arp.CM_BORCT : null
+
         try {
-          // DİKKAT: cariBalance ve creditLimit BİLEREK güncellenmiyor.
-          // Netsis ARPs yanıtında Borclanan_Tutar / Kredi_Limiti alanları YOK
-          // (gerçek veriyle doğrulandı 2026-07-20). Eski kod bunları okuyup
-          // `|| 0` ile yazıyordu → tüm bayi bakiyeleri ve kredi limitleri
-          // sıfırlanırdı. Bakiye şu an Sadoksan içinde sipariş/ödeme
-          // akışından hesaplanıyor ve doğru; Netsis'ten bakiye çekmek için
-          // önce doğru kaynak (ARPTransactions / cari risk alanları)
-          // netleştirilmeli.
           const result = await this.prisma.dealer.updateMany({
             where: { cariNo: cariKod },
-            data: { cariValidated: true },
+            data: {
+              cariValidated: true,
+              ...(cmBorct !== null ? { cariBalance: cmBorct } : {}),
+            },
           })
           updated += result.count
         } catch (err) {
