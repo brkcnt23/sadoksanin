@@ -121,19 +121,35 @@ $action  = New-ScheduledTaskAction -Execute 'powershell.exe' `
 #   3) 3 dk'da bir tekrar → gorev herhangi bir sebeple durursa Windows yeniden
 #      baslatir. IgnoreNew sayesinde zaten calisiyorsa ikinci kopya acilmaz.
 #      Boylece hem ic dongu (10sn) hem Windows denetimi (3dk) yedekli calisir.
-$tAcilis = New-ScheduledTaskTrigger -AtStartup
-$tOturum = New-ScheduledTaskTrigger -AtLogOn
-$tTekrar = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 3) -RepetitionDuration ([TimeSpan]::MaxValue)
-
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
     -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
-Register-ScheduledTask -TaskName $GorevAdi -Action $action `
-    -Trigger @($tAcilis, $tOturum, $tTekrar) `
-    -Principal $principal -Settings $settings | Out-Null
-Write-Host "  [OK] Gorev kaydedildi (acilis + oturum + 3dk denetim): $GorevAdi" -ForegroundColor Green
+
+$tAcilis = New-ScheduledTaskTrigger -AtStartup
+$tOturum = New-ScheduledTaskTrigger -AtLogOn
+
+# 3dk'da bir denetim tetikleyicisi. DIKKAT: RepetitionDuration'a
+# [TimeSpan]::MaxValue verilirse Windows "aralik disi deger" (0x80041318)
+# hatasi verir. 3650 gun (10 yil) hem gecerli hem pratikte suresiz.
+$tTekrar = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 3) -RepetitionDuration (New-TimeSpan -Days 3650)
+
+# Once 3 tetiklemeyle dene; olmazsa cekirdek dayaniklilik (acilis+oturum)
+# ile yeniden dene ki gorev MUTLAKA kaydolsun. Ic 10sn dongusu + RestartCount
+# zaten yeniden baglanmayi saglar, 3dk denetimi ekstra emniyet.
+try {
+    Register-ScheduledTask -TaskName $GorevAdi -Action $action `
+        -Trigger @($tAcilis, $tOturum, $tTekrar) `
+        -Principal $principal -Settings $settings -ErrorAction Stop | Out-Null
+    Write-Host "  [OK] Gorev kaydedildi (acilis + oturum + 3dk denetim): $GorevAdi" -ForegroundColor Green
+} catch {
+    Write-Host "  [!] 3dk denetim tetigi kaydedilemedi, cekirdek dayaniklilikla devam" -ForegroundColor Yellow
+    Register-ScheduledTask -TaskName $GorevAdi -Action $action `
+        -Trigger @($tAcilis, $tOturum) `
+        -Principal $principal -Settings $settings | Out-Null
+    Write-Host "  [OK] Gorev kaydedildi (acilis + oturum): $GorevAdi" -ForegroundColor Green
+}
 
 # --- 8) Hemen baslat ---
 Start-ScheduledTask -TaskName $GorevAdi
