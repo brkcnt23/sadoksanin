@@ -7,6 +7,7 @@ import os
 import logging
 from flask import Flask, request, jsonify, send_file
 from proforma_generator import ProformaGenerator
+from document_generator import DocumentGenerator
 from datetime import datetime
 import io
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max request size
 generator = ProformaGenerator()
+document_generator = DocumentGenerator()
 
 # Error handlers
 @app.errorhandler(400)
@@ -152,6 +154,53 @@ def generate_proforma():
             'status': 'error',
             'message': 'Failed to generate PDF. Please check your request and try again.'
         }), 500
+
+
+
+# --- Genel Amacli Belge Ureticisi (Siparis formu, ileride cari ekstre/irsaliye) ---
+@app.route('/generate-document', methods=['POST'])
+def generate_document():
+    """Genel amacli PDF belge uretimi. proforma /generate endpointinden BAGIMSIZ."""
+    try:
+        payload = request.get_json()
+        if not payload:
+            return jsonify({'status': 'error', 'message': 'Request body is empty'}), 400
+
+        required_fields = ['title', 'documentNumber', 'companyInfo', 'customer']
+        missing = [f for f in required_fields if f not in payload]
+        if missing:
+            return jsonify({'status': 'error', 'message': f'Missing required fields: {", ".join(missing)}'}), 400
+
+        logger.info(f"Generating document '{payload['title']}' ({payload['documentNumber']})")
+
+        pdf_buffer = document_generator.generate(
+            title=payload['title'],
+            document_number=payload['documentNumber'],
+            document_date=payload.get('documentDate', ''),
+            company_info=payload['companyInfo'],
+            customer=payload['customer'],
+            meta_fields=payload.get('metaFields'),
+            items=payload.get('items'),
+            totals=payload.get('totals'),
+            footer_note=payload.get('footerNote'),
+        )
+
+        logger.info("Document PDF generated successfully")
+        pdf_buffer.seek(0)
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f"{payload['documentNumber']}.pdf"
+        )
+
+    except ValueError as ve:
+        logger.warning(f"Validation error: {str(ve)}")
+        return jsonify({'status': 'error', 'message': f'Validation error: {str(ve)}'}), 400
+
+    except Exception as e:
+        logger.error(f"Error generating document: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Failed to generate PDF. Please check your request and try again.'}), 500
 
 # Debug endpoint (remove in production)
 @app.route('/debug/info', methods=['GET'])
