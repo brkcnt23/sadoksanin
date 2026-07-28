@@ -160,6 +160,113 @@ export class NetsisService {
     this.tokenCache = null
   }
 
+  // ─── Sipariş Yazma (Sadoksan → Netsis, ftSSip Satış Siparişi) ───────────
+
+  /**
+   * Sadoksan siparişini Netsis'e SATIŞ SİPARİŞİ (ftSSip) olarak yazar.
+   * Fatura/irsaliye KESMEZ — onları muhasebe programı Netsis'te kendi keser.
+   *
+   * ⚠️ ÖZELLİK BAYRAĞI: Yalnızca NETSIS_ORDER_PUSH_ENABLED=true iken çalışır.
+   * Varsayılan KAPALI — çünkü canlı SADOKSAN2026'ya yanlış sipariş yazmak
+   * geri alınamaz. Önce SADOKSAN_TEST (SADOKSAN2026 kopyası) üzerinde test
+   * edilecek, sonra açılacak.
+   *
+   * Payload yapısı 2026-07-24'te ENTEGRE9'da gerçek API ile doğrulandı:
+   * belge no TAM 15 karakter, depo 0, StokKodu=product.netsisCode.
+   */
+  async pushSalesOrder(orderId: string): Promise<{ ok: boolean; netsisNo?: string; error?: string }> {
+    if (process.env.NETSIS_ORDER_PUSH_ENABLED !== 'true') {
+      this.logger.debug('Netsis sipariş push kapalı (NETSIS_ORDER_PUSH_ENABLED != true)')
+      return { ok: false, error: 'push_disabled' }
+    }
+    if (!this.configured) return { ok: false, error: 'netsis_not_configured' }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { lines: { include: { product: true } }, dealer: true },
+    })
+    if (!order) return { ok: false, error: 'order_not_found' }
+    if (!order.dealer?.cariNo) return { ok: false, error: 'dealer_cariNo_missing' }
+
+    // Kalemler — her satır bir Netsis stok kartına (netsisCode) eşlenmeli
+    const kalems: any[] = []
+    for (let i = 0; i < order.lines.length; i++) {
+      const line = order.lines[i]
+      const stokKodu = line.product?.netsisCode
+      if (!stokKodu) {
+        return { ok: false, error: `line_${i}_netsisCode_missing (${line.product?.name})` }
+      }
+      const kdvOrani = Math.round((line.product?.taxRate ?? 0.2) * 100)
+      kalems.push({
+        StokKodu: stokKodu,
+        Sira: i + 1,
+        DEPO_KODU: 0,
+        STra_GCMIK: line.quantity,
+        STra_NF: line.unitPrice,
+        STra_BF: line.unitPrice,
+        STra_KDV: kdvOrani,
+        STra_DOVTIP: 0,
+        STra_HTUR: 3,
+      })
+    }
+
+    const now = new Date()
+    const d = now.toISOString().slice(0, 10) + ' 00:00:00'
+    const belgeNo = this.buildNetsisOrderNo(order.orderNo)
+
+    const payload = {
+      Seri: 'A',
+      FatUst: {
+        Sube_Kodu: 0,
+        CariKod: order.dealer.cariNo,
+        FATIRS_NO: belgeNo,
+        Tarih: d, ENTEGRE_TRH: d, FiiliTarih: d, SIPARIS_TEST: d,
+        Tip: 2, TIPI: 2,
+        KDV_DAHILMI: false,
+        DOVIZTIP: 0,
+      },
+      Kalems: kalems,
+      docType: 'ftSSip',
+    }
+
+    try {
+      const client = await this.apiClient()
+      const res = await client.post('/ItemSlips?docType=ftSSip', payload)
+      const ok = res.data?.IsSuccessful === true
+      if (ok) {
+        this.logger.log(`Sipariş ${order.orderNo} → Netsis ftSSip yazıldı: ${belgeNo}`)
+        // Netsis sipariş numarasını sakla (eIrsaliyeNo alanı — ayrı alan
+        // eklenene kadar pragmatik; TODO: dedike netsisOrderNo alanı)
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { eIrsaliyeNo: belgeNo },
+        }).catch(() => {})
+        return { ok: true, netsisNo: belgeNo }
+      }
+      const err = String(res.data?.ErrorDesc || 'bilinmeyen hata').split('\r')[0]
+      this.logger.error(`Sipariş ${order.orderNo} → Netsis reddedildi: ${err}`)
+      return { ok: false, error: err }
+    } catch (e) {
+      const msg = (e as Error).message
+      this.logger.error(`Sipariş ${order.orderNo} → Netsis push hatası: ${msg}`)
+      return { ok: false, error: msg }
+    } finally {
+      await this.releaseToken()
+    }
+  }
+
+  /**
+   * Netsis belge numarası TAM 15 karakter olmalı (2026-07-24 doğrulandı,
+   * hata kodu 204). Sadoksan orderNo'sundan (SDK-2026-5001) rakamları alıp
+   * "EC" öneki + sıfır dolgusuyla 15 haneye tamamlar.
+   * NOT: Canlıda e-ticaret için ayrı seri/prefiks muhasebeyle netleşecek
+   * (açık madde) — çakışma olmaması için burada "EC" öneki kullanılıyor.
+   */
+  private buildNetsisOrderNo(orderNo: string): string {
+    const digits = (orderNo.match(/\d+/g) || []).join('').slice(-13)
+    return ('EC' + digits.padStart(13, '0')).slice(0, 15)
+  }
+
   // ─── HTTP Helpers ───────────────────────────────────────────────────────
 
   /**

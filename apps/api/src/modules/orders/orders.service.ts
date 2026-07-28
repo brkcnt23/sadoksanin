@@ -4,6 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { PromoService } from '../promo/promo.service';
 import { ProformaService } from '../proforma/proforma.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NetsisService } from '../netsis/netsis.service';
 
 @Injectable()
 export class OrdersService {
@@ -14,6 +15,7 @@ export class OrdersService {
     private promoService: PromoService,
     private proformaService: ProformaService,
     private mailerService: MailerService,
+    private netsisService: NetsisService,
   ) {}
 
   /**
@@ -269,6 +271,15 @@ export class OrdersService {
     this.proformaService.createProformaFromOrder(updated).catch((err) => {
       this.logger.error(`Auto-proforma failed for order ${orderId}: ${err.message}`);
     });
+
+    // Netsis'e satış siparişi olarak yaz (fire-and-forget). Özellik bayrağı
+    // (NETSIS_ORDER_PUSH_ENABLED) kapalıysa sessizce atlar. Başarısız olursa
+    // sipariş onayı GERİ ALINMAZ — sadece loglanır; eIrsaliyeNo boş kalan
+    // siparişler "Netsis'e düşmedi" olarak takip edilebilir.
+    this.netsisService.pushSalesOrder(orderId).then((r) => {
+      if (r.ok) this.logger.log(`Order ${orderId} Netsis'e yazıldı: ${r.netsisNo}`);
+      else if (r.error !== 'push_disabled') this.logger.warn(`Order ${orderId} Netsis push başarısız: ${r.error}`);
+    }).catch(() => {});
 
     return updated;
   }
