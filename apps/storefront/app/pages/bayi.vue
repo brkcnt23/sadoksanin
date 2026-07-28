@@ -25,6 +25,26 @@ watchEffect(() => {
 const dashboard = ref({
   cariBalance: 0, pendingOrders: 0, monthlyOrderCount: 0, monthlyOrderTotal: 0, creditLimit: 0,
 })
+
+// Kredi limiti kullanım oranı — bayi kendi durumunu görsün.
+// cariBalance = bize borçlu tutar (pozitif). Kullanım = borç / limit.
+const krediKullanimYuzde = computed(() => {
+  const limit = dashboard.value.creditLimit
+  if (!limit || limit <= 0) return 0
+  const pct = (dashboard.value.cariBalance / limit) * 100
+  return Math.max(0, Math.round(pct))
+})
+const kalanKredi = computed(() =>
+  Math.max(0, dashboard.value.creditLimit - dashboard.value.cariBalance),
+)
+// %50 sarı, %80 turuncu, %100+ kırmızı eşikleri
+const krediRenk = computed(() => {
+  const p = krediKullanimYuzde.value
+  if (p >= 100) return { bar: 'bg-red-500', text: 'text-red-600' }
+  if (p >= 80) return { bar: 'bg-orange-500', text: 'text-orange-600' }
+  if (p >= 50) return { bar: 'bg-amber-400', text: 'text-amber-600' }
+  return { bar: 'bg-emerald-500', text: 'text-emerald-600' }
+})
 const recentOrders = ref<any[]>([])
 const cariHistory = ref<any[]>([])
 const proformas = ref<any[]>([])
@@ -189,6 +209,21 @@ const downloadProformaFile = async (id: string) => {
             {{ formatTL(dashboard.cariBalance) }} <span class="text-sm text-ink-500 font-medium">TL</span>
           </p>
           <p class="mt-0.5 text-xs text-ink-500">Limit: {{ formatTL(dashboard.creditLimit) }} TL</p>
+          <!-- Kredi limiti kullanım göstergesi -->
+          <div v-if="dashboard.creditLimit > 0" class="mt-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold" :class="krediRenk.text">%{{ krediKullanimYuzde }} kullanıldı</span>
+              <span class="text-[11px] text-ink-400">Kalan: {{ formatTL(kalanKredi) }} TL</span>
+            </div>
+            <div class="h-1.5 w-full rounded-full bg-ink-100 overflow-hidden">
+              <div class="h-full rounded-full transition-all" :class="krediRenk.bar"
+                   :style="{ width: Math.min(100, krediKullanimYuzde) + '%' }" />
+            </div>
+            <p v-if="krediKullanimYuzde >= 80" class="mt-1 text-[11px]" :class="krediRenk.text">
+              <Icon name="lucide:alert-triangle" class="inline h-3 w-3" />
+              {{ krediKullanimYuzde >= 100 ? 'Kredi limitiniz doldu' : 'Limitinize yaklaştınız' }}
+            </p>
+          </div>
         </div>
         <div class="rounded-xl bg-white border border-ink-100 p-5 shadow-card">
           <div class="flex items-center justify-between">
