@@ -267,6 +267,39 @@ export class NetsisService {
     return ('EC' + digits.padStart(13, '0')).slice(0, 15)
   }
 
+  /**
+   * Bir carinin Netsis hesap ekstresini (ARPTransactions) çeker.
+   * Bayi kendi dashboard'unda gerçek borç/alacak hareketlerini görsün diye.
+   * Netsis yapılandırılmamışsa veya kod boşsa boş dizi döner (çağıran taraf
+   * yerel veriye düşer).
+   */
+  async getCariTransactions(cariNo: string, limit = 50): Promise<Array<{
+    date: string | null; description: string; debit: number; credit: number; dueDate: string | null
+  }>> {
+    if (!this.configured) return []
+    const code = this.normalizeCode(cariNo)
+    if (!code) return []
+    try {
+      const client = await this.apiClient()
+      const res = await client.get(
+        `/ARPTransactions?cariKod=${encodeURIComponent(code)}&limit=${limit}&sort=${encodeURIComponent('Tarih DESC')}`,
+      )
+      const rows = res.data?.Data || []
+      return rows.map((r: any) => ({
+        date: r.Tarih ?? null,
+        description: (r.Aciklama || '').trim(),
+        debit: r.Borc || 0,
+        credit: r.Alacak || 0,
+        dueDate: r.Vade_Tarihi ?? null,
+      }))
+    } catch (e) {
+      this.logger.error(`Cari hareket çekilemedi [${code}]: ${(e as Error).message}`)
+      return []
+    } finally {
+      await this.releaseToken()
+    }
+  }
+
   // ─── HTTP Helpers ───────────────────────────────────────────────────────
 
   /**

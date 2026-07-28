@@ -1,12 +1,17 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NetsisService } from '../netsis/netsis.service';
 
 @Injectable()
 export class DealerService {
   private readonly logger = new Logger(DealerService.name);
 
-  constructor(private prisma: PrismaService, private mailerService: MailerService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailerService: MailerService,
+    private netsisService: NetsisService,
+  ) {}
 
   /**
    * Bayi sepetleri — aktif/terkedilen (admin). addedAt guncellenmedigi icin
@@ -114,8 +119,12 @@ export class DealerService {
   }
 
   /**
-   * Get cari account transactions/history
-   * For now, returns mock data. In production, fetch from Netsis
+   * Bayinin cari hesap ekstresi.
+   *
+   * Önce GERÇEK Netsis hareketlerini (ARPTransactions) dener — bayi kendi
+   * gerçek borç/alacak defterini görsün. Netsis yapılandırılmamışsa veya o
+   * cari için hareket dönmezse, YEREL siparişlerden türetilen ekstreye düşer
+   * (eski davranış korunur, ekran hiç boş kalmaz).
    */
   async getCariTransactions(userId: string) {
     try {
@@ -128,33 +137,49 @@ export class DealerService {
         throw new BadRequestException('Dealer not found');
       }
 
-      // Get orders for this dealer and convert to transactions
+      // 1) Gerçek Netsis ekstresi
+      const netsisRows = await this.netsisService
+        .getCariTransactions(user.dealer.cariNo, 50)
+        .catch(() => []);
+
+      if (netsisRows.length > 0) {
+        // Güncel bakiyeden geriye doğru yürüyerek her satırın bakiyesini bul
+        let running = user.dealer.cariBalance;
+        return netsisRows.map((r, i) => {
+          const net = (r.debit || 0) - (r.credit || 0); // borç artışı = +
+          const tx = {
+            id: `netsis-${i}`,
+            date: r.date,
+            type: (r.debit >= r.credit ? 'debit' : 'credit') as 'debit' | 'credit',
+            amount: Math.round((r.debit || r.credit) * 100) / 100,
+            description: r.description || (r.debit >= r.credit ? 'Borç' : 'Ödeme'),
+            dueDate: r.dueDate,
+            balance: Math.round(running * 100) / 100,
+          };
+          running -= net; // bir önceki (daha eski) satırın bakiyesi
+          return tx;
+        });
+      }
+
+      // 2) Yerel fallback — siparişlerden türet
       const orders = await this.prisma.order.findMany({
-        where: {
-          dealerId: user.dealer.id,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        where: { dealerId: user.dealer.id },
+        orderBy: { createdAt: 'desc' },
         take: 50,
       });
-
-      // Convert orders to transaction format
       let runningBalance = user.dealer.cariBalance;
-      const transactions = orders.map((order) => {
+      return orders.map((order) => {
         const transaction = {
           id: order.id,
           date: order.createdAt,
-          type: 'debit' as const, // Orders are debits
+          type: 'debit' as const,
           amount: Math.round(order.total * 100) / 100,
-          description: `Order ${order.orderNo}`,
+          description: `Sipariş ${order.orderNo}`,
           balance: runningBalance,
         };
         runningBalance -= transaction.amount;
         return transaction;
       });
-
-      return transactions;
     } catch (error) {
       this.logger.error(`Error fetching cari transactions: ${error.message}`);
       throw error;
