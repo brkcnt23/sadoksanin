@@ -188,6 +188,8 @@ export class NetsisService {
     if (!order) return { ok: false, error: 'order_not_found' }
     if (!order.dealer?.cariNo) return { ok: false, error: 'dealer_cariNo_missing' }
 
+    const depoKodu = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '0', 10)
+
     // Kalemler — her satır bir Netsis stok kartına (netsisCode) eşlenmeli
     const kalems: any[] = []
     for (let i = 0; i < order.lines.length; i++) {
@@ -200,13 +202,17 @@ export class NetsisService {
       kalems.push({
         StokKodu: stokKodu,
         Sira: i + 1,
-        DEPO_KODU: 0,
+        // Depo kodu: e-ticaret siparişlerinin çekileceği depo. Netsis'te her
+        // stok belirli bir depoda; geçersiz depo "Kalem Depo Kodu Geçersiz"
+        // hatası verir. NETSIS_ORDER_DEPO_KODU ile ayarlanır (muhasebe hangi
+        // depoyu kullanacağını söyleyecek). 2026-07-29 testinde 15610 çalıştı.
+        DEPO_KODU: depoKodu,
         STra_GCMIK: line.quantity,
         STra_NF: line.unitPrice,
         STra_BF: line.unitPrice,
         STra_KDV: kdvOrani,
         STra_DOVTIP: 0,
-        STra_HTUR: 3,
+        STra_HTUR: 'H', // Hareket türü — gerçek ftSSip siparişinden (2026-07-29)
       })
     }
 
@@ -221,7 +227,10 @@ export class NetsisService {
         CariKod: order.dealer.cariNo,
         FATIRS_NO: belgeNo,
         Tarih: d, ENTEGRE_TRH: d, FiiliTarih: d, SIPARIS_TEST: d,
-        Tip: 2, TIPI: 2,
+        // Tip: 7 = SATIŞ SİPARİŞİ. 2026-07-29 SADOKSANTEST'te gerçek ftSSip
+        // siparişinden doğrulandı. Tip: 2 FATURA demek — o değerle Netsis
+        // "sipariş bağlantısız fatura kaydı yapamazsınız" hatası veriyordu.
+        Tip: 7, TIPI: 2, KOD2: '2', EXPORTTYPE: 0,
         KDV_DAHILMI: false,
         DOVIZTIP: 0,
       },
