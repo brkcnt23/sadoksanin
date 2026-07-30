@@ -188,62 +188,59 @@ export class NetsisService {
     if (!order) return { ok: false, error: 'order_not_found' }
     if (!order.dealer?.cariNo) return { ok: false, error: 'dealer_cariNo_missing' }
 
-    // Depo: e-ticaret siparişleri fabrikanın ana satış deposundan (15610)
-    // çekilir. 2026-07-29 analizi: 258 site siparişinin tüm kalemleri 15610'dan
-    // düşmüş; ürünlerin %98'i orada. Böylece personelin elle depo girmesine
-    // gerek kalmaz. Gerekirse NETSIS_ORDER_DEPO_KODU ile değiştirilir.
-    const depoKodu = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '15610', 10)
-
-    // Kalemler — her satır bir Netsis stok kartına (netsisCode) eşlenmeli
-    const kalems: any[] = []
-    for (let i = 0; i < order.lines.length; i++) {
-      const line = order.lines[i]
-      const stokKodu = line.product?.netsisCode
-      if (!stokKodu) {
-        return { ok: false, error: `line_${i}_netsisCode_missing (${line.product?.name})` }
-      }
-      const kdvOrani = Math.round((line.product?.taxRate ?? 0.2) * 100)
-      kalems.push({
-        StokKodu: stokKodu,
-        Sira: i + 1,
-        // Depo kodu: e-ticaret siparişlerinin çekileceği depo. Netsis'te her
-        // stok belirli bir depoda; geçersiz depo "Kalem Depo Kodu Geçersiz"
-        // hatası verir. NETSIS_ORDER_DEPO_KODU ile ayarlanır (muhasebe hangi
-        // depoyu kullanacağını söyleyecek). 2026-07-29 testinde 15610 çalıştı.
-        DEPO_KODU: depoKodu,
-        STra_GCMIK: line.quantity,
-        STra_NF: line.unitPrice,
-        STra_BF: line.unitPrice,
-        STra_KDV: kdvOrani,
-        STra_DOVTIP: 0,
-        STra_HTUR: 'H', // Hareket türü — gerçek ftSSip siparişinden (2026-07-29)
-      })
-    }
-
-    const now = new Date()
-    const d = now.toISOString().slice(0, 10) + ' 00:00:00'
-    const belgeNo = this.buildNetsisOrderNo(order.orderNo)
-
-    const payload = {
-      Seri: 'A',
-      FatUst: {
-        Sube_Kodu: 0,
-        CariKod: order.dealer.cariNo,
-        FATIRS_NO: belgeNo,
-        Tarih: d, ENTEGRE_TRH: d, FiiliTarih: d, SIPARIS_TEST: d,
-        // Tip: 7 = SATIŞ SİPARİŞİ. 2026-07-29 SADOKSANTEST'te gerçek ftSSip
-        // siparişinden doğrulandı. Tip: 2 FATURA demek — o değerle Netsis
-        // "sipariş bağlantısız fatura kaydı yapamazsınız" hatası veriyordu.
-        Tip: 7, TIPI: 2, KOD2: '2', EXPORTTYPE: 0,
-        KDV_DAHILMI: false,
-        DOVIZTIP: 0,
-      },
-      Kalems: kalems,
-      docType: 'ftSSip',
-    }
+    // Depo varsayılanı — ürünün gerçek deposu bulunamazsa kullanılır.
+    // 3 depo var (15610/15620/15630); 15610 ana satış deposu.
+    const varsayilanDepo = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '15610', 10)
 
     try {
       const client = await this.apiClient()
+
+      // Kalemler — HER ÜRÜN KENDİ DEPOSUNDAN düşsün (tek depoya yığılmasın).
+      // Deposu PrimInfo'dan bulunur; bulunamazsa varsayılana düşer.
+      const kalems: any[] = []
+      for (let i = 0; i < order.lines.length; i++) {
+        const line = order.lines[i]
+        const stokKodu = line.product?.netsisCode
+        if (!stokKodu) {
+          return { ok: false, error: `line_${i}_netsisCode_missing (${line.product?.name})` }
+        }
+        const depo = await this.resolveWarehouse(client, stokKodu, varsayilanDepo)
+        const kdvOrani = Math.round((line.product?.taxRate ?? 0.2) * 100)
+        kalems.push({
+          StokKodu: stokKodu,
+          Sira: i + 1,
+          DEPO_KODU: depo,
+          STra_GCMIK: line.quantity,
+          STra_NF: line.unitPrice,
+          STra_BF: line.unitPrice,
+          STra_KDV: kdvOrani,
+          STra_DOVTIP: 0,
+          STra_HTUR: 'H', // Hareket türü — gerçek ftSSip siparişinden (2026-07-29)
+        })
+      }
+
+      const now = new Date()
+      const d = now.toISOString().slice(0, 10) + ' 00:00:00'
+      const belgeNo = this.buildNetsisOrderNo(order.orderNo)
+
+      const payload = {
+        Seri: 'A',
+        FatUst: {
+          Sube_Kodu: 0,
+          CariKod: order.dealer.cariNo,
+          FATIRS_NO: belgeNo,
+          Tarih: d, ENTEGRE_TRH: d, FiiliTarih: d, SIPARIS_TEST: d,
+          // Tip: 7 = SATIŞ SİPARİŞİ. 2026-07-29 SADOKSANTEST'te gerçek ftSSip
+          // siparişinden doğrulandı. Tip: 2 FATURA demek — o değerle Netsis
+          // "sipariş bağlantısız fatura kaydı yapamazsınız" hatası veriyordu.
+          Tip: 7, TIPI: 2, KOD2: '2', EXPORTTYPE: 0,
+          KDV_DAHILMI: false,
+          DOVIZTIP: 0,
+        },
+        Kalems: kalems,
+        docType: 'ftSSip',
+      }
+
       const res = await client.post('/ItemSlips?docType=ftSSip', payload)
       const ok = res.data?.IsSuccessful === true
       if (ok) {
@@ -265,6 +262,26 @@ export class NetsisService {
       return { ok: false, error: msg }
     } finally {
       await this.releaseToken()
+    }
+  }
+
+  /**
+   * Bir stoğun deposunu Netsis PrimInfo'dan bulur — her ürün kendi deposundan
+   * düşsün, tek depoya (15610) yığılma olmasın diye. Öncelik: stoğu olan
+   * (Miktar>0) geçerli depo → yoksa ilk geçerli depo → hiçbiri yoksa varsayılan.
+   * (Depo 0 "depossuz/servis" demek, geçerli sayılmaz.)
+   */
+  private async resolveWarehouse(client: AxiosInstance, stokKodu: string, fallback: number): Promise<number> {
+    try {
+      const q = encodeURIComponent(`STOK_KODU='${stokKodu.replace(/'/g, "''")}'`)
+      const res = await client.get(`/Items/PrimInfo?q=${q}&limit=10`)
+      const rows: any[] = res.data?.Data || []
+      const gecerli = rows.filter((r) => r.DEPO_KODU && r.DEPO_KODU !== 0)
+      if (gecerli.length === 0) return fallback
+      const stoklu = gecerli.find((r) => (r.Miktar || 0) > 0)
+      return (stoklu || gecerli[0]).DEPO_KODU
+    } catch {
+      return fallback
     }
   }
 
