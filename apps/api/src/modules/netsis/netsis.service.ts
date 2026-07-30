@@ -188,15 +188,18 @@ export class NetsisService {
     if (!order) return { ok: false, error: 'order_not_found' }
     if (!order.dealer?.cariNo) return { ok: false, error: 'dealer_cariNo_missing' }
 
-    // Depo varsayılanı — ürünün gerçek deposu bulunamazsa kullanılır.
-    // 3 depo var (15610/15620/15630); 15610 ana satış deposu.
-    const varsayilanDepo = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '15610', 10)
+    // Depo: Fabrika depoyu ELLE girmek istiyor (personel kararı). Ancak Netsis
+    // API'si sipariş oluştururken GEÇERLİ bir depo kodu ZORUNLU kılıyor
+    // (2026-07-29 test: boş/null/0/-1 hepsi "Kalem Depo Kodu Geçersiz" ile
+    // reddedildi). Bu yüzden sipariş, geçici bir depoyla (varsayılan 15610 —
+    // ana satış deposu, mevcut tüm site siparişlerinin kullandığı) yazılır;
+    // personel Netsis'te asıl depoyu elle değiştirir/onaylar. NETSIS_ORDER_DEPO_KODU
+    // ile değiştirilebilir.
+    const depoKodu = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '15610', 10)
 
     try {
       const client = await this.apiClient()
 
-      // Kalemler — HER ÜRÜN KENDİ DEPOSUNDAN düşsün (tek depoya yığılmasın).
-      // Deposu PrimInfo'dan bulunur; bulunamazsa varsayılana düşer.
       const kalems: any[] = []
       for (let i = 0; i < order.lines.length; i++) {
         const line = order.lines[i]
@@ -204,12 +207,11 @@ export class NetsisService {
         if (!stokKodu) {
           return { ok: false, error: `line_${i}_netsisCode_missing (${line.product?.name})` }
         }
-        const depo = await this.resolveWarehouse(client, stokKodu, varsayilanDepo)
         const kdvOrani = Math.round((line.product?.taxRate ?? 0.2) * 100)
         kalems.push({
           StokKodu: stokKodu,
           Sira: i + 1,
-          DEPO_KODU: depo,
+          DEPO_KODU: depoKodu,
           STra_GCMIK: line.quantity,
           STra_NF: line.unitPrice,
           STra_BF: line.unitPrice,
@@ -262,26 +264,6 @@ export class NetsisService {
       return { ok: false, error: msg }
     } finally {
       await this.releaseToken()
-    }
-  }
-
-  /**
-   * Bir stoğun deposunu Netsis PrimInfo'dan bulur — her ürün kendi deposundan
-   * düşsün, tek depoya (15610) yığılma olmasın diye. Öncelik: stoğu olan
-   * (Miktar>0) geçerli depo → yoksa ilk geçerli depo → hiçbiri yoksa varsayılan.
-   * (Depo 0 "depossuz/servis" demek, geçerli sayılmaz.)
-   */
-  private async resolveWarehouse(client: AxiosInstance, stokKodu: string, fallback: number): Promise<number> {
-    try {
-      const q = encodeURIComponent(`STOK_KODU='${stokKodu.replace(/'/g, "''")}'`)
-      const res = await client.get(`/Items/PrimInfo?q=${q}&limit=10`)
-      const rows: any[] = res.data?.Data || []
-      const gecerli = rows.filter((r) => r.DEPO_KODU && r.DEPO_KODU !== 0)
-      if (gecerli.length === 0) return fallback
-      const stoklu = gecerli.find((r) => (r.Miktar || 0) > 0)
-      return (stoklu || gecerli[0]).DEPO_KODU
-    } catch {
-      return fallback
     }
   }
 
