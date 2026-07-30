@@ -18,7 +18,10 @@ const DEFAULTS: SiteSettings = {
   alneoTrigger: 'order-shipped',
   siteName: 'Sadöksan',
   contactEmail: 'info@sadoksan.com',
-  introEnabled: true,
+  // Varsayılan kapalı — yönetici dashboard'a girince önce operasyonel
+  // içeriği (sipariş/ciro/uyarılar) görmeli, teknik tanıtım banner'ını değil.
+  // Ayarlardan (Ayarlar sayfası) tekrar açılabilir.
+  introEnabled: false,
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -77,7 +80,7 @@ export const useSettingsStore = defineStore('settings', {
         notifyChannelDefault: data.defaultNotificationChannel,
         netsisSyncInterval: data.netsisSyncInterval,
         alneoTrigger: data.alneoTriggerEvent,
-        introEnabled: data.introEnabled ?? true,
+        introEnabled: data.introEnabled ?? false,
       }
     },
 

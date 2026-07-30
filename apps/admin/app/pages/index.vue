@@ -233,9 +233,6 @@ async function quickTestOrder() {
       </div>
     </div>
 
-    <!-- Intro Banner (toggleable from settings) -->
-    <IntroBanner v-if="settings.data.introEnabled" />
-
     <!-- Hero Section -->
     <DashboardHero
       :stats="[
@@ -247,6 +244,10 @@ async function quickTestOrder() {
 
     <!-- Quick Actions -->
     <QuickActionCards />
+
+    <!-- Intro Banner (toggleable from settings) — operasyonel içeriğin
+         ALTINDA: yönetici önce sipariş/ciro/uyarıları görmeli. -->
+    <IntroBanner v-if="settings.data.introEnabled" />
 
     <!-- Quick Test Order Card -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2">
