@@ -4,7 +4,7 @@
  */
 import { defineStore } from 'pinia'
 
-interface PopupItem {
+export interface PopupItem {
   id: string
   title: string
   bodyHtml?: string

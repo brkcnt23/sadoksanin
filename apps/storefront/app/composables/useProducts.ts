@@ -13,8 +13,16 @@ export interface Product {
   brand: string
   category: string
   categoryId?: string
-  /** B2C taban fiyatı (TL) */
+  /** B2C taban fiyatı (TL) — indirim varsa bile DEĞİŞMEZ, orijinal fiyat */
   price: number
+  /** price ile aynı değer — useCart.ts sepet toplamı .basePrice okuyor (misafir/
+   * localStorage sepeti için gerekli; backend sepetinde ham Prisma Product zaten
+   * bu adı taşıyor, burada alias eklenerek iki taraf da tutarlı hale getirildi). */
+  basePrice?: number
+  /** Backend'in hesapladığı indirim uygulanmış fiyat. discount yoksa price ile aynı. */
+  discountedPrice?: number
+  /** Aktif indirim varsa detayı (ürün/kategori/marka bazlı), yoksa null. */
+  discount?: { type: string; targetName: string; value: number; discountType: string } | null
   image: string
   inStock: boolean
   stockCount: number
@@ -443,6 +451,8 @@ interface ApiProduct {
   purchasable?: boolean
   isFeatured?: boolean
   imageUrl?: string | null
+  discountedPrice?: number
+  discount?: { type: string; targetName: string; value: number; discountType: string } | null
 }
 
 const slugify = (s: string): string =>
@@ -465,6 +475,9 @@ const mapApiProduct = (p: ApiProduct): Product => ({
   category: p.category,
   categoryId: p.categoryId || undefined,
   price: p.basePrice,
+  basePrice: p.basePrice,
+  discountedPrice: p.discountedPrice ?? p.basePrice,
+  discount: p.discount ?? null,
   image: p.imageUrl || '',
   inStock: (p.displayStock ?? 0) > 0,
   stockCount: p.displayStock ?? 0,

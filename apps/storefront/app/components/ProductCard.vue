@@ -10,7 +10,13 @@ const { isAuthenticated } = useAuth()
 const { addItem } = useCart()
 const api = useApi()
 
-const price = computed(() => computePrice(props.product.price))
+// İndirim varsa indirimli fiyat üzerinden hesapla (bayi lojistik bedeli
+// indirimli fiyata eklenir), yoksa taban fiyat aynen kullanılır.
+const effectivePrice = computed(() => props.product.discountedPrice ?? props.product.price)
+const hasDiscount = computed(() =>
+  !!props.product.discount && effectivePrice.value < props.product.price,
+)
+const price = computed(() => computePrice(effectivePrice.value))
 const isFavorited = ref(false)
 const favLoading = ref(false)
 
@@ -123,8 +129,12 @@ const notifyViaWhatsApp = () => {
       <!-- Price -->
       <div class="mt-auto pt-4 flex items-end justify-between gap-2">
         <div v-if="isAuthenticated">
+          <div v-if="hasDiscount" class="flex items-center gap-1">
+            <span class="text-[9px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded">İNDİRİM</span>
+            <span class="text-[10px] text-ink-400 line-through">{{ formatTL(product.price) }} TL</span>
+          </div>
           <div class="flex items-baseline gap-1.5">
-            <span class="text-lg font-bold text-primary-950">
+            <span class="text-lg font-bold" :class="hasDiscount ? 'text-red-600' : 'text-primary-950'">
               {{ formatTL(price.total) }}
               <span class="text-xs font-medium text-ink-500">TL</span>
             </span>

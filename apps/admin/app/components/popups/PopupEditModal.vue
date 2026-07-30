@@ -1,15 +1,15 @@
 ﻿<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Popup } from '~/types'
+import type { PopupItem } from '~/stores/popups'
 
 interface Props {
-  popup?: Popup
+  popup?: PopupItem
   isOpen: boolean
 }
 
 interface Emits {
   (e: 'close'): void
-  (e: 'save', data: Partial<Popup>): void
+  (e: 'save', data: Partial<PopupItem> & { id?: string }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,17 +20,23 @@ const emit = defineEmits<Emits>()
 
 const dealers = useDealersStore()
 
+// NOT: Alan adları backend/Prisma Popup modeliyle birebir aynı olmalı
+// (bodyHtml, ctaText, isActive, startDate, endDate, audience BÜYÜK HARF).
+// Eskiden ~/types'daki farklı-isimli Popup tipi kullanılıyordu (body,
+// ctaLabel, active, startsAt/endsAt, audience küçük harf) — bu yüzden
+// popup oluşturma/güncelleme backend'e hiçbir zaman doğru veri
+// göndermiyordu (Prisma enum hatası veya sessizce boş/pasif kayıt).
 const form = ref({
   title: '',
-  body: '',
+  bodyHtml: '',
   imageUrl: '',
-  ctaLabel: '',
+  ctaText: '',
   ctaUrl: '',
-  audience: 'all' as Popup['audience'],
+  audience: 'ALL' as PopupItem['audience'],
   dealerIds: [] as string[],
-  startsAt: new Date().toISOString().split('T')[0],
-  endsAt: new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0],
-  active: false,
+  startDate: new Date().toISOString().split('T')[0],
+  endDate: new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0],
+  isActive: false,
 })
 
 const loading = ref(false)
@@ -49,29 +55,29 @@ watch(
         // Edit mode: populate from existing popup
         form.value = {
           title: props.popup.title,
-          body: props.popup.body,
+          bodyHtml: props.popup.bodyHtml || '',
           imageUrl: props.popup.imageUrl || '',
-          ctaLabel: props.popup.ctaLabel || '',
+          ctaText: props.popup.ctaText || '',
           ctaUrl: props.popup.ctaUrl || '',
           audience: props.popup.audience,
           dealerIds: props.popup.dealerIds || [],
-          startsAt: props.popup.startsAt.split('T')[0],
-          endsAt: props.popup.endsAt.split('T')[0],
-          active: props.popup.active,
+          startDate: props.popup.startDate ? props.popup.startDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          endDate: props.popup.endDate ? props.popup.endDate.split('T')[0] : new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0],
+          isActive: props.popup.isActive,
         }
       } else {
         // Create mode: reset to defaults
         form.value = {
           title: '',
-          body: '',
+          bodyHtml: '',
           imageUrl: '',
-          ctaLabel: '',
+          ctaText: '',
           ctaUrl: '',
-          audience: 'all',
+          audience: 'ALL',
           dealerIds: [],
-          startsAt: new Date().toISOString().split('T')[0],
-          endsAt: new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0],
-          active: false,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0],
+          isActive: false,
         }
       }
       errors.value = {}
@@ -88,23 +94,23 @@ const validate = (): boolean => {
     errors.value.title = 'Başlık gerekli'
   }
 
-  if (!form.value.body.trim()) {
-    errors.value.body = 'İçerik gerekli'
+  if (!form.value.bodyHtml.trim()) {
+    errors.value.bodyHtml = 'İçerik gerekli'
   }
 
-  if (!form.value.startsAt) {
-    errors.value.startsAt = 'Başlangıç tarihi gerekli'
+  if (!form.value.startDate) {
+    errors.value.startDate = 'Başlangıç tarihi gerekli'
   }
 
-  if (!form.value.endsAt) {
-    errors.value.endsAt = 'Bitiş tarihi gerekli'
+  if (!form.value.endDate) {
+    errors.value.endDate = 'Bitiş tarihi gerekli'
   }
 
-  if (form.value.startsAt && form.value.endsAt && form.value.startsAt >= form.value.endsAt) {
-    errors.value.endsAt = 'Bitiş tarihi başlangıç tarihinden sonra olmalı'
+  if (form.value.startDate && form.value.endDate && form.value.startDate >= form.value.endDate) {
+    errors.value.endDate = 'Bitiş tarihi başlangıç tarihinden sonra olmalı'
   }
 
-  if (form.value.audience === 'dealer-specific' && form.value.dealerIds.length === 0) {
+  if (form.value.audience === 'SPECIFIC_DEALER' && form.value.dealerIds.length === 0) {
     errors.value.dealerIds = 'En az bir bayi seçilmeli'
   }
 
@@ -116,17 +122,17 @@ const handleSave = async () => {
 
   loading.value = true
   try {
-    const payload: Partial<Popup> = {
+    const payload: Partial<PopupItem> & { id?: string } = {
       title: form.value.title,
-      body: form.value.body,
+      bodyHtml: form.value.bodyHtml,
       imageUrl: form.value.imageUrl || undefined,
-      ctaLabel: form.value.ctaLabel || undefined,
+      ctaText: form.value.ctaText || undefined,
       ctaUrl: form.value.ctaUrl || undefined,
       audience: form.value.audience,
-      dealerIds: form.value.audience === 'dealer-specific' ? form.value.dealerIds : undefined,
-      startsAt: form.value.startsAt ? new Date(form.value.startsAt).toISOString() : new Date().toISOString(),
-      endsAt: form.value.endsAt ? new Date(form.value.endsAt).toISOString() : new Date().toISOString(),
-      active: form.value.active,
+      dealerIds: form.value.audience === 'SPECIFIC_DEALER' ? form.value.dealerIds : undefined,
+      startDate: form.value.startDate ? new Date(form.value.startDate).toISOString() : new Date().toISOString(),
+      endDate: form.value.endDate ? new Date(form.value.endDate).toISOString() : new Date().toISOString(),
+      isActive: form.value.isActive,
     }
 
     if (props.popup?.id) {
@@ -179,12 +185,12 @@ const handleClose = () => {
             <div>
               <label class="block text-sm font-medium text-ink-700 mb-1.5">İçerik (HTML) *</label>
               <textarea
-                v-model="form.body"
+                v-model="form.bodyHtml"
                 rows="4"
                 class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="<p>Kampanya açıklaması...</p>"
               />
-              <p v-if="errors.body" class="text-xs text-red-600 mt-1">{{ errors.body }}</p>
+              <p v-if="errors.bodyHtml" class="text-xs text-red-600 mt-1">{{ errors.bodyHtml }}</p>
             </div>
 
             <!-- Image URL -->
@@ -203,7 +209,7 @@ const handleClose = () => {
               <div>
                 <label class="block text-sm font-medium text-ink-700 mb-1.5">Düğme Metni</label>
                 <input
-                  v-model="form.ctaLabel"
+                  v-model="form.ctaText"
                   type="text"
                   class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Daha Fazla"
@@ -227,15 +233,15 @@ const handleClose = () => {
                 v-model="form.audience"
                 class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="all">Tüm Kullanıcılar</option>
-                <option value="b2c">Sadece B2C (Perakende)</option>
-                <option value="b2b">Sadece B2B (Toptan)</option>
-                <option value="dealer-specific">Seçili Bayiler</option>
+                <option value="ALL">Tüm Kullanıcılar</option>
+                <option value="B2C">Sadece B2C (Perakende)</option>
+                <option value="B2B">Sadece B2B (Toptan)</option>
+                <option value="SPECIFIC_DEALER">Seçili Bayiler</option>
               </select>
             </div>
 
             <!-- Dealer Selection (conditional) -->
-            <div v-if="form.audience === 'dealer-specific'">
+            <div v-if="form.audience === 'SPECIFIC_DEALER'">
               <label class="block text-sm font-medium text-ink-700 mb-1.5">Bayiler *</label>
               <div class="space-y-2">
                 <div class="relative">
@@ -289,20 +295,20 @@ const handleClose = () => {
               <div>
                 <label class="block text-sm font-medium text-ink-700 mb-1.5">Başlangıç Tarihi *</label>
                 <input
-                  v-model="form.startsAt"
+                  v-model="form.startDate"
                   type="date"
                   class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                <p v-if="errors.startsAt" class="text-xs text-red-600 mt-1">{{ errors.startsAt }}</p>
+                <p v-if="errors.startDate" class="text-xs text-red-600 mt-1">{{ errors.startDate }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink-700 mb-1.5">Bitiş Tarihi *</label>
                 <input
-                  v-model="form.endsAt"
+                  v-model="form.endDate"
                   type="date"
                   class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                <p v-if="errors.endsAt" class="text-xs text-red-600 mt-1">{{ errors.endsAt }}</p>
+                <p v-if="errors.endDate" class="text-xs text-red-600 mt-1">{{ errors.endDate }}</p>
               </div>
             </div>
 
@@ -311,16 +317,16 @@ const handleClose = () => {
               <label class="text-sm font-medium text-ink-700">Aktif Yayında</label>
               <button
                 type="button"
-                @click="form.active = !form.active"
+                @click="form.isActive = !form.isActive"
                 :class="[
                   'relative inline-flex h-5 w-9 rounded-full transition-colors',
-                  form.active ? 'bg-primary-600' : 'bg-ink-300',
+                  form.isActive ? 'bg-primary-600' : 'bg-ink-300',
                 ]"
               >
                 <span
                   :class="[
                     'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                    form.active ? 'translate-x-4' : 'translate-x-0.5',
+                    form.isActive ? 'translate-x-4' : 'translate-x-0.5',
                   ]"
                 />
               </button>

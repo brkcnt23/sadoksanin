@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref } from 'vue'
 import { formatDate } from '~/utils/storage'
-import type { Popup } from '~/types'
+import type { PopupItem } from '~/stores/popups'
 
 definePageMeta({
   layout: 'default',
@@ -13,30 +13,32 @@ const popups = usePopupsStore()
 const dealers = useDealersStore()
 
 const showEditModal = ref(false)
-const selectedPopup = ref<Popup | undefined>()
+const selectedPopup = ref<PopupItem | undefined>()
 
 onMounted(() => {
   if (!popups.loaded) popups.load()
   if (!dealers.loaded) dealers.load()
 })
 
-const audienceLabel = (a: Popup['audience']) =>
-  ({ all: 'Tümü', b2c: 'B2C', b2b: 'B2B', 'dealer-specific': 'Bayi Bazlı' })[a]
+const audienceLabel = (a: PopupItem['audience']) =>
+  ({ ALL: 'Tümü', B2C: 'B2C', B2B: 'B2B', SPECIFIC_DEALER: 'Bayi Bazlı' })[a]
 
-const isLive = (p: Popup) =>
-  p.active && new Date(p.startsAt).getTime() <= Date.now() && new Date(p.endsAt).getTime() > Date.now()
+const isLive = (p: PopupItem) =>
+  p.isActive
+  && (!p.startDate || new Date(p.startDate).getTime() <= Date.now())
+  && (!p.endDate || new Date(p.endDate).getTime() > Date.now())
 
 const openCreateModal = () => {
   selectedPopup.value = undefined
   showEditModal.value = true
 }
 
-const openEditModal = (popup: Popup) => {
+const openEditModal = (popup: PopupItem) => {
   selectedPopup.value = popup
   showEditModal.value = true
 }
 
-const handleSavePopup = (data: Partial<Popup>) => {
+const handleSavePopup = (data: Partial<PopupItem> & { id?: string }) => {
   popups.upsert(data)
 }
 
@@ -85,26 +87,26 @@ const confirmDelete = (title: string) => window.confirm(`${title} silinsin mi?`)
             @click="popups.toggle(p.id)"
             :class="[
               'relative inline-flex h-5 w-9 rounded-full transition-colors shrink-0',
-              p.active ? 'bg-primary-600' : 'bg-ink-300',
+              p.isActive ? 'bg-primary-600' : 'bg-ink-300',
             ]"
           >
             <span
               :class="[
                 'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                p.active ? 'translate-x-4' : 'translate-x-0.5',
+                p.isActive ? 'translate-x-4' : 'translate-x-0.5',
               ]"
             />
           </button>
         </div>
-        <div class="text-sm text-ink-600 line-clamp-2" v-html="p.body" />
+        <div class="text-sm text-ink-600 line-clamp-2" v-html="p.bodyHtml" />
         <dl class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-ink-100 text-xs">
           <div>
             <dt class="text-ink-500">Başlangıç</dt>
-            <dd class="font-medium text-ink-700 mt-0.5">{{ formatDate(p.startsAt, { hour: undefined, minute: undefined }) }}</dd>
+            <dd class="font-medium text-ink-700 mt-0.5">{{ p.startDate ? formatDate(p.startDate, { hour: undefined, minute: undefined }) : '—' }}</dd>
           </div>
           <div>
             <dt class="text-ink-500">Bitiş</dt>
-            <dd class="font-medium text-ink-700 mt-0.5">{{ formatDate(p.endsAt, { hour: undefined, minute: undefined }) }}</dd>
+            <dd class="font-medium text-ink-700 mt-0.5">{{ p.endDate ? formatDate(p.endDate, { hour: undefined, minute: undefined }) : '—' }}</dd>
           </div>
           <div>
             <dt class="text-ink-500">CTR</dt>
