@@ -70,6 +70,43 @@
           </div>
         </div>
 
+        <!-- Görsel Özet: özet istatistikler + yatay bar chart (kütüphanesiz) -->
+        <div v-if="!reportLoading && reportChartData.length" class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div class="lg:col-span-1 grid grid-cols-3 lg:grid-cols-1 gap-3">
+            <div class="bg-ink-50 rounded-lg p-4">
+              <p class="text-xs text-ink-500">Toplam Kayıt</p>
+              <p class="text-xl font-bold text-ink-900">{{ reportSummary?.count }}</p>
+            </div>
+            <div class="bg-ink-50 rounded-lg p-4">
+              <p class="text-xs text-ink-500">Toplam</p>
+              <p class="text-xl font-bold text-ink-900">{{ formatChartValue(reportSummary?.total || 0, reportChartFormat) }}</p>
+            </div>
+            <div class="bg-ink-50 rounded-lg p-4">
+              <p class="text-xs text-ink-500">Ortalama</p>
+              <p class="text-xl font-bold text-ink-900">{{ formatChartValue(reportSummary?.avg || 0, reportChartFormat) }}</p>
+            </div>
+          </div>
+          <div class="lg:col-span-2 bg-white border border-ink-100 rounded-lg p-4">
+            <p class="text-xs font-semibold text-ink-600 mb-3 flex items-center gap-1.5">
+              <Icon name="lucide:bar-chart-3" class="w-3.5 h-3.5 text-primary-600" />
+              İlk {{ reportChartData.length }} kayıt
+            </p>
+            <div class="space-y-2">
+              <div v-for="(bar, i) in reportChartData" :key="i" class="flex items-center gap-3">
+                <span class="w-28 md:w-36 shrink-0 text-xs text-ink-600 truncate" :title="bar.label">{{ bar.label }}</span>
+                <div class="flex-1 h-5 bg-ink-100 rounded overflow-hidden">
+                  <div
+                    class="h-full rounded bg-gradient-to-r transition-all duration-500"
+                    :class="chartBarColor(bar.level)"
+                    :style="{ width: bar.pct + '%' }"
+                  />
+                </div>
+                <span class="w-20 shrink-0 text-xs font-semibold text-ink-800 text-right">{{ formatChartValue(bar.value, reportChartFormat) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <LoadingState v-if="reportLoading" type="table" />
         <div v-else-if="reportData.length === 0" class="text-center py-12 text-ink-500">Veri bulunamadı</div>
         <div v-else class="overflow-x-auto">
@@ -261,15 +298,58 @@ const reports = [
 ]
 
 const reportMeta: Record<string, any> = {
-  'plasiyer-sales': { endpoint: '/reports/plasiyer-sales', cols: ['Plasiyer', 'Email', 'Proforma', 'Toplam Tutar (TL)', 'Ortalama Tutar (TL)'], fields: ['plasiyerName', 'plasiyerEmail', 'proformaCount', 'totalAmount', 'averageAmount'] },
-  'order-pipeline': { endpoint: '/reports/order-pipeline', cols: ['Durum', 'Sipariş Sayısı', 'Toplam Tutar (TL)'], fields: ['status', 'count', 'totalAmount'] },
-  'dealer-risk': { endpoint: '/reports/dealer-risk', cols: ['Bayi', 'Cari No', 'Şehir', 'Kredi Kullanım %', 'İptal %', 'Risk Skor', 'Risk'], fields: ['dealerName', 'cariNo', 'city', 'creditUsagePct', 'cancelRate', 'riskScore', 'riskLevel'] },
-  'critical-stock': { endpoint: '/reports/critical-stock', cols: ['SKU', 'Ürün', 'Stok', 'Minimum', 'Açık', 'Seviye'], fields: ['sku', 'name', 'currentStock', 'minimumStock', 'deficit', 'level'] },
-  'slow-moving': { endpoint: '/reports/slow-moving-stock', cols: ['SKU', 'Ürün', 'Marka', 'Stok', 'Stok Değeri (TL)', 'Son Satış (Gün)', 'Seviye'], fields: ['sku', 'name', 'brand', 'currentStock', 'stockValue', 'daysSinceLastSale', 'level'] },
-  'credit-usage': { endpoint: '/reports/credit-usage', cols: ['Bayi', 'Cari No', 'Limit (TL)', 'Bakiye (TL)', 'Kullanım %', 'Seviye'], fields: ['company', 'cariNo', 'creditLimit', 'currentBalance', 'usagePct', 'level'] },
-  'plasiyer-dashboard': { endpoint: '/reports/plasiyer-dashboard', cols: ['Plasiyer', 'Proforma', 'Onaylı', 'Bekleyen', 'Red', 'Ciro (TL)', 'Dönüşüm %'], fields: ['plasiyerName', 'totalProformas', 'approvedCount', 'pendingCount', 'rejectedCount', 'totalAmount', 'conversionRate'] },
-  'plasiyers': { endpoint: '/reports/plasiyers', cols: ['Ad', 'Email', 'Telefon', 'Proforma', 'Onaylı', 'Bekleyen'], fields: ['name', 'email', 'phone', 'totalProformas', 'approvedProformas', 'pendingProformas'] },
+  'plasiyer-sales': { endpoint: '/reports/plasiyer-sales', cols: ['Plasiyer', 'Email', 'Proforma', 'Toplam Tutar (TL)', 'Ortalama Tutar (TL)'], fields: ['plasiyerName', 'plasiyerEmail', 'proformaCount', 'totalAmount', 'averageAmount'], chartLabel: 'plasiyerName', chartField: 'totalAmount', chartFormat: 'money' },
+  'order-pipeline': { endpoint: '/reports/order-pipeline', cols: ['Durum', 'Sipariş Sayısı', 'Toplam Tutar (TL)'], fields: ['status', 'count', 'totalAmount'], chartLabel: 'status', chartField: 'totalAmount', chartFormat: 'money' },
+  'dealer-risk': { endpoint: '/reports/dealer-risk', cols: ['Bayi', 'Cari No', 'Şehir', 'Kredi Kullanım %', 'İptal %', 'Risk Skor', 'Risk'], fields: ['dealerName', 'cariNo', 'city', 'creditUsagePct', 'cancelRate', 'riskScore', 'riskLevel'], chartLabel: 'dealerName', chartField: 'riskScore', chartFormat: 'int', levelField: 'riskLevel' },
+  'critical-stock': { endpoint: '/reports/critical-stock', cols: ['SKU', 'Ürün', 'Stok', 'Minimum', 'Açık', 'Seviye'], fields: ['sku', 'name', 'currentStock', 'minimumStock', 'deficit', 'level'], chartLabel: 'name', chartField: 'deficit', chartFormat: 'int', levelField: 'level' },
+  'slow-moving': { endpoint: '/reports/slow-moving-stock', cols: ['SKU', 'Ürün', 'Marka', 'Stok', 'Stok Değeri (TL)', 'Son Satış (Gün)', 'Seviye'], fields: ['sku', 'name', 'brand', 'currentStock', 'stockValue', 'daysSinceLastSale', 'level'], chartLabel: 'name', chartField: 'daysSinceLastSale', chartFormat: 'int', levelField: 'level' },
+  'credit-usage': { endpoint: '/reports/credit-usage', cols: ['Bayi', 'Cari No', 'Limit (TL)', 'Bakiye (TL)', 'Kullanım %', 'Seviye'], fields: ['company', 'cariNo', 'creditLimit', 'currentBalance', 'usagePct', 'level'], chartLabel: 'company', chartField: 'usagePct', chartFormat: 'pct', levelField: 'level' },
+  'plasiyer-dashboard': { endpoint: '/reports/plasiyer-dashboard', cols: ['Plasiyer', 'Proforma', 'Onaylı', 'Bekleyen', 'Red', 'Ciro (TL)', 'Dönüşüm %'], fields: ['plasiyerName', 'totalProformas', 'approvedCount', 'pendingCount', 'rejectedCount', 'totalAmount', 'conversionRate'], chartLabel: 'plasiyerName', chartField: 'totalAmount', chartFormat: 'money' },
+  'plasiyers': { endpoint: '/reports/plasiyers', cols: ['Ad', 'Email', 'Telefon', 'Proforma', 'Onaylı', 'Bekleyen'], fields: ['name', 'email', 'phone', 'totalProformas', 'approvedProformas', 'pendingProformas'], chartLabel: 'name', chartField: 'totalProformas', chartFormat: 'int' },
 }
+
+// ─── Rapor Görsel Özeti (Görev 4 — kütüphanesiz, CSS-only) ─────────────
+// Aktif rapor verisinden en yüksek 10 kaydı yatay bar chart olarak gösterir.
+// Her rapor tipinin hangi alanı görselleştireceği reportMeta'da tanımlı
+// (chartLabel/chartField/chartFormat/levelField).
+const reportChartData = computed(() => {
+  const meta = reportMeta[activeReport.value || '']
+  if (!meta?.chartField || !reportData.value.length) return []
+  const rows = reportData.value
+    .map((r) => ({
+      label: String(r[meta.chartLabel] ?? '—'),
+      value: Number(r[meta.chartField]) || 0,
+      level: meta.levelField ? r[meta.levelField] : null,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10)
+  const max = Math.max(...rows.map((r) => r.value), 1)
+  return rows.map((r) => ({ ...r, pct: Math.max((r.value / max) * 100, 2) }))
+})
+
+const reportChartFormat = computed(() => reportMeta[activeReport.value || '']?.chartFormat || 'int')
+
+const formatChartValue = (val: number, fmt: string) => {
+  if (fmt === 'money') return formatTL(val)
+  if (fmt === 'pct') return '%' + val.toFixed(1)
+  return String(Math.round(val))
+}
+
+const chartBarColor = (level: string | null) => {
+  if (!level) return 'from-primary-600 to-primary-400'
+  const v = String(level).toLowerCase()
+  if (['critical', 'yüksek', 'high', 'dead', 'blocked', 'bloke', 'hareketsiz', 'ölü stok'].includes(v)) return 'from-red-600 to-red-400'
+  if (['warning', 'medium', 'slow', 'watch', 'uyari', 'yavaş', 'orta'].includes(v)) return 'from-amber-500 to-amber-300'
+  return 'from-emerald-600 to-emerald-400'
+}
+
+const reportSummary = computed(() => {
+  const meta = reportMeta[activeReport.value || '']
+  if (!meta?.chartField || !reportData.value.length) return null
+  const values = reportData.value.map((r) => Number(r[meta.chartField]) || 0)
+  const total = values.reduce((s, v) => s + v, 0)
+  return { count: reportData.value.length, total, avg: total / values.length }
+})
 
 const activeReportTitle = computed(() => reports.find(r => r.id === activeReport.value)?.title || '')
 const activeReportFormula = computed(() => reports.find(r => r.id === activeReport.value)?.formula || '')
