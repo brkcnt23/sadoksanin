@@ -188,7 +188,11 @@ export class NetsisService {
     if (!order) return { ok: false, error: 'order_not_found' }
     if (!order.dealer?.cariNo) return { ok: false, error: 'dealer_cariNo_missing' }
 
-    const depoKodu = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '0', 10)
+    // Depo: e-ticaret siparişleri fabrikanın ana satış deposundan (15610)
+    // çekilir. 2026-07-29 analizi: 258 site siparişinin tüm kalemleri 15610'dan
+    // düşmüş; ürünlerin %98'i orada. Böylece personelin elle depo girmesine
+    // gerek kalmaz. Gerekirse NETSIS_ORDER_DEPO_KODU ile değiştirilir.
+    const depoKodu = parseInt(process.env.NETSIS_ORDER_DEPO_KODU || '15610', 10)
 
     // Kalemler — her satır bir Netsis stok kartına (netsisCode) eşlenmeli
     const kalems: any[] = []
@@ -266,14 +270,21 @@ export class NetsisService {
 
   /**
    * Netsis belge numarası TAM 15 karakter olmalı (2026-07-24 doğrulandı,
-   * hata kodu 204). Sadoksan orderNo'sundan (SDK-2026-5001) rakamları alıp
-   * "EC" öneki + sıfır dolgusuyla 15 haneye tamamlar.
-   * NOT: Canlıda e-ticaret için ayrı seri/prefiks muhasebeyle netleşecek
-   * (açık madde) — çakışma olmaması için burada "EC" öneki kullanılıyor.
+   * hata kodu 204). Fabrikanın gerçek site siparişleri "ENT1-0000000864"
+   * formatında (2026-07-29 doğrulandı): önek + sıfır dolgulu sıra no.
+   *
+   * Önek NETSIS_ORDER_PREFIX ile ayarlanır (varsayılan "ENT1-"). Sadoksan
+   * orderNo rakamları kalan haneye sıfır dolgusuyla yazılır. Sadoksan
+   * numaraları (SDK-2026-5001 → büyük) mevcut İdeasoft ENT1- sırasından
+   * (küçük: 864, 879) farklı aralıkta olduğu için çakışma olmaz.
+   * NOT: Canlıya geçişte İdeasoft'un ENT1- sıra sayacıyla çakışmama
+   * stratejisi muhasebeyle son kez teyit edilecek (açık madde).
    */
   private buildNetsisOrderNo(orderNo: string): string {
-    const digits = (orderNo.match(/\d+/g) || []).join('').slice(-13)
-    return ('EC' + digits.padStart(13, '0')).slice(0, 15)
+    const prefix = process.env.NETSIS_ORDER_PREFIX || 'ENT1-'
+    const width = Math.max(1, 15 - prefix.length)
+    const digits = (orderNo.match(/\d+/g) || []).join('').slice(-width)
+    return (prefix + digits.padStart(width, '0')).slice(0, 15)
   }
 
   /**
