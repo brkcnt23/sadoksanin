@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { GenerateProformaDto, CreateProformaDraftDto } from './dto/generate-proforma.dto';
 import { firstValueFrom } from 'rxjs';
 import { AxiosResponse } from 'axios';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class ProformaService {
@@ -20,6 +21,7 @@ export class ProformaService {
   constructor(
     private httpService: HttpService,
     private prisma: PrismaService,
+    private mailerService: MailerService,
   ) {}
 
   /**
@@ -254,19 +256,101 @@ export class ProformaService {
   }
 
   /**
-   * Mark proforma as sent and update timestamp
+   * Update a draft proforma (customer info + items).
+   * Only DRAFT proformas can be edited — once sent/onaya-gönderilmiş/approved,
+   * editing is not allowed (financial document integrity).
+   */
+  async updateProforma(proformaId: string, dto: CreateProformaDraftDto, userId: string) {
+    const existing = await this.prisma.proforma.findUnique({ where: { id: proformaId } });
+
+    if (!existing) {
+      throw new BadRequestException('Proforma not found');
+    }
+    if (existing.status !== 'draft') {
+      throw new BadRequestException(
+        `Sadece taslak durumundaki proformalar düzenlenebilir. Mevcut durum: ${existing.status}`,
+      );
+    }
+
+    const totalAmount = dto.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+    const proforma = await this.prisma.proforma.update({
+      where: { id: proformaId },
+      data: {
+        templateType: dto.templateType,
+        dealerId: (dto as any).dealerId ?? existing.dealerId,
+        customerId: (dto as any).customerId ?? existing.customerId,
+        customerName: dto.customer,
+        subtotal: totalAmount,
+        totalAmount: totalAmount,
+        items: {
+          deleteMany: {},
+          createMany: {
+            data: dto.items.map((item) => ({
+              sku: item.sku,
+              productName: item.description,
+              description: item.description,
+              brand: item.brand,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              lineTotal: item.quantity * item.price,
+              imageUrl: this.fixImageUrl(item.imageUrl),
+            })),
+          },
+        },
+      },
+      include: { items: true },
+    });
+
+    this.logger.log(`Proforma ${proforma.proformaNumber} updated by ${userId}`);
+    return proforma;
+  }
+
+  /**
+   * Proformayı PDF olarak müşteriye/bayiye e-postayla gönderir ve
+   * status='sent' olarak işaretler.
+   *
+   * NOT: MailerService şu an gerçek SMTP'ye bağlı değil — console'a loglar
+   * + AuditLog'a yazar (bkz. mailer.service.ts). SMTP yapılandırılınca bu
+   * kod değişmeden gerçek e-posta gönderimine geçer.
    */
   async sendProforma(proformaId: string, userId: string) {
     const proforma = await this.prisma.proforma.findUnique({
       where: { id: proformaId },
+      include: { items: true },
     });
 
     if (!proforma) {
       throw new BadRequestException('Proforma not found');
     }
 
-    // For now, just update the viewedAt timestamp to indicate it was sent
-    // In future, we can add a status field
+    const recipientEmail = proforma.customerEmail;
+
+    if (!recipientEmail) {
+      this.logger.warn(`Proforma ${proforma.proformaNumber}: müşteri e-postası yok, PDF gönderilemedi`);
+    } else {
+      try {
+        const { pdfBuffer } = await this.downloadProforma(proformaId);
+        await this.mailerService.send({
+          to: recipientEmail,
+          subject: `Proforma Fatura — ${proforma.proformaNumber}`,
+          body: `Merhaba ${proforma.customerName},\n\n${proforma.proformaNumber} numaralı proforma faturanız ekte yer almaktadır.\n\nToplam Tutar: ${Number(proforma.totalAmount).toFixed(2)} TL\n\nSaygılarımızla,\nSadöksan İnşaat`,
+          attachments: [
+            {
+              filename: `${proforma.proformaNumber}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ],
+        });
+        this.logger.log(`Proforma ${proforma.proformaNumber} e-postayla gönderildi → ${recipientEmail}`);
+      } catch (err) {
+        this.logger.error(`Proforma ${proforma.proformaNumber} e-posta gönderimi başarısız: ${err.message}`);
+        // E-posta başarısız olsa bile "sent" olarak işaretlemeye devam et —
+        // admin panelden manuel PDF indirip gönderebilir; akış durmasın.
+      }
+    }
+
     return this.prisma.proforma.update({
       where: { id: proformaId },
       data: {

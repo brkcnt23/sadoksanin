@@ -142,6 +142,11 @@ export const useProformaApi = () => {
     return Array.isArray(data) ? data : []
   }
 
+  /** Update a draft proforma (customer info + items). Only DRAFT proformas can be edited. */
+  const updateProforma = async (proformaId: string, payload: ProformaCreatePayload): Promise<Proforma> => {
+    return apiFetch<Proforma>(`/proforma/${proformaId}`, { method: 'PATCH', body: payload })
+  }
+
   /** Mark a proforma as sent */
   const sendProforma = async (proformaId: string): Promise<void> => {
     await apiFetch(`/proforma/${proformaId}/send`, { method: 'PATCH' })
@@ -218,6 +223,7 @@ export const useProformaApi = () => {
   return {
     createProforma,
     createAndSendProforma,
+    updateProforma,
     getProformas,
     sendProforma,
     downloadProforma,

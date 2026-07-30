@@ -332,8 +332,8 @@
         <div class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
           <!-- Modal Header -->
           <div class="sticky top-0 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-4 flex items-center justify-between">
-            <h2 class="text-xl font-bold">Yeni Proforma Oluştur</h2>
-            <button @click="showCreateForm = false" class="text-2xl hover:opacity-80"><Icon name="lucide:x" class="w-5 h-5" /></button>
+            <h2 class="text-xl font-bold">{{ editingProformaId ? 'Proforma Düzenle' : 'Yeni Proforma Oluştur' }}</h2>
+            <button @click="closeCreateForm" class="text-2xl hover:opacity-80"><Icon name="lucide:x" class="w-5 h-5" /></button>
           </div>
 
           <!-- Modal Content -->
@@ -556,7 +556,7 @@
             <!-- Buttons -->
             <div class="flex gap-3 justify-end">
               <button
-                @click="showCreateForm = false"
+                @click="closeCreateForm"
                 :disabled="loading"
                 class="px-6 py-2 border border-ink-300 rounded-lg font-medium hover:bg-ink-50 disabled:opacity-50"
               >
@@ -567,9 +567,10 @@
                 :disabled="loading"
                 class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50"
               >
-                {{ loading ? 'Kaydediliyor...' : 'Taslak Olarak Kaydet' }}
+                {{ loading ? 'Kaydediliyor...' : (editingProformaId ? 'Kaydet' : 'Taslak Olarak Kaydet') }}
               </button>
               <button
+                v-if="!editingProformaId"
                 @click="createAndSendProformaHandler"
                 :disabled="loading"
                 class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50"
@@ -645,7 +646,10 @@ const detailLoading = ref(false)
 const pdfBlobUrl = ref<string | null>(null)
 
 const toast = useToast()
-const { createProforma, createAndSendProforma, getProformas, sendProforma, downloadProforma, deleteProforma, getProductImage, searchProducts, getDealers, getProforma } = useProformaApi()
+const { createProforma, createAndSendProforma, updateProforma, getProformas, sendProforma, downloadProforma, deleteProforma, getProductImage, searchProducts, getDealers, getProforma } = useProformaApi()
+
+// Düzenleme modu: null ise "yeni oluştur", dolu ise "mevcut taslağı güncelle"
+const editingProformaId = ref<string | null>(null)
 
 // Configurable upload limits (kept generous; PDF embedding downsizes anyway)
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024 // 2 MB hard limit on raw upload
@@ -942,6 +946,16 @@ const itemsForApi = () =>
       imageUrl: imageUrl ?? undefined,
     }))
 
+const closeCreateForm = () => {
+  showCreateForm.value = false
+  editingProformaId.value = null
+  newProforma.value = {
+    templateType: 'LOCAL',
+    customer: '',
+    items: [blankItem()],
+  }
+}
+
 const createProformaHandler = async () => {
   loading.value = true
   error.value = null
@@ -953,27 +967,26 @@ const createProformaHandler = async () => {
       return
     }
 
-    await createProforma({
+    const payload = {
       templateType: newProforma.value.templateType,
       customer: newProforma.value.customer,
       items,
-    })
+    }
+
+    if (editingProformaId.value) {
+      await updateProforma(editingProformaId.value, payload)
+      toast.push('Proforma güncellendi', 'success')
+    } else {
+      await createProforma(payload)
+      toast.push('Proforma taslak olarak kaydedildi', 'success')
+    }
 
     // Reload list
     await loadProformas()
-    showCreateForm.value = false
-
-    // Reset form
-    newProforma.value = {
-      templateType: 'LOCAL',
-      customer: '',
-      items: [blankItem()],
-    }
-
-    toast.push('Proforma taslak olarak kaydedildi', 'success')
+    closeCreateForm()
   } catch (err: any) {
-    error.value = err.message || 'Proforma oluşturulamadı'
-    console.error('Error creating proforma:', err)
+    error.value = err.message || (editingProformaId.value ? 'Proforma güncellenemedi' : 'Proforma oluşturulamadı')
+    console.error('Error saving proforma:', err)
   } finally {
     loading.value = false
   }
@@ -998,14 +1011,7 @@ const createAndSendProformaHandler = async () => {
 
     // Reload list
     await loadProformas()
-    showCreateForm.value = false
-
-    // Reset form
-    newProforma.value = {
-      templateType: 'LOCAL',
-      customer: '',
-      items: [blankItem()],
-    }
+    closeCreateForm()
 
     toast.push('Proforma oluşturuldu ve gönderildi', 'success')
   } catch (err: any) {
@@ -1052,9 +1058,34 @@ const closeDetailModal = () => {
   selectedProforma.value = null
 }
 
-const editProforma = (proforma: any) => {
-  console.log('Proforma düzenle:', proforma)
-  toast.push('Düzenleme özelliği henüz eklenmedi', 'info')
+const editProforma = async (proforma: any) => {
+  if (proforma.status !== 'draft') {
+    toast.push('Sadece taslak durumundaki proformalar düzenlenebilir', 'info')
+    return
+  }
+  try {
+    const detail: any = await getProforma(proforma.id)
+    editingProformaId.value = detail.id
+    newProforma.value = {
+      templateType: (detail.templateType === 'INTERNATIONAL' ? 'INTERNATIONAL' : 'LOCAL'),
+      customer: detail.customerName || '',
+      items: (detail.items || []).map((it: any) => ({
+        sku: it.sku,
+        description: it.description,
+        quantity: Number(it.quantity),
+        price: Number(it.unitPrice),
+        imageUrl: it.imageUrl || null,
+        imageSource: it.imageUrl ? 'product' : null,
+      })),
+    }
+    if (newProforma.value.items.length === 0) {
+      newProforma.value.items = [blankItem()]
+    }
+    showCreateForm.value = true
+  } catch (err: any) {
+    toast.push('Proforma bilgileri yüklenemedi', 'error')
+    console.error('Error loading proforma for edit:', err)
+  }
 }
 
 const sendProformaHandler = async (id: string) => {

@@ -159,6 +159,24 @@ export class ProformaController {
   }
 
   /**
+   * PATCH /api/proforma/:id - Update a draft proforma (customer info + items)
+   */
+  @Patch(':id')
+  async updateProforma(
+    @Param('id') proformaId: string,
+    @Body() dto: CreateProformaDraftDto,
+    @Request() req,
+  ) {
+    try {
+      const userId = req.user?.sub || req.user?.id;
+      return await this.proformaService.updateProforma(proformaId, dto, userId);
+    } catch (error) {
+      this.logger.error(`Failed to update proforma ${proformaId}: ${error.message}`);
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
    * PATCH /api/proforma/:id/send - Mark proforma as sent
    */
   @Patch(':id/send')

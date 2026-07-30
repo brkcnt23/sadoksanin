@@ -1,11 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 export interface MailOptions {
   to: string;
   subject: string;
   body: string;
   html?: string;
+  attachments?: MailAttachment[];
 }
 
 @Injectable()
@@ -22,6 +29,11 @@ export class MailerService {
     this.logger.log(`📧 EMAIL → ${opts.to}`);
     this.logger.log(`   Subject: ${opts.subject}`);
     this.logger.log(`   Body: ${opts.body.substring(0, 200)}${opts.body.length > 200 ? '...' : ''}`);
+    if (opts.attachments?.length) {
+      for (const a of opts.attachments) {
+        this.logger.log(`   📎 Ek: ${a.filename} (${(a.content.length / 1024).toFixed(1)} KB)`);
+      }
+    }
 
     // Log to DB for audit
     try {
