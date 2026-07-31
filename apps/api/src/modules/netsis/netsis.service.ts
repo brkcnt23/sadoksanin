@@ -47,7 +47,12 @@ export class NetsisService {
         || this.configService.get<string>('NETSIS_USERNAME') // eski .env uyumluluğu
         || '',
       NetsisPassword: this.configService.get<string>('NETSIS_PASSWORD') || '',
-      DbType: 1, // vtMSSQL
+      // DbType=1 (vtMSSQL) sabit kodluydu ve 2026-07-31'de KARARSIZ çıktı:
+      // bazen token veriyor, bazen "Login Failed / DB Kullanıcı Adı-Şifre
+      // Kontrol Ediniz" hatası (bu yüzden scheduler saatlerce aralıklı
+      // başarısız oldu). DbType=0 aynı hesapla defalarca test edildi,
+      // hep güvenilir. Env ile override edilebilir, varsayılan artık 0.
+      DbType: Number(this.configService.get<string>('NETSIS_DB_TYPE') ?? '0'),
       DbName: this.configService.get<string>('NETSIS_DB_NAME') || '',
       DbUser: this.configService.get<string>('NETSIS_DB_USER') || '',
       DbPassword: this.configService.get<string>('NETSIS_DB_PASSWORD') || '',
