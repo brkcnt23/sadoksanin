@@ -46,18 +46,15 @@ export class DiscountsService {
   }
 
   /**
-   * Calculate the effective price for a product considering all active discounts.
-   * Priority: product-level > category-level > brand-level (first match wins).
+   * Tüm aktif indirimleri TEK sorguda çeker. Ürün listelerinde (5000+ ürün)
+   * her ürün için ayrı sorgu atmak yerine bunu bir kez çağırıp
+   * computeDiscountedPrice() ile bellek içinde hesapla — bkz.
+   * ProductsService.listProducts/getAllProducts (2026-07-30: bu ikisi eski
+   * per-ürün sorgu yüzünden 5414 üründe API'yi çökertiyordu, N+1 hatası).
    */
-  async getDiscountedPrice(product: {
-    id: string;
-    basePrice: number;
-    category: string;
-    brand: string;
-  }): Promise<{ price: number; discount: { type: string; targetName: string; value: number; discountType: string } | null }> {
+  async getActiveDiscounts() {
     const now = new Date();
-
-    const activeDiscounts = await this.prisma.discount.findMany({
+    return this.prisma.discount.findMany({
       where: {
         isActive: true,
         OR: [
@@ -66,8 +63,17 @@ export class DiscountsService {
         ],
       },
     });
+  }
 
-    // Product-level discount (highest priority)
+  /**
+   * Önceden çekilmiş aktif indirim listesiyle (bkz. getActiveDiscounts)
+   * bir ürünün indirimli fiyatını SORGUSUZ, bellek içinde hesaplar.
+   * Öncelik: ürün > kategori > marka (ilk eşleşen kazanır).
+   */
+  computeDiscountedPrice(
+    product: { id: string; basePrice: number; category: string; brand: string },
+    activeDiscounts: Array<{ type: string; targetId: string; targetName: string; value: number; discountType: string }>,
+  ): { price: number; discount: { type: string; targetName: string; value: number; discountType: string } | null } {
     const productDiscount = activeDiscounts.find(
       (d) => d.type === 'PRODUCT' && d.targetId === product.id,
     );
@@ -83,7 +89,6 @@ export class DiscountsService {
       };
     }
 
-    // Category-level discount
     const catDiscount = activeDiscounts.find(
       (d) => d.type === 'CATEGORY' && d.targetId.toLowerCase() === product.category.toLowerCase(),
     );
@@ -99,7 +104,6 @@ export class DiscountsService {
       };
     }
 
-    // Brand-level discount
     const brandDiscount = activeDiscounts.find(
       (d) => d.type === 'BRAND' && d.targetId.toLowerCase() === product.brand.toLowerCase(),
     );
@@ -116,6 +120,21 @@ export class DiscountsService {
     }
 
     return { price: product.basePrice, discount: null };
+  }
+
+  /**
+   * Tek ürün için indirimli fiyat (geriye dönük uyumluluk — getProduct gibi
+   * tek-ürün çağrılarında hâlâ kullanılır, 2 sorgu maliyeti kabul edilebilir.
+   * Listelerde ASLA kullanma, getActiveDiscounts+computeDiscountedPrice kullan).
+   */
+  async getDiscountedPrice(product: {
+    id: string;
+    basePrice: number;
+    category: string;
+    brand: string;
+  }): Promise<{ price: number; discount: { type: string; targetName: string; value: number; discountType: string } | null }> {
+    const activeDiscounts = await this.getActiveDiscounts();
+    return this.computeDiscountedPrice(product, activeDiscounts);
   }
 
   private applyDiscount(basePrice: number, discount: { discountType: string; value: number }): number {

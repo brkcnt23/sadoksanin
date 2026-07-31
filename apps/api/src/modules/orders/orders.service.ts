@@ -207,6 +207,26 @@ export class OrdersService {
   }
 
   /**
+   * Çok sayıda ürünün AKTİF rezervasyon toplamlarını TEK sorguda döner
+   * (productId -> rezerve miktar). Ürün listelerinde her ürün için ayrı
+   * ayrı getAvailableStock() çağırmak yerine bunu kullan — 2026-07-30:
+   * 5414 üründe N+1 sorgu API'yi çökertmişti. Çağıran taraf, zaten elinde
+   * olan product.netsisStock/netsisPendingQuantity ile bu haritayı
+   * birleştirip availableStock'u bellek içinde hesaplar.
+   */
+  async getReservedStockMap(productIds: string[]): Promise<Map<string, number>> {
+    if (productIds.length === 0) return new Map();
+    const rows = await this.prisma.stockReservation.groupBy({
+      by: ['productId'],
+      where: { productId: { in: productIds }, status: 'ACTIVE' },
+      _sum: { quantity: true },
+    });
+    const map = new Map<string, number>();
+    for (const r of rows) map.set(r.productId, r._sum.quantity || 0);
+    return map;
+  }
+
+  /**
    * Admin approves a B2B order
    */
   async approveOrder(orderId: string, approvingUserId: string) {

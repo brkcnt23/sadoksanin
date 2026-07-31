@@ -65,19 +65,26 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
-    // Enrich with available stock and discount for each product
-    const enriched = await Promise.all(
-      products.map(async (product) => {
-        const discounted = await this.discountsService.getDiscountedPrice(product);
-        return {
-          ...product,
-          variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
-          availableStock: await this.ordersService.getAvailableStock(product.id),
-          discountedPrice: discounted.price,
-          discount: discounted.discount,
-        };
-      }),
-    );
+    // Enrich with available stock and discount — TOPLU (batch), N+1 DEĞİL.
+    // 2026-07-30: eskiden her ürün için 2 ayrı sorgu atılıyordu; 5414 ürünlü
+    // Netsis kataloğu geldiğinde bu API'yi çökertti. Artık indirimler ve
+    // rezervasyon toplamları TEK'er sorguda çekilip bellek içinde birleştiriliyor.
+    const [activeDiscounts, reservedMap] = await Promise.all([
+      this.discountsService.getActiveDiscounts(),
+      this.ordersService.getReservedStockMap(products.map((p) => p.id)),
+    ]);
+
+    const enriched = products.map((product) => {
+      const discounted = this.discountsService.computeDiscountedPrice(product, activeDiscounts);
+      const reserved = reservedMap.get(product.id) || 0;
+      return {
+        ...product,
+        variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
+        availableStock: Math.max(0, product.netsisStock - product.netsisPendingQuantity - reserved),
+        discountedPrice: discounted.price,
+        discount: discounted.discount,
+      };
+    });
 
     return { products: enriched, total };
   }
@@ -291,19 +298,27 @@ export class ProductsService {
       this.prisma.product.count(),
     ]);
 
-    // Enrich with available stock and discount
-    const enriched = await Promise.all(
-      products.map(async (product) => {
-        const discounted = await this.discountsService.getDiscountedPrice(product);
-        return {
-          ...product,
-          variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
-          availableStock: await this.ordersService.getAvailableStock(product.id),
-          discountedPrice: discounted.price,
-          discount: discounted.discount,
-        };
-      }),
-    );
+    // Enrich with available stock and discount — TOPLU (batch), N+1 DEĞİL.
+    // 2026-07-30: bu endpoint (admin panel "Ürünler" sayfası, limit=10000)
+    // her ürün için 2 ayrı sorgu attığından 5414 ürünlü Netsis kataloğu
+    // gelince API'yi çökertti (10000+ eşzamanlı sorgu). Artık indirimler
+    // ve rezervasyon toplamları TEK'er sorguda çekiliyor.
+    const [activeDiscounts, reservedMap] = await Promise.all([
+      this.discountsService.getActiveDiscounts(),
+      this.ordersService.getReservedStockMap(products.map((p) => p.id)),
+    ]);
+
+    const enriched = products.map((product) => {
+      const discounted = this.discountsService.computeDiscountedPrice(product, activeDiscounts);
+      const reserved = reservedMap.get(product.id) || 0;
+      return {
+        ...product,
+        variations: (product as any).variations?.map((v: any) => this.mapVariation(v)) ?? [],
+        availableStock: Math.max(0, product.netsisStock - product.netsisPendingQuantity - reserved),
+        discountedPrice: discounted.price,
+        discount: discounted.discount,
+      };
+    });
 
     return { products: enriched, total };
   }
