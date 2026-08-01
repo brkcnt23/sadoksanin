@@ -33,7 +33,10 @@ interface StockReservation {
 interface StockSyncStatus {
   lastSyncAt: string | null
   lastSyncDuration: number
-  productsSynced: number
+  /** Backend (NetsisSync tablosu) bu alanı `itemsSynced` olarak döner —
+   * eskiden burada `productsSynced` bekleniyordu, alan hiç dolmadığı için
+   * Stok sayfasında "Eşitlenen Ürün: NaN" görünüyordu. */
+  itemsSynced: number
   errors: number
   status: 'idle' | 'running' | 'success' | 'error'
   nextScheduledAt: string | null
@@ -53,7 +56,7 @@ export const useStockStore = defineStore('stock', {
     syncStatus: {
       lastSyncAt: null,
       lastSyncDuration: 0,
-      productsSynced: 0,
+      itemsSynced: 0,
       errors: 0,
       status: 'idle',
       nextScheduledAt: null,

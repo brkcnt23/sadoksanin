@@ -88,8 +88,9 @@ const revenueChart = computed(() => {
   return days.map((d) => ({ ...d, pct: (d.revenue / maxRev) * 100 }))
 })
 
-const criticalStock = computed(() => products.items.filter((p) => p.displayStock <= (p.minimumStock || 5)).length)
-const lowStock = computed(() => products.items.filter((p) => (p as any).middleStock && p.displayStock > (p.minimumStock || 0) && p.displayStock <= (p as any).middleStock).length)
+// Yalnızca yayındaki ürünler — gizli Netsis ürünleri (5000+, stok 0) sayılmaz
+const criticalStock = computed(() => products.items.filter((p) => p.visible && p.displayStock <= (p.minimumStock || 5)).length)
+const lowStock = computed(() => products.items.filter((p) => p.visible && (p as any).middleStock && p.displayStock > (p.minimumStock || 0) && p.displayStock <= (p as any).middleStock).length)
 const pendingDealers = computed(() => dealers.items.filter((d) => (d as any).status === 'PENDING' || (d as any).status === 'pending').length)
 
 // ── Recent audit feed ──

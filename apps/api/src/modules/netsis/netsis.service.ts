@@ -35,6 +35,8 @@ export class NetsisService {
   private readonly loginRequest: NetsisLoginRequest
   private readonly configured: boolean
   private tokenCache: TokenCache | null = null
+  /** Devam eden token isteği — eşzamanlı çağrılar bunu bekler (bkz. getAccessToken) */
+  private tokenInFlight: Promise<string> | null = null
 
   constructor(
     private configService: ConfigService,
@@ -86,6 +88,24 @@ export class NetsisService {
       return this.tokenCache.accessToken
     }
 
+    // EŞZAMANLILIK KORUMASI (singleflight): saat başında stok+ürün+cari
+    // sync'leri AYNI ANDA tetikleniyor. Bu koruma olmadan üçü de cache boş
+    // görüp ayrı ayrı token isteği atıyordu; Netsis eşzamanlı login'leri
+    // reddedip 401 döndürüyordu (2026-08-01: scheduler saatlerce
+    // "Request failed with status code 401" veriyordu, manuel sync ise
+    // sorunsuz çalışıyordu — fark tam olarak buydu). Artık ilk çağrı token
+    // isterken diğerleri aynı promise'i bekler, tek istek gider.
+    if (this.tokenInFlight) {
+      return this.tokenInFlight
+    }
+    this.tokenInFlight = this.requestNewToken().finally(() => {
+      this.tokenInFlight = null
+    })
+    return this.tokenInFlight
+  }
+
+  /** Netsis'ten yeni token alır (yalnızca getAccessToken çağırmalı). */
+  private async requestNewToken(): Promise<string> {
     this.logger.debug('Yeni access token alınıyor...')
 
     try {

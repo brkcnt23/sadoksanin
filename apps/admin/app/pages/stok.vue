@@ -171,7 +171,7 @@ const onModalSaved = () => {
         </div>
         <div>
           <dt class="text-xs text-ink-500 uppercase tracking-wider">Eşitlenen Ürün</dt>
-          <dd class="font-medium text-ink-900 mt-1">{{ formatNumber(stock.syncStatus.productsSynced) }}</dd>
+          <dd class="font-medium text-ink-900 mt-1">{{ formatNumber(stock.syncStatus.itemsSynced ?? 0) }}</dd>
         </div>
         <div>
           <dt class="text-xs text-ink-500 uppercase tracking-wider">Hata</dt>

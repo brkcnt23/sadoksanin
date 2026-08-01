@@ -243,8 +243,12 @@ export const useProductsStore = defineStore('products', {
       return Math.max(1, Math.ceil(this.filtered.length / this.pageSize))
     },
 
-    lowStockCount: (s) => s.items.filter((p) => p.displayStock > 0 && p.displayStock <= (p.minimumStock || 5)).length,
-    outOfStockCount: (s) => s.items.filter((p) => p.displayStock === 0).length,
+    // SADECE yayındaki (visible) ürünler sayılır. Netsis'ten gelen 5000+
+    // ürün fiyat/kategori/görsel tamamlanana kadar gizli (visible=false)
+    // duruyor ve stokları 0; filtre olmadan dashboard "5070 ürün stoksuz"
+    // gibi anlamsız bir uyarı gösteriyordu (2026-08-01).
+    lowStockCount: (s) => s.items.filter((p) => p.visible && p.displayStock > 0 && p.displayStock <= (p.minimumStock || 5)).length,
+    outOfStockCount: (s) => s.items.filter((p) => p.visible && p.displayStock === 0).length,
   },
 
   actions: {

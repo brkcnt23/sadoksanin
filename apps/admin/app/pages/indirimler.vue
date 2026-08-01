@@ -179,7 +179,11 @@ onMounted(async () => {
     </div>
 
     <!-- Create/Edit Modal -->
-    <Modal v-if="showModal" size="md" :title="editing ? 'İndirim Düzenle' : 'Yeni İndirim'" @close="showModal = false">
+    <!-- DİKKAT: Modal bileşeni `open` prop'u ile kontrol edilir (içeride
+         v-if="open" var). Burada `v-if="showModal"` kullanılıyordu ve `:open`
+         verilmediği için open=undefined kalıyor, modal HİÇ açılmıyordu —
+         "Yeni İndirim" butonu tıklanınca hiçbir şey olmuyordu. -->
+    <Modal :open="showModal" size="md" :title="editing ? 'İndirim Düzenle' : 'Yeni İndirim'" @close="showModal = false">
       <div class="space-y-4 p-4">
         <!-- Type -->
         <div>

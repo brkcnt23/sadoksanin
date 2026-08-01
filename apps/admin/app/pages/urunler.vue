@@ -437,7 +437,11 @@ const confirmAndDeleteProduct = (id: string, name: string) => {
     <ProductsProductFormModal :open="formOpen" :product="editing" @close="formOpen = false" />
 
     <!-- Bulk Price Modal -->
-    <Modal v-if="showBulkPrice" size="md" title="Toplu Fiyat Güncelleme" @close="showBulkPrice = false">
+    <!-- DİKKAT: Modal bileşeni `open` prop'u ile kontrol edilir (içeride
+         v-if="open" var). Burada `v-if="showBulkPrice"` kullanılıyordu ve
+         `:open` verilmediği için open=undefined kalıyor, "Toplu Fiyat"
+         butonu tıklanınca modal HİÇ açılmıyordu. -->
+    <Modal :open="showBulkPrice" size="md" title="Toplu Fiyat Güncelleme" @close="showBulkPrice = false">
       <div class="p-4 space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
