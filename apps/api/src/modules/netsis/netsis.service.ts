@@ -1103,10 +1103,18 @@ export class NetsisService {
    * MANUEL çağrılır — otomatik scheduler'a BAĞLI DEĞİL. Netsis'te binlerce
    * cari var ve hepsi bayi değil; kendiliğinden bayi üretmesi istenmez.
    *
+   * FİLTRE: CARI_TIP === 'A' (Alıcı/buyer). 2026-07-31 gerçek SADOKSANTEST
+   * verisiyle doğrulandı: 1486 ARPs kaydının 1466'sı TIP='A', 16'sı 'S'
+   * (satıcı/tedarikçi), kalan 4 diğer. ÖNCEDEN cariNo öneki ('120.' ile
+   * başlıyor mu) kullanılıyordu — bu YANLIŞTI: gerçek aktif bayilerin
+   * çoğu (~174/271 sipariş veren cari) '2517-N'/'N2517-' önekli, '120.'
+   * değil, ve bazı '320.' önekli cariler de TIP='A' (satıcı değil,
+   * gerçek alıcı) çıktı. Önek kodlama serisi güvenilir değil, CARI_TIP
+   * güvenilir — bu yüzden filtre değiştirildi.
+   *
    * Güvenlik davranışı:
    *   - Varsayılan `dryRun: true` — hiçbir şey yazmaz, sadece ne olacağını raporlar
-   *   - Sadece `cariPrefix` ile başlayan hesaplar (varsayılan '120' = alıcılar;
-   *     320 satıcı/tedarikçi hesaplarını almaz)
+   *   - Sadece CARI_TIP='A' (alıcı) hesaplar — satıcı/tedarikçi alınmaz
    *   - Vergi no'su olmayan kayıt atlanır (taxNo @unique, boşlar çakışır)
    *   - Mevcut cariNo/taxNo varsa DOKUNULMAZ (mevcut bayi ezilmez)
    *   - Oluşan bayi `PENDING` durumunda gelir — admin onaylayana kadar pasif
@@ -1117,19 +1125,19 @@ export class NetsisService {
    */
   async importDealers(options?: {
     dryRun?: boolean
-    cariPrefix?: string
     limit?: number
   }): Promise<{
     dryRun: boolean
     totalFetched: number
     eligible: number
     created: number
-    skipped: { existing: number; noTaxNo: number; noCode: number; otherPrefix: number }
+    skipped: { existing: number; noCode: number; notBuyerType: number }
+    /** Atlanmadı — VKN'si olmadığı için yer tutucu vergi no atanan bayi sayısı */
+    placeholderTaxNo: number
     errors: number
     samples: Array<{ cariNo: string; company: string; city: string; region: string; taxNo: string }>
   }> {
     const dryRun = options?.dryRun !== false // varsayılan: TRUE (güvenli)
-    const cariPrefix = options?.cariPrefix ?? '120'
 
     if (!this.configured) {
       throw new Error('Netsis yapılandırılmadı — bayi içe aktarma yapılamaz')
@@ -1137,7 +1145,8 @@ export class NetsisService {
 
     const arpsList = await this.fetchAllPages<NetsisARPsResponse>('/ARPs', 500)
 
-    const skipped = { existing: 0, noTaxNo: 0, noCode: 0, otherPrefix: 0 }
+    const skipped = { existing: 0, noCode: 0, notBuyerType: 0 }
+    let placeholderTaxNo = 0
     const samples: Array<{ cariNo: string; company: string; city: string; region: string; taxNo: string }> = []
     let eligible = 0, created = 0, errors = 0
 
@@ -1147,10 +1156,18 @@ export class NetsisService {
       const arp: Record<string, any> = (row.CariTemelBilgi ?? {}) as any
       const cariNo = this.normalizeCode(arp.CARI_KOD ?? arp.Cari_Kod)
       if (!cariNo) { skipped.noCode++; continue }
-      if (!cariNo.startsWith(cariPrefix)) { skipped.otherPrefix++; continue }
+      const cariTip = this.normalizeCode(arp.CARI_TIP ?? arp.Cari_Tip)
+      if (cariTip !== 'A') { skipped.notBuyerType++; continue }
 
-      const taxNo = this.normalizeCode(arp.VERGI_NUMARASI ?? arp.Vergi_No)
-      if (!taxNo) { skipped.noTaxNo++; continue }
+      // Vergi no'su OLMAYAN bayiler atlanmaz — 2026-07-31 tespiti: sipariş
+      // veren 271 carinin 161'i (%59) VKN'siz (şahıs firmaları, Netsis'te
+      // TC ile kayıtlı). Eskiden bunlar atlanıyordu, yani gerçek
+      // müşterilerin çoğu içeri alınmıyordu. Dealer.taxNo @unique+zorunlu
+      // olduğu için VKN yoksa cari koddan benzersiz yer tutucu üretilir;
+      // admin gerçek VKN/TC'yi panelden düzeltebilir.
+      const realTaxNo = this.normalizeCode(arp.VERGI_NUMARASI ?? arp.Vergi_No)
+      const taxNo = realTaxNo || `VKNYOK-${cariNo}`
+      if (!realTaxNo) placeholderTaxNo++ // atlanmadı, sadece yer tutucu VKN aldı
 
       const company = this.normalizeCode(arp.CARI_ISIM ?? arp.Cari_Isim) || cariNo
       const city = this.normalizeCode(arp.CARI_IL) || ''
@@ -1213,6 +1230,7 @@ export class NetsisService {
       eligible,
       created,
       skipped,
+      placeholderTaxNo,
       errors,
       samples,
     }
@@ -1220,8 +1238,8 @@ export class NetsisService {
     this.logger.log(
       `Bayi import ${dryRun ? '(DENEME)' : '(UYGULANDI)'}: ` +
       `${arpsList.length} cari tarandı, ${eligible} uygun, ${created} oluşturuldu, ` +
-      `atlanan(mevcut:${skipped.existing} vergiNo yok:${skipped.noTaxNo} ` +
-      `başka önek:${skipped.otherPrefix}), ${errors} hata`,
+      `atlanan(mevcut:${skipped.existing} alıcı değil:${skipped.notBuyerType}), ` +
+      `yer tutucu VKN:${placeholderTaxNo}, ${errors} hata`,
     )
 
     return result

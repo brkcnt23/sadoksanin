@@ -85,7 +85,7 @@ export class NetsisController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   async importDealers(
-    @Body() body?: { dryRun?: boolean; cariPrefix?: string; limit?: number },
+    @Body() body?: { dryRun?: boolean; limit?: number },
   ) {
     return this.netsisService.importDealers(body)
   }
