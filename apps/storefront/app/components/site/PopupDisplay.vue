@@ -122,7 +122,9 @@ onMounted(() => {
         :aria-label="popup.title"
         @click.self="close"
       >
-        <div class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+        <!-- Kare görsel modal'ı uzatabildiği için yükseklik sınırı + kaydırma:
+             küçük ekranlarda içerik/CTA ekran dışında kalmasın. -->
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
           <!-- Close button -->
           <button
             class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-gray-500 hover:text-gray-800 transition-colors shadow-sm"
@@ -134,13 +136,15 @@ onMounted(() => {
             </svg>
           </button>
 
-          <!-- Image -->
-          <img
-            v-if="popup.imageUrl"
-            :src="popup.imageUrl"
-            :alt="popup.title"
-            class="w-full h-48 object-cover"
-          />
+          <!-- Görsel — büyük KARE (1:1) alan. Kampanya görselleri kare
+               tasarlandığı için sabit yükseklik yerine aspect-square. -->
+          <div v-if="popup.imageUrl" class="w-full aspect-square bg-gray-100">
+            <img
+              :src="popup.imageUrl"
+              :alt="popup.title"
+              class="w-full h-full object-cover"
+            />
+          </div>
 
           <!-- Content -->
           <div class="p-6">

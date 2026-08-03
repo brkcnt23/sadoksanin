@@ -36,7 +36,11 @@ export class PopupService {
     // Filter by audience client-side (Prisma can't filter array fields easily)
     return allActive.filter((popup) => {
       if (popup.audience === 'ALL') return true;
-      if (popup.audience === 'B2C' && userRole === 'DEALER') return true;
+      // B2C = perakende/ziyaretçi → bayi OLMAYAN kullanıcılar.
+      // (Eskiden bu satır da `userRole === 'DEALER'` kontrol ediyordu, yani
+      //  B2C'ye özel popup'lar yanlışlıkla bayilere gösteriliyor, gerçek
+      //  perakende ziyaretçilere ise hiç gösterilmiyordu.)
+      if (popup.audience === 'B2C' && userRole !== 'DEALER') return true;
       if (popup.audience === 'B2B' && userRole === 'DEALER') return true;
       if (
         popup.audience === 'SPECIFIC_DEALER' &&

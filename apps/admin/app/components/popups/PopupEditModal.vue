@@ -195,12 +195,40 @@ const handleClose = () => {
 
             <!-- Image URL -->
             <div>
-              <label class="block text-sm font-medium text-ink-700 mb-1.5">Görsel URL</label>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Görsel</label>
+
+              <!-- Kare önizleme + yükleme alanı. Popup'ta görsel kare (1:1)
+                   gösterildiği için buradaki önizleme de kare tutuluyor;
+                   yönetici tam olarak ne görüneceğini görür. -->
+              <div v-if="form.imageUrl" class="mb-3">
+                <div class="relative w-40 h-40 rounded-lg overflow-hidden border border-ink-200 bg-ink-50">
+                  <img :src="form.imageUrl" alt="Popup görseli" class="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    class="absolute top-1.5 right-1.5 w-7 h-7 grid place-items-center rounded-full bg-white/90 hover:bg-white text-ink-600 hover:text-red-600 shadow-sm"
+                    title="Görseli kaldır"
+                    @click="form.imageUrl = ''"
+                  >
+                    <Icon name="lucide:x" class="w-4 h-4" />
+                  </button>
+                </div>
+                <p class="text-[11px] text-ink-500 mt-1.5">Kare (1:1) gösterilir</p>
+              </div>
+
+              <UiImageUploadZone
+                v-else
+                :model-value="[]"
+                label=""
+                :multiple="false"
+                @update:model-value="(urls) => (form.imageUrl = urls[0] || '')"
+              />
+
+              <!-- Dilerseniz dosya yüklemek yerine dış bir adres de verebilirsiniz -->
               <input
                 v-model="form.imageUrl"
                 type="url"
-                class="w-full px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="https://..."
+                class="w-full mt-2 px-3 py-2 border border-ink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="veya görsel adresi yapıştırın: https://..."
               />
             </div>
 
