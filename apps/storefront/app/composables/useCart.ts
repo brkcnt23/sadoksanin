@@ -167,8 +167,17 @@ export const useCart = () => {
 
   // ─── Totals ──────────────────────────────────────────────────────────
 
+  /**
+   * Bir sepet satırının birim fiyatı — indirim varsa indirimli fiyat.
+   * Backend sipariş oluştururken fiyatı ZATEN kendisi hesaplıyor (istemciye
+   * güvenilmez); buradaki hesap yalnızca sepette gösterilen tutar içindir ve
+   * backend'in uyguladığı fiyatla aynı olmalı ki müşteri sürpriz yaşamasın.
+   */
+  const unitPriceOf = (p: any): number =>
+    p?.discountedPrice ?? p?.basePrice ?? p?.price ?? 0
+
   const calculateTotals = (dealerSurchargePerItem?: number) => {
-    const subtotal = items.value.reduce((sum, i) => sum + i.product.basePrice * i.quantity, 0)
+    const subtotal = items.value.reduce((sum, i) => sum + unitPriceOf(i.product) * i.quantity, 0)
     const dealerSurcharge = dealerSurchargePerItem
       ? items.value.reduce((sum, i) => sum + dealerSurchargePerItem * i.quantity, 0) : 0
     return {
@@ -196,11 +205,15 @@ export const useCart = () => {
     try {
       const api = useApi()
       const orderData = {
+        // NOT: unitPrice/taxRate backend tarafından YOK SAYILIR — fiyat orada
+        // ürünün güncel fiyatı + aktif indirimden hesaplanır (güvenlik). Burada
+        // gönderilmesinin tek sebebi API sözleşmesiyle uyum; yine de doğru
+        // (indirimli) değeri yolluyoruz ki loglar tutarlı olsun.
         items: items.value.map(i => ({
           productId: i.productId,
           quantity: i.quantity,
-          unitPrice: i.product.basePrice,
-          taxRate: 0.2,
+          unitPrice: unitPriceOf(i.product),
+          taxRate: (i.product as any)?.taxRate ?? 0.2,
         })),
         customerType: payload.customerType,
         shippingCity: payload.shippingCity,

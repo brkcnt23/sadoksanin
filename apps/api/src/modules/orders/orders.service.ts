@@ -5,6 +5,7 @@ import { PromoService } from '../promo/promo.service';
 import { ProformaService } from '../proforma/proforma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { NetsisService } from '../netsis/netsis.service';
+import { DiscountsService } from '../discounts/discounts.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,6 +17,7 @@ export class OrdersService {
     private proformaService: ProformaService,
     private mailerService: MailerService,
     private netsisService: NetsisService,
+    private discountsService: DiscountsService,
   ) {}
 
   /**
@@ -26,11 +28,18 @@ export class OrdersService {
   async createOrder(createOrderDto: CreateOrderDto, customerId: string) {
     const { items, dealerId, customerType, shippingCity, shippingAddress, promoCode, notes, paymentMethod } = createOrderDto;
 
+    // Ürünleri TEK sorguda çek (stok kontrolü + sunucu tarafı fiyatlandırma)
+    const productMap = new Map(
+      (
+        await this.prisma.product.findMany({
+          where: { id: { in: items.map((i) => i.productId) } },
+        })
+      ).map((p) => [p.id, p]),
+    );
+
     // Validate stock availability
     for (const item of items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
-      });
+      const product = productMap.get(item.productId);
 
       if (!product) {
         throw new BadRequestException(`Ürün bulunamadı: ${item.productId}. Sepetinizi güncelleyip tekrar deneyin.`);
@@ -44,13 +53,31 @@ export class OrdersService {
       }
     }
 
-    // Calculate totals
+    // ─── FİYATLANDIRMA SUNUCUDA YAPILIR ───────────────────────────────────
+    // İstemciden gelen unitPrice/taxRate BİLEREK YOK SAYILIR. Eskiden bunlar
+    // doğrudan kullanılıyordu; iki ayrı sorun vardı:
+    //   1) GÜVENLİK: tarayıcı konsolundan unitPrice:1 gönderen biri 3.000 TL'lik
+    //      ürünü 1 TL'ye sipariş edebiliyordu — hiçbir doğrulama yoktu.
+    //   2) İNDİRİM: sepet her zaman basePrice gönderdiği için aktif indirimler
+    //      siparişe hiç yansımıyordu (müşteri indirimli fiyatı görüyor ama tam
+    //      fiyat ödüyordu).
+    // Artık fiyat = ürünün DB'deki güncel fiyatı + aktif indirim; KDV de üründen.
+    // (Lojistik bedeli aşağıda ayrıca hesaplanıp toplama ekleniyor.)
+    const activeDiscounts = await this.discountsService.getActiveDiscounts();
+
     let subtotal = 0;
     let tax = 0;
 
     const orderLines = items.map((item) => {
-      const lineSubtotal = item.quantity * item.unitPrice;
-      const lineTax = lineSubtotal * (item.taxRate || 0);
+      const product = productMap.get(item.productId)!;
+      const { price: unitPrice } = this.discountsService.computeDiscountedPrice(
+        product,
+        activeDiscounts,
+      );
+      const taxRate = product.taxRate ?? 0;
+
+      const lineSubtotal = item.quantity * unitPrice;
+      const lineTax = lineSubtotal * taxRate;
       const lineTotal = lineSubtotal + lineTax;
 
       subtotal += lineSubtotal;
@@ -59,8 +86,8 @@ export class OrdersService {
       return {
         productId: item.productId,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        taxRate: item.taxRate || 0,
+        unitPrice,
+        taxRate,
         total: lineTotal,
       };
     });
