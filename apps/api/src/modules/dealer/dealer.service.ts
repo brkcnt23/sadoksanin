@@ -735,4 +735,38 @@ export class DealerService {
       data: { creditLimit },
     });
   }
+
+  /**
+   * Netsis'te cari kodunu doğrular. Ayrıca sistemde bu cari zaten kayıtlıysa
+   * uyarır — aynı cariyle iki bayi açılmasını önlemek için.
+   */
+  async validateCari(cariNo: string): Promise<{
+    valid: boolean
+    reason?: string
+    company?: string
+    balance?: number
+    alreadyExists?: boolean
+  }> {
+    const code = (cariNo || '').trim();
+    if (!code) {
+      return { valid: false, reason: 'Cari kodu girin' };
+    }
+
+    const existing = await this.prisma.dealer.findFirst({
+      where: { cariNo: code },
+      select: { company: true },
+    });
+
+    const result = await this.netsisService.lookupCari(code);
+
+    if (!result.valid) {
+      return result;
+    }
+
+    return {
+      ...result,
+      alreadyExists: !!existing,
+      reason: existing ? `Bu cari zaten kayıtlı: ${existing.company}` : undefined,
+    };
+  }
 }

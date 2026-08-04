@@ -106,16 +106,24 @@ export const useDealersStore = defineStore('dealers', {
       this.filter[key] = v
     },
 
-    async validateCari(cariNo: string): Promise<{ valid: boolean; reason?: string; balance?: number }> {
+    /**
+     * Cari kodunu Netsis'te doğrular.
+     * NOT: Burada eskiden bir "mock fallback" vardı — istek hata verdiğinde
+     * kod `120.01.####` kalıbına uyuyorsa RASTGELE bakiyeyle "geçerli"
+     * diyordu. Backend'de /dealer/validate-cari ucu hiç bulunmadığı için
+     * pratikte HER ZAMAN bu sahte yola düşülüyor, var olmayan cariler
+     * "doğrulandı" görünüyordu. Gerçek uç eklendi, sahte yol kaldırıldı:
+     * artık hata durumunda dürüstçe "doğrulanamadı" denir.
+     */
+    async validateCari(cariNo: string): Promise<{ valid: boolean; reason?: string; balance?: number; company?: string; alreadyExists?: boolean }> {
       try {
-  const api = useApi()
+        const api = useApi()
         return await api.post('/dealer/validate-cari', { cariNo })
-      } catch {
-        // Fallback to mock validation
-        if (/^120\.01\.\d{4}$/.test(cariNo)) {
-          return { valid: true, balance: -Math.floor(Math.random() * 50_000) }
+      } catch (err: any) {
+        return {
+          valid: false,
+          reason: err?.message || 'Cari doğrulanamadı (Netsis bağlantısı kontrol edilmeli)',
         }
-        return { valid: false, reason: 'Netsis cari hesabı bulunamadı' }
       }
     },
 

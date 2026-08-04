@@ -344,6 +344,48 @@ export class NetsisService {
     }
   }
 
+  /**
+   * Netsis'te bir cari kodunun gerçekten var olup olmadığını doğrular ve
+   * bulursa ünvan/bakiye bilgisini döner (CM_BORCT = cari borç bakiyesi).
+   *
+   * Panelde yeni bayi eklenirken cari no doğrulaması için kullanılır — eskiden
+   * böyle bir uç yoktu ve panel sessizce sahte (regex) doğrulamaya düşüyordu.
+   */
+  async lookupCari(cariNo: string): Promise<{
+    valid: boolean
+    reason?: string
+    company?: string
+    balance?: number
+  }> {
+    if (!this.configured) {
+      return { valid: false, reason: 'Netsis bağlantısı yapılandırılmadı' }
+    }
+    const code = this.normalizeCode(cariNo)
+    if (!code) {
+      return { valid: false, reason: 'Cari kodu boş' }
+    }
+    try {
+      const client = await this.apiClient()
+      const q = encodeURIComponent(`CARI_KOD='${code.replace(/'/g, "''")}'`)
+      const res = await client.get(`/ARPs?q=${q}&limit=1`)
+      const row = (res.data?.Data || [])[0]
+      const t = row?.CariTemelBilgi
+      if (!t) {
+        return { valid: false, reason: 'Netsis cari hesabı bulunamadı' }
+      }
+      return {
+        valid: true,
+        company: (t.CARI_ISIM || '').trim() || undefined,
+        balance: typeof t.CM_BORCT === 'number' ? t.CM_BORCT : undefined,
+      }
+    } catch (e) {
+      this.logger.error(`Cari doğrulanamadı [${code}]: ${(e as Error).message}`)
+      return { valid: false, reason: 'Netsis sorgusu başarısız' }
+    } finally {
+      await this.releaseToken()
+    }
+  }
+
   // ─── HTTP Helpers ───────────────────────────────────────────────────────
 
   /**

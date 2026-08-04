@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Res,
   UseGuards,
@@ -186,5 +187,16 @@ export class DealerController {
     @Body() body: { creditLimit: number },
   ) {
     return await this.dealerService.updateCreditLimit(dealerId, body.creditLimit);
+  }
+
+  /**
+   * POST /api/dealer/validate-cari — Netsis'te cari kodu doğrula.
+   * Panel bu ucu çağırıyordu ama backend'de yoktu; istek hata verince panel
+   * sessizce SAHTE (regex tabanlı) doğrulamaya düşüyordu — var olmayan cari
+   * "geçerli" görünebiliyordu. Artık gerçek Netsis sorgusu yapılıyor.
+   */
+  @Post('validate-cari')
+  async validateCari(@Body() body: { cariNo?: string }) {
+    return await this.dealerService.validateCari(body?.cariNo || '');
   }
 }
