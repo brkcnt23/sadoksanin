@@ -95,4 +95,23 @@ export class AuthController {
     await this.authService.deleteAddress(req.user.sub, addressId);
     return { success: true };
   }
+
+  /**
+   * PATCH /auth/password — giriş yapmış kullanıcının kendi şifresini değiştirmesi.
+   * Storefront "Hesabım" sayfası bu ucu çağırıyordu ama backend'de karşılığı yoktu
+   * (404) — şifre değiştirme hiç çalışmıyordu.
+   */
+  @Patch('password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Request() req,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    await this.authService.changePassword(
+      req.user.sub,
+      body?.currentPassword,
+      body?.newPassword,
+    );
+    return { success: true };
+  }
 }

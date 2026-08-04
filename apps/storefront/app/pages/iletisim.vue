@@ -48,14 +48,18 @@ const contactInfo = [
   },
 ]
 
+const submitError = ref('')
+
 const submitForm = async () => {
   isSubmitting.value = true
+  submitError.value = ''
   try {
-    // Burada API'ye POST yapılacak
-    // await $fetch('/api/contact', { method: 'POST', body: formData })
+    // Mesaj gerçekten backend'e gider (AuditLog'a kaydedilir + yöneticilere
+    // bildirim). Eskiden burada sadece setTimeout ile sahte "başarılı"
+    // gösteriliyordu, mesaj hiçbir yere ulaşmıyordu.
+    const api = useApi()
+    await api.post('/contact', { ...formData })
 
-    // Şimdilik simüle edildi
-    await new Promise(resolve => setTimeout(resolve, 1500))
     submitSuccess.value = true
 
     // Reset form
@@ -69,6 +73,8 @@ const submitForm = async () => {
     setTimeout(() => {
       submitSuccess.value = false
     }, 3000)
+  } catch (err: any) {
+    submitError.value = err?.message || 'Mesaj gönderilemedi, lütfen tekrar deneyin.'
   } finally {
     isSubmitting.value = false
   }
@@ -179,6 +185,15 @@ const submitForm = async () => {
                   </div>
                 </div>
               </Transition>
+
+              <!-- Hata mesajı — gönderim başarısız olursa kullanıcı görsün -->
+              <div v-if="submitError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                <Icon name="lucide:alert-circle" class="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p class="font-semibold text-red-900">Mesaj gönderilemedi</p>
+                  <p class="text-sm text-red-700 mt-1">{{ submitError }}</p>
+                </div>
+              </div>
 
               <!-- Form -->
               <form @submit.prevent="submitForm" class="space-y-6">

@@ -13,12 +13,14 @@ import { PromoModule } from './modules/promo/promo.module';
 import { DiscountsModule } from './modules/discounts/discounts.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { CmsModule } from './modules/cms/cms.module';
+import { ContactModule } from './modules/contact/contact.module';
 import { PopupModule } from './modules/popup/popup.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { StockModule } from './modules/stock/stock.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { IdeasoftModule } from './modules/ideasoft/ideasoft.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -34,6 +36,7 @@ import { HealthController } from './health.controller';
     DiscountsModule,
     MailerModule,
     CmsModule,
+    ContactModule,
     CommonModule,
     AuthModule,
     NetsisModule,
@@ -46,6 +49,7 @@ import { HealthController } from './health.controller';
     NotificationsModule,
     StockModule,
     ReportsModule,
+    IdeasoftModule,
   ],
   controllers: [HealthController],
   providers: [],

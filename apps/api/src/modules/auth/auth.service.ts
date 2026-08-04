@@ -337,4 +337,35 @@ export class AuthService {
       },
     };
   }
+
+  /**
+   * Giriş yapmış kullanıcının kendi şifresini değiştirmesi.
+   * Mevcut şifre doğrulanmadan değişiklik yapılmaz.
+   */
+  async changePassword(userId: string, currentPassword?: string, newPassword?: string) {
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Mevcut şifre ve yeni şifre gereklidir');
+    }
+    if (newPassword.length < 6) {
+      throw new BadRequestException('Yeni şifre en az 6 karakter olmalıdır');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('Kullanıcı bulunamadı');
+    }
+
+    const matches = await bcrypt.compare(currentPassword, user.password);
+    if (!matches) {
+      throw new BadRequestException('Mevcut şifreniz hatalı');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: await bcrypt.hash(newPassword, 10) },
+    });
+
+    this.logger.log(`Şifre değiştirildi: ${user.email}`);
+    return { success: true };
+  }
 }
