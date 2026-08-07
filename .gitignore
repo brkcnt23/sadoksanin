@@ -12,6 +12,8 @@ dist/
 
 # Environment
 .env
+.ideasoft-token.json
+ideasoft-products.json
 .env.local
 .env.*.local
 
@@ -39,3 +41,10 @@ prisma/dev.db-journal
 # OS
 .DS_Store
 Thumbs.db
+
+# Netsis kimlik bilgileri (asla commit'lenmez)
+secrets/
+
+# Entegra e-fatura OAuth2 secrets (asla commit etme)
+entegra-credentials.txt
+.ideasoft-env
