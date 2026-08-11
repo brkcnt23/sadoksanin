@@ -84,9 +84,14 @@ const filteredProducts = computed(() => {
     return true
   })
 
-  // Stoktaki ürünler önce listelenir; stokta olmayanlar sona iner.
+  // Sıralama: (1) stokta olanlar önce, (2) görseli olanlar önce.
+  // Böylece ilk sayfa hem satın alınabilir hem görselli ürünlerle karşılıyor;
+  // stoksuz ve görselsiz kayıtlar sona iner.
   return result.sort((a, b) => {
     if (a.inStock !== b.inStock) return a.inStock ? -1 : 1
+    const ai = a.image ? 1 : 0
+    const bi = b.image ? 1 : 0
+    if (ai !== bi) return bi - ai
     return 0
   })
 })

@@ -2,7 +2,7 @@
 
 > **Bu dosya tek başına yeterlidir.** Yeni bir bilgisayarda / yeni bir oturumda işe devam etmek için
 > gereken her şey burada: yapılanlar, yapılacaklar, giriş bilgileri, komutlar ve karşılaşılan tuzaklar.
-> Son güncelleme: **11 Ağustos 2026**
+> Son güncelleme: **11 Ağustos 2026** (sunum hazırlığı tamamlandı)
 
 ---
 
@@ -45,7 +45,7 @@ Veritabanı işlemlerinde **`sadoksan-postgres-prod`** kullanılmalı — `ecomm
 | Rol | Giriş | Şifre |
 |---|---|---|
 | Bayi (sunum) | `bayi@sadoksan.com` | `sunum2026` |
-| Yönetici | `admin@admin.com` | **BİLİNMİYOR** — bkz. Yapılacaklar #1 |
+| Yönetici | `admin@admin.com` | `admin2026` |
 
 Sunum bayisi = ERZMEKANİK DÜNYA MÜHENDİSLİK (cari `120.AE.25.0052`), **75 gerçek siparişi var**,
 durum `ACTIVE`, kredi limiti sunum için 15.000.000 TL'ye çekildi (gerçekte 0'dı), bakiye 7.405.396 TL borç.
@@ -160,25 +160,42 @@ Docker veri dizini `/home/docker-data`.
 
 ## 2. YAPILACAKLAR
 
-### 🔴 Sunum öncesi
+### ✅ Sunum öncesi — TAMAMLANDI (11 Ağustos)
 
-**1. Yönetici şifresi bilinmiyor.**
-`admin@admin.com` şifresi elde yok (eski kayıtlardaki `asd123` geçersiz). Panel sunumu için şart.
-Sıfırlamak gerekirse: API container'ında bcrypt hash üretilip `User.password` güncellenir —
-```bash
-docker exec sadoksan-api-prod node -e "const b=require('bcryptjs'); console.log(b.hashSync('YENI_SIFRE',10));"
-# çıkan hash ile: UPDATE "User" SET password='<hash>' WHERE email='admin@admin.com';
-```
+**1. Yönetici girişi hazır:** `admin@admin.com` / `admin2026` (bcrypt ile sıfırlandı, giriş test edildi:
+HTTP 201, rol `ADMIN`). Sunumdan sonra değiştirilmesi önerilir.
 
-**2. Sunum bayisinin kredi limiti geri alınmalı.**
-`bayi@sadoksan.com` (ERZMEKANİK) limiti sunum için 0 → 15.000.000 TL yapıldı.
-Sunumdan sonra panelden gerçek değerine döndürülmeli.
+**2. Bayi girişi hazır:** `bayi@sadoksan.com` / `sunum2026` — ERZMEKANİK, 75 gerçek sipariş.
 
-**3. (Öneri) İlk sayfa görselsiz görünüyor.**
-Stoklu 285 ürün ağırlıklı olarak eski İnsört/FISCHER kayıtları ve görselleri yok; Netsis'ten gelen
-görselli ürünlerin stoğu 0. "Stoklu önce" sıralaması bu yüzden ilk ekrana görselsiz ürün getiriyor.
-İstenirse sıralama **"stoklu + görselli önce"** yapılabilir
-(`products.service.ts` → `orderBy` içine `imageUrl` bazlı ikinci kriter, ya da hesaplanmış alan).
+**3. İlk ekran düzeltildi:** sıralama artık **stoklu + görselli önce**.
+Doğrulandı: ilk sayfadaki 25 kartın **25'i görselli**, **0 tanesi "Stokta Yok"**
+(Visia Lavabo Bataryası, Venom Banyo Bataryası, Vea Cubo Asma Klozet...).
+
+**4. Sipariş akışı uçtan uca test edildi** (sunumda tıklanacak yol):
+
+| Adım | Uç | Sonuç |
+|---|---|---|
+| Bayi sipariş oluşturur | `POST /orders` | 201 · `PENDING_APPROVAL` |
+| Admin onaylar | `POST /orders/:id/approve` | 201 · `APPROVED` |
+| Admin onayı geri alır | `POST /orders/:id/unapprove` | 201 · `PENDING_APPROVAL` |
+| Admin iptal eder | `POST /orders/:id/reject` | 201 · `REJECTED` + sebep |
+| Bayi kendi siparişlerini görür | `GET /orders` | 200 · liste geliyor |
+
+⚠️ **Sipariş SİLME ucu yok** — "kaldırma" = `reject` (iptal). Kalıcı silmek gerekirse DB'den.
+Test siparişi temizlendi; sipariş sayısı 1879 (gerçek Netsis geçmişi) olarak korundu.
+
+**5. Kategori yönetimi test edildi:** oluştur (görselli) → güncelle (isim+görsel) → listele → sil,
+hepsi admin token ile başarılı. Panel sayfası bu uçları kullanıyor.
+
+**6. Fiyat güvenliği doğrulandı:** siparişte `unitPrice: 100` gönderildi, sunucu gerçek fiyatı
+uyguladı (2 adet → 7680 TL). İstemci fiyatı yok sayılıyor.
+
+### 🔵 Sunumdan SONRA yapılacak
+
+**Sunum bayisinin kredi limiti geri alınmalı.** `bayi@sadoksan.com` (ERZMEKANİK) limiti sunum için
+0 → 15.000.000 TL yapıldı. Panelden gerçek değerine döndürülmeli.
+
+**Yönetici şifresi değiştirilmeli** (`admin2026` bu dosyada düz metin duruyor).
 
 ### 🟡 İşlevsel eksikler
 
