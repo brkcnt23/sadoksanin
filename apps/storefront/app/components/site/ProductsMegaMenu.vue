@@ -269,18 +269,74 @@ function onAnyLeave() {
 // ── Görsel havuzu — her entry için benzersiz görsel ──
 const allImages = ref<Record<string, string>>({})
 
+/** Kategori adını karşılaştırılabilir hale getirir (Türkçe karakter + noktalama farkları). */
+function normLabel(s: string): string {
+  return (s || '')
+    .replace(/İ/g, 'I').replace(/ı/g, 'i')
+    .replace(/Ş/g, 'S').replace(/ş/g, 's')
+    .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+    .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+    .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+    .replace(/Ç/g, 'C').replace(/ç/g, 'c')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+}
+
+/**
+ * Panelden yönetilen gerçek kategori görsellerini çeker.
+ * Menüdeki kategori/alt kategori adı ile eşleşeni varsa o kullanılır.
+ */
+async function fetchCategoryImages(): Promise<Record<string, string>> {
+  const map: Record<string, string> = {}
+  try {
+    const api = useApi()
+    const cats = await api.get<any[]>('/products/categories')
+    const walk = (list: any[]) => {
+      for (const c of list || []) {
+        if (c?.name && c?.imageUrl) map[normLabel(c.name)] = c.imageUrl
+        if (c?.children?.length) walk(c.children)
+      }
+    }
+    walk(Array.isArray(cats) ? cats : [])
+  } catch { /* kategori görselleri alınamazsa ürün görsellerine düşülür */ }
+  return map
+}
+
 async function fetchAllImages() {
   try {
     const api = useApi()
+    const catImages = await fetchCategoryImages()
+
+    // Gerçek kategori görsellerini önce yerleştir
+    for (const cat of categories) {
+      const own = catImages[normLabel(cat.label)]
+      if (own) allImages.value[`Cat:${cat.label}`] = own
+      for (const sub of cat.children) {
+        const subOwn = catImages[normLabel(sub.label)]
+        if (subOwn) allImages.value[`Sub:${cat.label}:${sub.label}`] = subOwn
+      }
+    }
+
+    // Kalanlar için ürün görsellerinden havuz kur
     const data = await api.get<any>('/products', { limit: 100 })
-    const products: any[] = Array.isArray(data) ? data : (data?.data || data?.items || [])
+    const products: any[] = Array.isArray(data)
+      ? data
+      : (data?.products || data?.data || data?.items || [])
     if (!products.length) return
 
     // Görseli olan ürünleri topla
     const imgs: string[] = []
     for (const p of products) {
-      const img = p.primaryImage || p.image || p.imageUrl ||
-        (Array.isArray(p.images) ? p.images[0] : p.images) || ''
+      // images alanı DB'de text tutulduğu için JSON string gelebilir
+      let fromArray = ''
+      if (Array.isArray(p.images)) {
+        fromArray = p.images[0] || ''
+      } else if (typeof p.images === 'string' && p.images.startsWith('[')) {
+        try { fromArray = JSON.parse(p.images)[0] || '' } catch { fromArray = '' }
+      } else if (typeof p.images === 'string') {
+        fromArray = p.images
+      }
+      const img = p.primaryImage || p.image || p.imageUrl || fromArray || ''
       if (img && typeof img === 'string' && !imgs.includes(img)) {
         imgs.push(img)
       }
@@ -288,21 +344,20 @@ async function fetchAllImages() {
     if (!imgs.length) return
 
     let imgIdx = 0
-    const used = new Set<string>()
+    const used = new Set<string>(Object.values(allImages.value))
 
-    // Her kategori + her sub kategori için benzersiz görsel ata
+    // Gerçek kategori görseli olmayan her entry'ye benzersiz ürün görseli ata
     for (const cat of categories) {
-      // Ana kategori
       const catKey = `Cat:${cat.label}`
-      if (imgIdx < imgs.length) {
+      if (!allImages.value[catKey] && imgIdx < imgs.length) {
         allImages.value[catKey] = imgs[imgIdx]
         used.add(imgs[imgIdx])
         imgIdx++
       }
 
-      // Sub kategoriler
       for (const sub of cat.children) {
         const subKey = `Sub:${cat.label}:${sub.label}`
+        if (allImages.value[subKey]) continue
         // Bir sonraki farklı görseli bul
         let next = imgs[imgIdx % imgs.length]
         let tries = 0

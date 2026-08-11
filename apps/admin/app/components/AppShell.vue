@@ -38,6 +38,7 @@ const navGroups = computed(() => {
       title: 'Katalog',
       items: [
         { label: 'Ürünler', icon: 'lucide:boxes', to: '/urunler', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Kategoriler', icon: 'lucide:folder-tree', to: '/kategoriler', roles: ['ADMIN', 'SUPER_ADMIN'] },
         { label: 'Stok', icon: 'lucide:warehouse', to: '/stok', roles: ['ADMIN', 'SUPER_ADMIN'] },
         { label: 'Fiyat & Lojistik', icon: 'lucide:wallet', to: '/fiyatlandirma', roles: ['ADMIN', 'SUPER_ADMIN'] },
         { label: 'Döviz Kurları', icon: 'lucide:coins', to: '/doviz', roles: ['ADMIN', 'SUPER_ADMIN'] },

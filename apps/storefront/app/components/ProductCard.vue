@@ -58,6 +58,28 @@ const notifyViaWhatsApp = () => {
   const msg = `Merhaba,\n\nBu ürün hakkında bilgi almak istiyorum:\n\nÜrün: ${props.product.name}\nStok Kodu: ${props.product.sku ?? props.product.id}\nMarka: ${props.product.brand}\n\nStok durumu ve satın alma hakkında bilgilendirir misiniz?`
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
 }
+
+// ─── Stok gelince haber ver ────────────────────────────────────────────────
+// Kayıt backend'e düşer (NotifyRequest); ürün stoğa girdiğinde panelden
+// "Haber Ver" ile bekleyen taleplere bildirim gönderilir.
+const notifyState = ref<'idle' | 'saving' | 'done' | 'error'>('idle')
+
+const requestStockNotify = async () => {
+  if (!isAuthenticated.value || notifyState.value === 'saving') return
+  notifyState.value = 'saving'
+  try {
+    await api.post('/admin/notifications', {
+      productId: props.product.id,
+      channel: 'email',
+    })
+    notifyState.value = 'done'
+  } catch {
+    // Kayıt oluşmazsa müşteri boşta kalmasın: WhatsApp'tan talep iletsin
+    notifyState.value = 'error'
+    notifyViaWhatsApp()
+    setTimeout(() => { notifyState.value = 'idle' }, 2500)
+  }
+}
 </script>
 
 <template>
@@ -74,7 +96,8 @@ const notifyViaWhatsApp = () => {
         @error="($event.target as HTMLImageElement).style.display = 'none'"
         class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
       />
-      <div class="absolute inset-0 flex flex-col items-center justify-center text-ink-300">
+      <!-- Görsel yoksa yer tutucu (görsel varsa üstüne binmemesi için v-if şart) -->
+      <div v-if="!product.image" class="absolute inset-0 flex flex-col items-center justify-center text-ink-300">
         <Icon name="lucide:package-open" class="h-12 w-12 mb-2 opacity-40" />
         <p class="text-xs text-ink-400 text-center px-4 leading-tight">{{ product.name }}</p>
       </div>
@@ -158,28 +181,40 @@ const notifyViaWhatsApp = () => {
           </NuxtLink>
         </div>
 
-        <!-- Add to cart (auth required) -->
+        <!-- Add to cart (auth required, satın alınabilir ve stokta) -->
         <button
-          v-if="isAuthenticated && product.purchasable"
+          v-if="isAuthenticated && product.purchasable && product.inStock"
           type="button"
-          :disabled="!product.inStock"
-          class="h-9 w-9 grid place-items-center rounded-md bg-primary-900 text-white hover:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-400 transition-colors"
+          class="h-9 w-9 grid place-items-center rounded-md bg-primary-900 text-white hover:bg-primary-800 transition-colors"
           aria-label="Sepete ekle"
           @click="handleAddToCart"
         >
           <Icon name="lucide:shopping-bag" class="h-4 w-4" />
         </button>
 
-        <!-- Notify via WhatsApp (visible but not purchasable) -->
+        <!-- Stokta yok / yakında → gelince haber ver -->
         <button
-          v-else-if="isAuthenticated && !product.purchasable"
+          v-else-if="isAuthenticated"
           type="button"
-          class="h-9 px-3 grid place-items-center rounded-md bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition-colors"
-          aria-label="Gelince haber ver"
-          @click="notifyViaWhatsApp"
+          :disabled="notifyState === 'saving' || notifyState === 'done'"
+          class="h-9 px-3 inline-flex items-center gap-1 rounded-md text-xs font-semibold transition-colors disabled:cursor-default"
+          :class="notifyState === 'done'
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : notifyState === 'error'
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-green-600 hover:bg-green-700 text-white'"
+          :aria-label="notifyState === 'done' ? 'Haber verileceksiniz' : 'Gelince haber ver'"
+          :title="notifyState === 'done' ? 'Ürün stoğa girdiğinde bilgilendirileceksiniz' : 'Stoğa girince haber verelim'"
+          @click="requestStockNotify"
         >
-          <Icon name="lucide:message-circle" class="h-4 w-4 mr-1" />
-          Haber Ver
+          <Icon
+            :name="notifyState === 'done' ? 'lucide:bell-ring' : notifyState === 'saving' ? 'lucide:loader-2' : 'lucide:bell'"
+            class="h-4 w-4"
+            :class="{ 'animate-spin': notifyState === 'saving' }"
+          />
+          <span>
+            {{ notifyState === 'done' ? 'Eklendi' : notifyState === 'error' ? 'Tekrar Dene' : 'Haber Ver' }}
+          </span>
         </button>
         <NuxtLink
           v-else

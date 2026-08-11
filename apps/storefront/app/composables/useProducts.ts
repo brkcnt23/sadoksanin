@@ -507,7 +507,7 @@ export const useProducts = () => {
     try {
       const api = useApi()
       const response = await api.get<{ products: ApiProduct[]; total: number }>('/products', {
-        limit: 1000,
+        limit: 3000,
       })
       const mapped = response.products.map(mapApiProduct)
       const seen = new Map<string, number>()

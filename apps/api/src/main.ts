@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -27,8 +27,18 @@ async function bootstrap() {
   );
 
   // Global API prefix — all controllers inherit /api
-  // Nginx preserves the prefix, so both internal and external calls work
-  app.setGlobalPrefix('api');
+  // Nginx preserves the prefix, so both internal and external calls work.
+  // Ideasoft-taklit route'ları HARİÇ: Entegra birebir /oauth/v2/token ve
+  // /panel/auth bekler, prefix'siz olmalı. (Faz 2'de /admin-api/* eklenecek.)
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: 'oauth/v2/token', method: RequestMethod.POST },
+      { path: 'panel/auth', method: RequestMethod.GET },
+      { path: 'panel/auth', method: RequestMethod.POST },
+      // /admin-api/* — tüm alt route'lar (v8 named wildcard), tüm metodlar
+      { path: 'admin-api/*path', method: RequestMethod.ALL },
+    ],
+  });
 
   // CORS — prod domain'leri env'den, dev fallback localhost
   const corsOrigins = process.env.CORS_ORIGINS

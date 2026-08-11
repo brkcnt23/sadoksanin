@@ -33,7 +33,8 @@ const selectedCategoryIds = ref<string[]>([])
 const selectedBrands = ref<string[]>([])
 const searchQuery = ref('')
 const currentPage = ref(1)
-const itemsPerPage = ref(20)
+const itemsPerPage = ref(25)
+const perPageOptions = [25, 50, 100]
 const failedImages = ref<Record<string, boolean>>({})
 
 const allProducts = computed(() => list())
@@ -83,13 +84,45 @@ const filteredProducts = computed(() => {
     return true
   })
 
-  return result
+  // Stoktaki ürünler önce listelenir; stokta olmayanlar sona iner.
+  return result.sort((a, b) => {
+    if (a.inStock !== b.inStock) return a.inStock ? -1 : 1
+    return 0
+  })
 })
 
 const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage.value))
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredProducts.value.slice(start, start + itemsPerPage.value)
+})
+
+/**
+ * Sayfa listesi: her sayfa için buton basmak yerine baş/son + aktif sayfanın
+ * çevresini gösterir, aradaki boşluklara '...' koyar (5000 ürün = 200 sayfa).
+ */
+const pageNumbers = computed<(number | '...')[]>(() => {
+  const total = totalPages.value
+  const cur = currentPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const pages: (number | '...')[] = [1]
+  const start = Math.max(2, cur - 1)
+  const end = Math.min(total - 1, cur + 1)
+  if (start > 2) pages.push('...')
+  for (let i = start; i <= end; i++) pages.push(i)
+  if (end < total - 1) pages.push('...')
+  pages.push(total)
+  return pages
+})
+
+const goToPage = (p: number) => {
+  currentPage.value = Math.min(Math.max(1, p), totalPages.value || 1)
+}
+
+// Sayfa boyutu veya filtre değişince geçersiz sayfada kalmayı önle
+watch([itemsPerPage, () => filteredProducts.value.length], () => {
+  if (currentPage.value > (totalPages.value || 1)) currentPage.value = 1
 })
 
 // ─── Actions ─────────────────────────────────────────────────────────────
@@ -255,23 +288,66 @@ useHead({ title: 'Ürünler | SADÖKSAN İnşaat' })
           </div>
 
           <!-- Products -->
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <ProductCard
-              v-for="product in paginatedProducts" :key="product.id"
-              :product="product"
-              :failed-images="failedImages"
-            />
-          </div>
+          <template v-else>
+            <!-- Sonuç sayısı + sayfa boyutu -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <p class="text-sm text-ink-500">
+                <span class="font-medium text-ink-700">{{ filteredProducts.length }}</span> ürün
+                <span v-if="totalPages > 1" class="text-ink-400">
+                  · sayfa {{ currentPage }}/{{ totalPages }}
+                </span>
+              </p>
+              <div class="flex items-center gap-2">
+                <label for="perPage" class="text-sm text-ink-600">Sayfada:</label>
+                <select
+                  id="perPage"
+                  v-model.number="itemsPerPage"
+                  class="px-2.5 py-1.5 border border-ink-300 rounded-lg text-sm bg-white text-ink-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option v-for="opt in perPageOptions" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+              </div>
+            </div>
 
-          <!-- Pagination -->
-          <div v-if="totalPages > 1" class="flex justify-center mt-8 gap-1">
-            <button
-              v-for="p in totalPages" :key="p"
-              @click="currentPage = p"
-              :class="['px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                currentPage === p ? 'bg-primary-600 text-white' : 'bg-white text-ink-600 hover:bg-ink-100 border border-ink-200']"
-            >{{ p }}</button>
-          </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <ProductCard
+                v-for="product in paginatedProducts" :key="product.id"
+                :product="product"
+                :failed-images="failedImages"
+              />
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="totalPages > 1" class="flex flex-wrap items-center justify-center mt-8 gap-1">
+              <button
+                @click="goToPage(currentPage - 1)"
+                :disabled="currentPage === 1"
+                class="px-3 py-2 rounded-lg text-sm font-medium bg-white text-ink-600 border border-ink-200 hover:bg-ink-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Önceki sayfa"
+              >
+                <Icon name="lucide:chevron-left" class="w-4 h-4" />
+              </button>
+
+              <template v-for="(p, i) in pageNumbers" :key="`p-${i}`">
+                <span v-if="p === '...'" class="px-2 text-ink-400 select-none">…</span>
+                <button
+                  v-else
+                  @click="goToPage(p as number)"
+                  :class="['min-w-[2.5rem] px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    currentPage === p ? 'bg-primary-600 text-white' : 'bg-white text-ink-600 hover:bg-ink-100 border border-ink-200']"
+                >{{ p }}</button>
+              </template>
+
+              <button
+                @click="goToPage(currentPage + 1)"
+                :disabled="currentPage === totalPages"
+                class="px-3 py-2 rounded-lg text-sm font-medium bg-white text-ink-600 border border-ink-200 hover:bg-ink-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Sonraki sayfa"
+              >
+                <Icon name="lucide:chevron-right" class="w-4 h-4" />
+              </button>
+            </div>
+          </template>
         </main>
       </div>
     </div>

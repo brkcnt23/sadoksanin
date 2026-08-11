@@ -271,11 +271,33 @@ export const useProductsStore = defineStore('products', {
       }
     },
 
-    async createCategory(data: { name: string; parentId?: string }) {
+    async createCategory(data: {
+      name: string
+      parentId?: string
+      description?: string
+      imageUrl?: string
+      order?: number
+    }) {
       const api = useApi()
       const created = await api.post<{ id: string; name: string }>('/products/categories', data)
       await this.fetchCategories()
       return created
+    },
+
+    async updateCategory(
+      id: string,
+      data: { name?: string; description?: string; imageUrl?: string; order?: number },
+    ) {
+      const api = useApi()
+      const updated = await api.patch<{ id: string; name: string }>(`/products/categories/${id}`, data)
+      await this.fetchCategories()
+      return updated
+    },
+
+    async deleteCategory(id: string) {
+      const api = useApi()
+      await api.delete(`/products/categories/${id}`)
+      await this.fetchCategories()
     },
 
     async createBrand(data: { name: string }) {

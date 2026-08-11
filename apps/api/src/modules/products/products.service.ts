@@ -58,7 +58,9 @@ export class ProductsService {
         include: {
           variations: true,
         },
-        orderBy: { createdAt: 'desc' },
+        // Stokta olan urunler once listelenir (stoksuzlar musteriye ust
+        // sirada gosterilmesin); esitlikte en yeni kayit onde.
+        orderBy: [{ displayStock: 'desc' }, { createdAt: 'desc' }],
         take: limit,
         skip: offset,
       }),
