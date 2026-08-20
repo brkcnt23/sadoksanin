@@ -75,6 +75,30 @@ Yeni siparişler henüz Netsis'e yazılmıyor (`NETSIS_ORDER_PUSH_ENABLED` kapal
 
 ---
 
+## CANLI TEST SONUCU (20 Ağustos)
+
+Panelin ve sitenin çağırdığı uçlar gerçek hesaplarla tek tek denendi: **22 uç çalışıyor**,
+yetki hatası yok. Ekranlar tarayıcıda gezildi.
+
+Bu turda bulunup düzeltilenler:
+
+| Sorun | Durum |
+|---|---|
+| Ana sayfada "Öne Çıkan Ürünler" bölümü **tamamen boştu** (liste reaktif değildi + hiç ürün işaretli değildi) | 8 stoklu+görselli ürünle dolduruldu |
+| Ana sayfa kategori kartları **Unsplash stok fotoğrafı** kullanıyordu | Gerçek kategori görselleri bağlandı |
+| Kategori kartlarında **"0 ürün"** yazıyordu | Gerçek ürün sayısı (alt kategoriler dahil) |
+| Başlıklar bozuktu: "İNsöRt ÜRüNler" | Türkçe uyumlu düzeltildi |
+| `/products/featured` **500** veriyordu (Prisma'da `isVisible`, kolon adı `visible`) | 200, 8 ürün |
+| Giriş ekranında **"Geliştirme Hesabı: admin@admin.com / asd123"** kutusu | Kaldırıldı, şifre alanı boş |
+| Dashboard **"Toplam Sipariş: 500"** (store 500 limitle çekiyordu) | Gerçek toplam: **1879** |
+| Bayi kartlarında **"Sipariş / Ciro: 0 / ₺0,00"** | 259 bayi için dolduruldu (en çok 75 sipariş / ₺10,6M) |
+| Bayi listesi **bankalar/belediyelerle başlıyordu** | Sipariş geçmişi olan gerçek bayiler önce |
+| Ürün listesinde stoksuzlar üstteydi | Stoklu + görselli önce (ilk sayfa: 25/25 görselli, 0 "Stokta Yok") |
+
+Gezilen ekranlar: Dashboard · Siparişler (gerçek bayiler, cari kodları, tutarlar) ·
+Ürünler (5414 kayıt, filtreler, CSV, Netsis senkronize) · Bayiler (1446) ·
+**Kategoriler (yeni sayfa: 12 ana + 47 alt, 52 görsel, ekle/düzenle/sil)**
+
 ## SON DOĞRULAMA (11 Ağustos 15:35)
 
 Tüm sayfalar HTTP 200, en yavaş 0,12 s · 6 container healthy ·
