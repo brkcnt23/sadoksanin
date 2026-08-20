@@ -1,6 +1,13 @@
 <script setup lang="ts">
-const { featured } = useProducts()
-const items = featured(8)
+const { featured, load, list } = useProducts()
+
+// featured(8) tek seferlik cagrilirsa urunler sonra yuklendiginde liste bos
+// kalir (reaktif degil). computed + onMounted(load) ile bolum her zaman dolar.
+const items = computed(() => featured(8))
+
+onMounted(() => {
+  if (!list().length) load()
+})
 </script>
 
 <template>

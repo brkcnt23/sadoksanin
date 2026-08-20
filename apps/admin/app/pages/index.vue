@@ -237,7 +237,7 @@ async function quickTestOrder() {
     <!-- Hero Section -->
     <DashboardHero
       :stats="[
-        { label: 'Toplam Sipariş', value: orders.items.length, icon: 'lucide:package' },
+        { label: 'Toplam Sipariş', value: orders.totalCount || orders.items.length, icon: 'lucide:package' },
         { label: 'Onay Bekleyen', value: orders.pendingCount, icon: 'lucide:clock' },
         { label: 'Bugünkü Ciro', value: formatPrice(todayRevenue), icon: 'lucide:trending-up' },
       ]"
@@ -278,7 +278,7 @@ async function quickTestOrder() {
         <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-200 transition-colors">
           <Icon name="lucide:package" class="w-5 h-5 text-blue-600" />
         </div>
-        <p class="text-2xl font-bold text-ink-900">{{ orders.items.length }}</p>
+        <p class="text-2xl font-bold text-ink-900">{{ orders.totalCount || orders.items.length }}</p>
         <p class="text-xs text-ink-500">Toplam Sipariş</p>
       </div>
       <div class="bg-white rounded-xl border border-ink-200 p-4 text-center hover:shadow-md hover:border-amber-200 transition-all cursor-pointer group">

@@ -8,6 +8,8 @@ import { useAuditStore } from './audit'
 
 interface State {
   items: Order[]
+  /** API'nin dondugu GERCEK toplam (liste 500 ile sinirli cekiliyor) */
+  totalCount: number
   loading: boolean
   loaded: boolean
   search: string
@@ -26,6 +28,7 @@ interface State {
 export const useOrdersStore = defineStore('orders', {
   state: (): State => ({
     items: [],
+    totalCount: 0,
     loading: false,
     loaded: false,
     search: '',
@@ -100,6 +103,7 @@ export const useOrdersStore = defineStore('orders', {
           dealerCity: o.dealer?.city || '',
           customerName: o.customer?.name || o.user?.name || o.customerName || '',
         }))
+        this.totalCount = response.total ?? this.items.length
         this.loaded = true
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Siparişler yüklenemedi'

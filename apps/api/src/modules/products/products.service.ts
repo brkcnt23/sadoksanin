@@ -356,7 +356,7 @@ export class ProductsService {
    */
   async getFeaturedProducts(limit = 12) {
     return this.prisma.product.findMany({
-      where: { isFeatured: true, isVisible: true },
+      where: { isFeatured: true, visible: true },
       include: { variations: true },
       take: limit,
       orderBy: { updatedAt: 'desc' },

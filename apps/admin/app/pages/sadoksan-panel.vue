@@ -8,7 +8,7 @@ definePageMeta({
 const { login } = useAdminAuth()
 
 const email = ref('admin@admin.com')
-const password = ref('asd123')
+const password = ref('')
 const isLoading = ref(false)
 const error = ref('')
 
@@ -17,15 +17,11 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    console.log('🔍 Login attempt:', { email: email.value })
     const result = await login(email.value, password.value)
-    console.log('✅ Login result:', result)
 
     if (result.success) {
-      console.log('🚀 Navigating to /')
-      await navigateTo('/')
+        await navigateTo('/')
     } else {
-      console.log('❌ Login failed:', result.error)
       error.value = result.error || 'Giriş başarısız'
     }
   } catch (err) {
@@ -126,12 +122,6 @@ const handleKeyPress = (e: KeyboardEvent) => {
 
         <!-- Spacer -->
 
-        <!-- Dev Info -->
-        <div class="mt-8 p-4 bg-ink-50 border border-ink-200 rounded-lg">
-          <p class="text-xs text-ink-700 font-medium mb-2">Geliştirme Hesabı:</p>
-          <p class="text-xs text-primary-600 font-mono">admin@admin.com</p>
-          <p class="text-xs text-primary-600 font-mono">asd123</p>
-        </div>
 
         <!-- Footer -->
         <div class="mt-8 text-center">

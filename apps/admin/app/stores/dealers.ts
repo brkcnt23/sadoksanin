@@ -40,7 +40,16 @@ export const useDealersStore = defineStore('dealers', {
       if (s.filter.status !== 'all') list = list.filter((d) => d.status === s.filter.status)
       if (s.filter.region) list = list.filter((d) => d.region === s.filter.region)
       if (s.filter.city) list = list.filter((d) => d.city === s.filter.city)
-      return list
+
+      // Siparis gecmisi olan gercek bayiler once gelsin. Netsis'ten CARI_TIP='A'
+      // filtresiyle bankalar/belediyeler de bayi olarak alindigi icin, siralama
+      // yapilmazsa listenin basi bu kayitlarla doluyordu.
+      return [...list].sort((a, b) => {
+        const ao = (a as any).totalOrders || 0
+        const bo = (b as any).totalOrders || 0
+        if (ao !== bo) return bo - ao
+        return (a.name || '').localeCompare(b.name || '', 'tr')
+      })
     },
 
     regions: (s) => Array.from(new Set(s.items.map((d) => d.region))).sort(),

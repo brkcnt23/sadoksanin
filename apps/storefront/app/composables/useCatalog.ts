@@ -55,18 +55,33 @@ export const useCatalog = () => {
         api.get<any[]>('/products/brands'),
       ])
 
-      const catNames: string[] = Array.isArray(catRes) ? catRes.map((c: any) => c.name) : (catRes.categories || [])
+      const catList: any[] = Array.isArray(catRes) ? catRes : ((catRes as any).categories || [])
       const brandNames: string[] = Array.isArray(brandRes) ? brandRes.map((b: any) => b.name) : (brandRes.brands || [])
 
-      const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toLocaleUpperCase('tr-TR'))
+      const titleCase = (s: string) =>
+        s.toLocaleLowerCase('tr-TR').replace(
+          /(^|[\s&\/\-])(\p{L})/gu,
+          (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase('tr-TR'),
+        )
 
-      categories.value = catNames.map((name) => ({
-        slug: slugify(name),
-        name: titleCase(name),
-        description: CATEGORY_META[name]?.description || '',
-        image: CATEGORY_META[name]?.image || 'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?auto=format&fit=crop&w=900&q=80',
-        productCount: 0,
-      }))
+      categories.value = catList.map((c: any) => {
+        const name: string = c.name
+        // Alt kategorilerdeki urunler de ust kategoriye sayilir
+        const altToplam = (c.children || []).reduce(
+          (t: number, ch: any) => t + (ch?._count?.products || 0), 0,
+        )
+        return {
+          slug: slugify(name),
+          name: titleCase(name),
+          description: CATEGORY_META[name]?.description || '',
+          // Panelden yonetilen gercek kategori gorseli varsa o kullanilir
+          image:
+            c.imageUrl ||
+            CATEGORY_META[name]?.image ||
+            'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?auto=format&fit=crop&w=900&q=80',
+          productCount: (c?._count?.products || 0) + altToplam,
+        }
+      })
 
       brands.value = brandNames.map((name) => ({
         slug: slugify(name),
