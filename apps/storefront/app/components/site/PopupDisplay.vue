@@ -22,6 +22,7 @@ interface PopupData {
 
 const popup = ref<PopupData | null>(null)
 const visible = ref(false)
+const popupBodyRef = ref<HTMLElement | null>(null)
 
 const STORAGE_KEY = 'sdksn-closed-popups'
 
@@ -100,9 +101,30 @@ function handleCta() {
   }
 }
 
+// v-html, HTML'i innerHTML ile yazdığı için <script> etiketleri tarayıcı
+// tarafından çalıştırılmaz. Admin panelinden yazılan script'lerin çalışması
+// için render sonrası etiketleri topla, yeniden oluşturup yerine koy.
+// Yeni elemanlar popup konteynerinin içinde kaldığı için kapanınca temizlenir.
+function runPopupScripts() {
+  if (!import.meta.client) return
+  const container = popupBodyRef.value
+  if (!container) return
+  container.querySelectorAll('script').forEach((old) => {
+    const fresh = document.createElement('script')
+    Array.from(old.attributes).forEach((attr) => fresh.setAttribute(attr.name, attr.value))
+    fresh.textContent = old.textContent
+    old.replaceWith(fresh)
+  })
+}
+
 // Watch for auth state changes to re-fetch popup
 watch(() => isAuthenticated.value, () => {
   fetchPopup()
+})
+
+// Popup görünür olduğunda DOM hazır olunca script'leri çalıştır
+watch(visible, (v) => {
+  if (v) nextTick(runPopupScripts)
 })
 
 onMounted(() => {
@@ -153,6 +175,7 @@ onMounted(() => {
             </h3>
             <div
               v-if="popup.bodyHtml"
+              ref="popupBodyRef"
               class="text-gray-600 text-sm leading-relaxed mb-6 prose prose-sm max-w-none"
               v-html="popup.bodyHtml"
             />
