@@ -1,6 +1,6 @@
 # Sadoksan ERP — Info / Giriş Bilgileri
 
-**Son güncelleme:** 2026-06-03
+**Son güncelleme:** 2026-07-04
 
 ---
 
@@ -15,12 +15,30 @@
 
 ---
 
+## 📊 Proje Özeti
+
+| Metrik | Değer |
+|--------|-------|
+| Toplam ürün | **1,181** (285 görünür + 896 Netsis import) |
+| Kullanıcı | 8 (5 bayi + 1 plasiyer + 1 admin + 1 super_admin) |
+| API modülü | 18 |
+| Veritabanı modeli | 34 (Prisma) |
+| Docker container | 6 |
+
+---
+
 ## 🔑 Test Hesapları
 
 | Rol | E-posta | Şifre |
 |-----|---------|-------|
 | **Admin** | admin@admin.com | asd123 |
 | **Bayi** | bayi@test.com | asd123 |
+| Bayi | ankara-yapi@test.com | test123 |
+| Bayi | izmir-ticaret@test.com | test123 |
+| Bayi | bursa-insaat@test.com | test123 |
+| Bayi | erzurum-yapi@test.com | test123 |
+| **Plasiyer** | plasiyer@test.com | asd123 |
+| Plasiyer | ahmet.satis@test.com | test123 |
 
 ---
 
@@ -35,8 +53,6 @@ CVV:      123
 
 **Kural:** Bu kartla ödeme yapıldığında B2B sipariş **OTOMATİK ONAYLANIR**, ödeme `PAID` olur, tam iş akışı başlar.
 
-Kart bilgileri sitede `/sayfa/demo-card` adresinde de gösteriliyor.
-
 ---
 
 ## 🖥️ Sunucu
@@ -44,6 +60,7 @@ Kart bilgileri sitede `/sayfa/demo-card` adresinde de gösteriliyor.
 | Detay | Değer |
 |-------|-------|
 | Hostname | motto-server |
+| IP | 45.43.152.52 |
 | İşletim Sistemi | Fedora 41 Server |
 | CPU | Intel Xeon Platinum 8168 @ 2.70GHz (18 çekirdek) |
 | RAM | 94 GB |
@@ -69,8 +86,9 @@ Kart bilgileri sitede `/sayfa/demo-card` adresinde de gösteriliyor.
 | Süreç | Port | Açıklama |
 |--------|------|----------|
 | canai-nuxt | 30006 | CanAI web platformu |
-| canterm-v2 | 3457 | Terminal bridge |
-| ai-img | 3100 | AI görsel üretim |
+| canterm-server | 3457 | Terminal bridge |
+| smartinnventory-nuxt | 3201 | SmartInventory |
+| qrmenu | 3203 | QR Menu |
 
 ---
 
@@ -89,17 +107,27 @@ docker logs sadoksan-api-prod --tail 50
 docker compose -f docker-compose.prod.yml build admin
 docker compose -f docker-compose.prod.yml up -d admin
 
-# Backup
-./scripts/backup-db.sh
+# API rebuild
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
 
 # DB migration
 docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
 
+# DB'ye bağlan
+docker exec sadoksan-postgres-prod psql -U sadoksan -d sadoksan
+
+# Backup
+/home/can/backup-all-dbs.sh
+
 # Tüm container'ları gör
-docker ps --format "table {{.Names}}\t{{.Status}}"
+docker compose -f docker-compose.prod.yml ps
 
 # API'ye direkt istek (içeriden)
 curl http://127.0.0.1:3010/api/health
+
+# Nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ---
@@ -108,20 +136,20 @@ curl http://127.0.0.1:3010/api/health
 
 | Dosya | Amaç |
 |-------|------|
-| `.env` | Tüm secret'lar ve config (BU DOSYAYI GIT'E KOYMA) |
-| `CLAUDE.md` | Proje context'i (AI için) |
-| `YAPILACAKLAR.md` | Kalan işler |
+| `CLAUDE.md` | Teknik context (AI için) |
+| `docs/SADOKSAN-CLAUDE.md` | Master context (kapsamlı referans) |
+| `YAPILACAKLAR.md` | Görev listesi + yapılanlar |
+| `info.md` | **BU DOSYA** — Hızlı referans |
+| `NETSIS-ENTEGRASYON-PLANI.md` | Netsis entegrasyon planı |
+| `.env` | Tüm secret'lar (GIT'E KOYMA) |
+| `apps/api/prisma/schema.prisma` | Veritabanı şeması (912 satır, 34 model) |
 | `docs/sadoksan-sistem-tasarimi.md` | Tam sistem tasarım dokümanı |
-| `docs/mvp-faz-0-1-uygulama-plani.md` | Stok modülü MVPP planı |
-| `docs/production-release-checklist.md` | Prod çıkış checklist |
-| `apps/api/prisma/schema.prisma` | Veritabanı şeması (34 model) |
-| `scripts/backup-db.sh` | PostgreSQL yedekleme |
+| `docs/raporlar.md` | 16 rapor kataloğu |
 
 ---
 
 ## ⚠️ Prod Uyarıları
 
-- `.env` içindeki `JWT_SECRET` zayıf — prod'da değiştirilmeli
-- `admin@admin.com` şifresi prod'da değiştirilmeli
 - Test hesapları (`bayi@test.com`) prod'da silinmeli
-- Backup cron job henüz ayarlanmadı: `0 2 * * * cd /home/can/sadoksan && ./scripts/backup-db.sh`
+- 896 gizli Netsis ürününe fiyat/kategori/görsel atanması gerekiyor (Netsis sync ile otomatik gelecek)
+- Backup cron: `0 2 * * * /home/can/backup-all-dbs.sh` ✅ aktif
