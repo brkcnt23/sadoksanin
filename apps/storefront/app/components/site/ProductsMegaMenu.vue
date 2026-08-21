@@ -142,7 +142,7 @@ const categories: Category[] = [
     ],
     children: [
       { label: 'Yer Sifonları', to: subTo('banyo-aksesuarlari', 'Yer Sifon'), slug: 'yer-sifonlari-96' },
-      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set') },
+      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set'), slug: 'aksesuar-setleri' },
     ],
   },
   {
@@ -160,7 +160,7 @@ const categories: Category[] = [
       { label: 'Köpükler (PU)', to: subTo('silikon-kopuk', 'Köpük'), slug: 'kopukler-pu-77' },
       { label: 'Yapıştırıcılar', to: subTo('silikon-kopuk', 'Yapıştırıcı'), slug: 'yapistiricilar-73' },
       { label: 'Sprey Boyalar', to: subTo('silikon-kopuk', 'Sprey Boya'), slug: 'sprey-boyalar-326' },
-      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey') },
+      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey'), slug: 'multispreyler' },
       { label: 'Yardımcı Ürünler', to: subTo('silikon-kopuk', 'Yardımcı'), slug: 'yardimci-urunler-327' },
     ],
   },
@@ -188,7 +188,8 @@ const categories: Category[] = [
       'M7 7h.01',
     ],
     children: [
-      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax' },
+      // Parent'a giden kısayol — gerçek kategori değil, görsel bilinçli override
+      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax', image: '/images/categories/sub-rtrmax-tum.webp' },
     ],
   },
   {
