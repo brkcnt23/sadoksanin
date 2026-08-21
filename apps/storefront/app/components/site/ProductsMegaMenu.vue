@@ -24,6 +24,8 @@ const route = useRoute()
 interface Subcategory {
   label: string
   to: string
+  /** DB kategori slug'ı — görsel API'den bu slug ile eşleşir (isimden daha sağlam) */
+  slug?: string
   /** Görsel URL — boşsa API'den otomatik atanır, elle değiştirilebilir */
   image?: string
   /** Ölçü çizgisi için genişlik (örn: 60) */
@@ -71,14 +73,14 @@ const categories: Category[] = [
       'M3 3h18v18H3z',
     ],
     children: [
-      { label: '60 x 120 Seramikler', to: subTo('seramik', '60 x 120 Seramikler'), width: 60, height: 120, unit: 'cm' },
-      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), width: 40, height: 120, unit: 'cm' },
-      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), width: 30, height: 90, unit: 'cm' },
-      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), width: 30, height: 60, unit: 'cm' },
-      { label: '60 x 60 Seramikler', to: subTo('seramik', '60 x 60 Seramikler'), width: 60, height: 60, unit: 'cm' },
-      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), width: 45, height: 45, unit: 'cm' },
-      { label: 'Klips & Takozlar', to: subTo('seramik', 'Klips & Takozlar'), image: '/images/categories/sub-klips-takoz.webp' },
-      { label: 'Profil & Bordürler', to: subTo('seramik', 'Profil & Bordürler'), image: '/images/categories/sub-profil-bordur.webp' },
+      { label: '60 x 120 Seramikler', to: subTo('seramik', '60 x 120 Seramikler'), slug: '60x120-seramikler', width: 60, height: 120, unit: 'cm' },
+      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), slug: '40-x-120-seramikler-34', width: 40, height: 120, unit: 'cm' },
+      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), slug: '30-x-90-seramikler-86', width: 30, height: 90, unit: 'cm' },
+      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), slug: '30-x-60-seramikler-83', width: 30, height: 60, unit: 'cm' },
+      { label: '60 x 60 Seramikler', to: subTo('seramik', '60 x 60 Seramikler'), slug: '60x60-seramikler', width: 60, height: 60, unit: 'cm' },
+      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), slug: '45-x-45-seramikler-85', width: 45, height: 45, unit: 'cm' },
+      { label: 'Klips & Takozlar', to: subTo('seramik', 'Klips & Takozlar'), slug: 'seramik-klips-takozlar-93' },
+      { label: 'Profil & Bordürler', to: subTo('seramik', 'Profil & Bordürler'), slug: 'seramik-profil-cita-bordurler-91' },
     ],
   },
   {
@@ -90,13 +92,13 @@ const categories: Category[] = [
       'M9 9h7',
     ],
     children: [
-      { label: 'Klozetler', to: subTo('vitrifiye', 'Klozet') },
-      { label: 'Asma Klozetler', to: subTo('vitrifiye', 'Asma Klozet') },
-      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar') },
-      { label: 'Lavabolar', to: subTo('vitrifiye', 'Lavabo') },
-      { label: 'Tezgah Üstü Lavabolar', to: subTo('vitrifiye', 'Tezgah Üstü'), image: '/images/categories/sub-tezgah-ustu-lavabo.webp' },
-      { label: 'Engelli Serisi', to: subTo('vitrifiye', 'Engelli') },
-      { label: 'Hela Taşları', to: subTo('vitrifiye', 'Hela Taşı') },
+      { label: 'Klozetler', to: subTo('vitrifiye', 'Klozet'), slug: 'klozetler' },
+      { label: 'Asma Klozetler', to: subTo('vitrifiye', 'Asma Klozet'), slug: 'asma-klozetler' },
+      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar'), slug: 'pisuvarlar-53' },
+      { label: 'Lavabolar', to: subTo('vitrifiye', 'Lavabo'), slug: 'lavabolar' },
+      { label: 'Tezgah Üstü Lavabolar', to: subTo('vitrifiye', 'Tezgah Üstü'), slug: 'tezgah-ustu-tezgah-alti-lavabolar-54' },
+      { label: 'Engelli Serisi', to: subTo('vitrifiye', 'Engelli'), slug: 'engelli-serisi-101' },
+      { label: 'Hela Taşları', to: subTo('vitrifiye', 'Hela Taşı'), slug: 'hela-taslari-37' },
     ],
   },
   {
@@ -107,12 +109,12 @@ const categories: Category[] = [
       'M12 3v6 M8 9h8 M9 9v3a3 3 0 0 0 6 0V9 M12 15v3 M9 21h6',
     ],
     children: [
-      { label: 'Banyo Bataryası', to: subTo('batarya-ve-musluklar', 'Banyo Bataryası') },
-      { label: 'Lavabo Bataryası', to: subTo('batarya-ve-musluklar', 'Lavabo Bataryası') },
-      { label: 'Eviye (Mutfak) Bataryası', to: subTo('batarya-ve-musluklar', 'Eviye') },
-      { label: 'Eviye Setleri', to: subTo('batarya-ve-musluklar', 'Eviye Set') },
-      { label: 'Duş Sistemleri', to: subTo('batarya-ve-musluklar', 'Duş') },
-      { label: 'Musluklar', to: subTo('batarya-ve-musluklar', 'Musluk') },
+      { label: 'Banyo Bataryası', to: subTo('batarya-ve-musluklar', 'Banyo Bataryası'), slug: 'banyo-bataryasi-40' },
+      { label: 'Lavabo Bataryası', to: subTo('batarya-ve-musluklar', 'Lavabo Bataryası'), slug: 'lavabo-bataryasi' },
+      { label: 'Eviye (Mutfak) Bataryası', to: subTo('batarya-ve-musluklar', 'Eviye'), slug: 'eviye-mutfak-bataryasi-41' },
+      { label: 'Eviye Setleri', to: subTo('batarya-ve-musluklar', 'Eviye Set'), slug: 'eviye-setleri-260' },
+      { label: 'Duş Sistemleri', to: subTo('batarya-ve-musluklar', 'Duş'), slug: 'dus-sistemleri' },
+      { label: 'Musluklar', to: subTo('batarya-ve-musluklar', 'Musluk'), slug: 'musluklar' },
     ],
   },
   {
@@ -124,10 +126,10 @@ const categories: Category[] = [
       'M12 3v18 M7 12h.01 M17 12h.01',
     ],
     children: [
-      { label: 'Banyo Mobilyaları', to: subTo('banyo-grubu', 'Banyo Mobilya') },
-      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap') },
-      { label: 'Boy Dolapları', to: subTo('banyo-grubu', 'Boy Dolap') },
-      { label: 'Duş Kabinleri', to: subTo('banyo-grubu', 'Duş Kabin') },
+      { label: 'Banyo Mobilyaları', to: subTo('banyo-grubu', 'Banyo Mobilya'), slug: 'banyo-mobilyalari-46' },
+      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap'), slug: 'banyo-dolaplari-47' },
+      { label: 'Boy Dolapları', to: subTo('banyo-grubu', 'Boy Dolap'), slug: 'boy-dolaplari' },
+      { label: 'Duş Kabinleri', to: subTo('banyo-grubu', 'Duş Kabin'), slug: 'dusakabin-tekne-30' },
     ],
   },
   {
@@ -139,8 +141,8 @@ const categories: Category[] = [
       'M8 11h8 M8 14h8',
     ],
     children: [
-      { label: 'Yer Sifonları', to: subTo('banyo-aksesuarlari', 'Yer Sifon') },
-      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set'), image: '/images/categories/sub-aksesuar-seti.webp' },
+      { label: 'Yer Sifonları', to: subTo('banyo-aksesuarlari', 'Yer Sifon'), slug: 'yer-sifonlari-96' },
+      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set') },
     ],
   },
   {
@@ -153,13 +155,13 @@ const categories: Category[] = [
       'M11 11v6',
     ],
     children: [
-      { label: 'Silikonlar', to: subTo('silikon-kopuk', 'Silikon') },
-      { label: 'Mastikler', to: subTo('silikon-kopuk', 'Mastik') },
-      { label: 'Köpükler (PU)', to: subTo('silikon-kopuk', 'Köpük') },
-      { label: 'Yapıştırıcılar', to: subTo('silikon-kopuk', 'Yapıştırıcı') },
-      { label: 'Sprey Boyalar', to: subTo('silikon-kopuk', 'Sprey Boya') },
-      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey'), image: '/images/categories/sub-multisprey.webp' },
-      { label: 'Yardımcı Ürünler', to: subTo('silikon-kopuk', 'Yardımcı') },
+      { label: 'Silikonlar', to: subTo('silikon-kopuk', 'Silikon'), slug: 'silikonlar' },
+      { label: 'Mastikler', to: subTo('silikon-kopuk', 'Mastik'), slug: 'mastikler' },
+      { label: 'Köpükler (PU)', to: subTo('silikon-kopuk', 'Köpük'), slug: 'kopukler-pu-77' },
+      { label: 'Yapıştırıcılar', to: subTo('silikon-kopuk', 'Yapıştırıcı'), slug: 'yapistiricilar-73' },
+      { label: 'Sprey Boyalar', to: subTo('silikon-kopuk', 'Sprey Boya'), slug: 'sprey-boyalar-326' },
+      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey') },
+      { label: 'Yardımcı Ürünler', to: subTo('silikon-kopuk', 'Yardımcı'), slug: 'yardimci-urunler-327' },
     ],
   },
   {
@@ -172,9 +174,9 @@ const categories: Category[] = [
       'M9 13h6',
     ],
     children: [
-      { label: 'Alçı-Sıva-İzolasyon', to: subTo('alci-alci-plaka', 'Alçı') },
-      { label: 'Fayans Yapıştırıcı', to: subTo('alci-alci-plaka', 'Fayans Yapıştırıcı') },
-      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz') },
+      { label: 'Alçı-Sıva-İzolasyon', to: subTo('alci-alci-plaka', 'Alçı'), slug: 'alci-siva-izolasyon-331' },
+      { label: 'Fayans Yapıştırıcı', to: subTo('alci-alci-plaka', 'Fayans Yapıştırıcı'), slug: 'fayans-yapistiricilar-89' },
+      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz'), slug: 'derz-dolgular-90' },
     ],
   },
   {
@@ -186,7 +188,7 @@ const categories: Category[] = [
       'M7 7h.01',
     ],
     children: [
-      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax', image: '/images/categories/sub-rtrmax-tum.webp' },
+      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax' },
     ],
   },
   {
@@ -294,7 +296,12 @@ async function fetchCategoryImages(): Promise<Record<string, string>> {
     const cats = await api.get<any[]>('/products/categories')
     const walk = (list: any[]) => {
       for (const c of list || []) {
-        if (c?.name && c?.imageUrl) map[normLabel(c.name)] = c.imageUrl
+        if (c?.imageUrl) {
+          // Eşleştirme önceliği: slug > id > isim (isim sadece yedek)
+          if (c?.slug) map[`slug:${c.slug}`] = c.imageUrl
+          if (c?.id) map[`id:${c.id}`] = c.imageUrl
+          if (c?.name) map[`name:${normLabel(c.name)}`] = c.imageUrl
+        }
         if (c?.children?.length) walk(c.children)
       }
     }
@@ -310,10 +317,15 @@ async function fetchAllImages() {
 
     // Gerçek kategori görsellerini önce yerleştir
     for (const cat of categories) {
-      const own = catImages[normLabel(cat.label)]
+      // Ana kategori: önce kendi slug'ı, tutmazsa isim eşleşmesi
+      const own = catImages[`slug:${cat.slug}`] || catImages[`name:${normLabel(cat.label)}`]
       if (own) allImages.value[`Cat:${cat.label}`] = own
       for (const sub of cat.children) {
-        const subOwn = catImages[normLabel(sub.label)]
+        // Alt kategori: DB slug'ı ile eşleş; slug yoksa isim yedeğine düş.
+        // Hiçbiri tutmazsa hover'da parent kategorinin görseli gösterilir.
+        const subOwn = sub.slug
+          ? catImages[`slug:${sub.slug}`]
+          : catImages[`name:${normLabel(sub.label)}`]
         if (subOwn) allImages.value[`Sub:${cat.label}:${sub.label}`] = subOwn
       }
     }
