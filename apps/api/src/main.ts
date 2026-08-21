@@ -52,12 +52,23 @@ async function bootstrap() {
 
   // Rate limiting — özellikle auth endpoint'lerinde
   if (process.env.NODE_ENV === 'production') {
+    // KRITIK: nginx'in arkasindayiz. trust proxy ayarlanmazsa express her
+    // istegi nginx'in IP'sinden gelmis sayar ve rate-limit kovasi TUM
+    // KULLANICILAR ICIN ORTAK olur — 11. giris denemesi, kim yaparsa yapsin,
+    // 15 dakika boyunca herkesi kilitler. 1400+ bayiye giris acilirken bu
+    // sistemi tamamen kullanilamaz hale getirir.
+    // '1' = tek proxy hop (nginx). API yalnizca 127.0.0.1'e bagli oldugu ve
+    // disaridan tek yol nginx oldugu icin X-Forwarded-For guvenilir.
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
     const rateLimit = (await import('express-rate-limit')).default;
     app.use(
       '/api/auth/login',
       rateLimit({
         windowMs: 15 * 60 * 1000, // 15 dk
-        max: 10, // 10 deneme
+        // Artik IP basina. Ayni ofisten (tek NAT) birden fazla bayi
+        // girebilsin diye 10 yerine 20.
+        max: 20,
         message: { message: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.', statusCode: 429 },
         standardHeaders: true,
         legacyHeaders: false,

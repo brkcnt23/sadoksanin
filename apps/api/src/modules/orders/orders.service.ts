@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PromoService } from '../promo/promo.service';
@@ -542,6 +542,9 @@ export class OrdersService {
   async submitBankTransfer(orderId: string, body: { bank: string; amount: number; senderName: string; note?: string }, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Sipariş bulunamadı');
+    if (order.customerId !== userId) {
+      throw new ForbiddenException('Bu sipariş size ait değil');
+    }
 
     const bt = await this.prisma.bankTransfer.create({
       data: { orderId, bank: body.bank, amount: body.amount, senderName: body.senderName, note: body.note, userId, status: 'PENDING' },
@@ -717,7 +720,41 @@ export class OrdersService {
   /**
    * Get single order with full details
    */
-  async getOrderById(orderId: string) {
+  /**
+   * Bir siparise erisim izni var mi?
+   *
+   * DEALER yalnizca KENDI siparisini gorebilir/isleyebilir. Bu kontrol
+   * olmadan siparis id'sini bilen (ya da deneyen) her bayi baska bayilerin
+   * siparislerini, tutarlarini ve musteri bilgilerini okuyabiliyordu.
+   * ADMIN/SUPER_ADMIN hepsini, PLASIYER kendi bayilerininkini gorur.
+   */
+  private async assertOrderAccess(
+    orderId: string,
+    user?: { sub?: string; id?: string; role?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, customerId: true, dealer: { select: { salesRepId: true } } },
+    });
+    if (!order) throw new NotFoundException('Sipariş bulunamadı');
+
+    const userId = user?.sub || user?.id;
+    const role = user?.role;
+
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') return order;
+    if (role === 'PLASIYER') {
+      if (order.dealer?.salesRepId && order.dealer.salesRepId === userId) return order;
+      throw new ForbiddenException('Bu sipariş size atanmış bir bayiye ait değil');
+    }
+    if (order.customerId !== userId) {
+      throw new ForbiddenException('Bu sipariş size ait değil');
+    }
+    return order;
+  }
+
+  async getOrderById(orderId: string, user?: { sub?: string; id?: string; role?: string }) {
+    await this.assertOrderAccess(orderId, user);
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -769,6 +806,9 @@ export class OrdersService {
   async requestReturn(orderId: string, reason: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Sipariş bulunamadı');
+    if (order.customerId !== userId) {
+      throw new ForbiddenException('Bu sipariş size ait değil');
+    }
     if (order.status !== 'COMPLETED' && order.status !== 'SHIPPED') {
       throw new BadRequestException('Sadece tamamlanmış/kargodaki siparişler iade edilebilir');
     }
@@ -814,7 +854,9 @@ export class OrdersService {
     return updated;
   }
 
-  async getOrderHistory(orderId: string) {
+  async getOrderHistory(orderId: string, user?: { sub?: string; id?: string; role?: string }) {
+    await this.assertOrderAccess(orderId, user);
+
     return this.prisma.orderStatusHistory.findMany({
       where: { orderId },
       orderBy: { createdAt: 'asc' },

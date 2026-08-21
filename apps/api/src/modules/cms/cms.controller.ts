@@ -1,6 +1,8 @@
 import { Controller, Get, Patch, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('cms')
 export class CmsController {
@@ -14,7 +16,8 @@ export class CmsController {
 
   // Admin: update hero
   @Patch('hero')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updateHero(@Body() body: any) {
     return this.cmsService.updateHero(body);
   }
@@ -28,7 +31,8 @@ export class CmsController {
 
   // Admin: update settings
   @Patch('settings')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updateSettings(@Body() body: any) {
     return this.cmsService.updateSettings(body);
   }
@@ -46,19 +50,22 @@ export class CmsController {
   }
 
   @Post('pages')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async createPage(@Body() body: any) {
     return this.cmsService.createPage(body);
   }
 
   @Patch('pages/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updatePage(@Param('id') id: string, @Body() body: any) {
     return this.cmsService.updatePage(id, body);
   }
 
   @Delete('pages/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async deletePage(@Param('id') id: string) {
     return this.cmsService.deletePage(id);
   }
@@ -77,19 +84,22 @@ export class CmsController {
   }
 
   @Post('redirects')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async createRedirect(@Body() body: { oldUrl: string; newUrl: string }) {
     return this.cmsService.createRedirect(body);
   }
 
   @Delete('redirects/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async deleteRedirect(@Param('id') id: string) {
     return this.cmsService.deleteRedirect(id);
   }
 
   @Post('redirects/import')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async importRedirects(@Body() body: { items: { oldUrl: string; newUrl: string }[] }) {
     return this.cmsService.importRedirects(body.items);
   }

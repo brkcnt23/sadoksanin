@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../../common/prisma.service';
 import { GenerateProformaDto, CreateProformaDraftDto } from './dto/generate-proforma.dto';
@@ -248,7 +248,55 @@ export class ProformaService {
   /**
    * Get single proforma with all details
    */
-  async getProforma(proformaId: string) {
+  /**
+   * Bir proformaya erisim izni var mi?
+   *
+   * DEALER yalnizca KENDI bayisine ait proformayi gorebilir/duzenleyebilir.
+   * Bu kontrol olmadan proforma id'si bilinen her proforma okunabiliyor,
+   * duzenlenebiliyor ve indirilebiliyordu.
+   * PLASIYER kendi bayilerininkini, ADMIN/SUPER_ADMIN hepsini gorur.
+   */
+  private async assertProformaAccess(
+    proformaId: string,
+    user?: { sub?: string; id?: string; role?: string },
+  ) {
+    const proforma = await this.prisma.proforma.findUnique({
+      where: { id: proformaId },
+      select: { id: true, dealerId: true, customerId: true, generatedBy: true },
+    })
+    if (!proforma) throw new BadRequestException('Proforma bulunamadı')
+
+    const userId = user?.sub || user?.id
+    const role = user?.role
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') return proforma
+
+    if (role === 'PLASIYER') {
+      if (!proforma.dealerId) {
+        throw new ForbiddenException('Bu proforma size atanmış bir bayiye ait değil')
+      }
+      const dealer = await this.prisma.dealer.findUnique({
+        where: { id: proforma.dealerId },
+        select: { salesRepId: true },
+      })
+      if (dealer?.salesRepId === userId) return proforma
+      throw new ForbiddenException('Bu proforma size atanmış bir bayiye ait değil')
+    }
+
+    // DEALER
+    if (proforma.customerId && proforma.customerId === userId) return proforma
+    if (proforma.generatedBy && proforma.generatedBy === userId) return proforma
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dealer: { select: { id: true } } },
+    })
+    if (me?.dealer?.id && me.dealer.id === proforma.dealerId) return proforma
+
+    throw new ForbiddenException('Bu proforma size ait değil')
+  }
+
+  async getProforma(proformaId: string, user?: { sub?: string; id?: string; role?: string }) {
+    await this.assertProformaAccess(proformaId, user)
+
     return this.prisma.proforma.findUnique({
       where: { id: proformaId },
       include: { items: true },
@@ -260,7 +308,9 @@ export class ProformaService {
    * Only DRAFT proformas can be edited — once sent/onaya-gönderilmiş/approved,
    * editing is not allowed (financial document integrity).
    */
-  async updateProforma(proformaId: string, dto: CreateProformaDraftDto, userId: string) {
+  async updateProforma(proformaId: string, dto: CreateProformaDraftDto, userId: string, user?: { sub?: string; id?: string; role?: string }) {
+    await this.assertProformaAccess(proformaId, user ?? { sub: userId, role: 'DEALER' })
+
     const existing = await this.prisma.proforma.findUnique({ where: { id: proformaId } });
 
     if (!existing) {
@@ -314,7 +364,9 @@ export class ProformaService {
    * + AuditLog'a yazar (bkz. mailer.service.ts). SMTP yapılandırılınca bu
    * kod değişmeden gerçek e-posta gönderimine geçer.
    */
-  async sendProforma(proformaId: string, userId: string) {
+  async sendProforma(proformaId: string, userId: string, user?: { sub?: string; id?: string; role?: string }) {
+    await this.assertProformaAccess(proformaId, user ?? { sub: userId, role: 'DEALER' })
+
     const proforma = await this.prisma.proforma.findUnique({
       where: { id: proformaId },
       include: { items: true },
@@ -330,7 +382,7 @@ export class ProformaService {
       this.logger.warn(`Proforma ${proforma.proformaNumber}: müşteri e-postası yok, PDF gönderilemedi`);
     } else {
       try {
-        const { pdfBuffer } = await this.downloadProforma(proformaId);
+        const { pdfBuffer } = await this.downloadProforma(proformaId, { role: 'SUPER_ADMIN' } /* cagiran zaten yetkilendirdi */);
         await this.mailerService.send({
           to: recipientEmail,
           subject: `Proforma Fatura — ${proforma.proformaNumber}`,
@@ -364,7 +416,9 @@ export class ProformaService {
   /**
    * Download proforma (regenerate PDF from stored data)
    */
-  async downloadProforma(proformaId: string): Promise<{ pdfBuffer: Buffer; proforma: any }> {
+  async downloadProforma(proformaId: string, user?: { sub?: string; id?: string; role?: string }): Promise<{ pdfBuffer: Buffer; proforma: any }> {
+    await this.assertProformaAccess(proformaId, user)
+
     const proforma = await this.prisma.proforma.findUnique({
       where: { id: proformaId },
       include: { items: true },
@@ -607,6 +661,8 @@ export class ProformaService {
    * Fiyatlar backend'de Product tablosundan zorlanır — plasiyer override edemez.
    */
   async submitForApproval(proformaId: string, userId: string, userRole: string) {
+    await this.assertProformaAccess(proformaId, { sub: userId, role: userRole })
+
     const proforma = await this.prisma.proforma.findUnique({
       where: { id: proformaId },
       include: { items: true },
@@ -753,7 +809,7 @@ export class ProformaService {
 
     // Admin her zaman indirebilir
     if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
-      return this.downloadProforma(proformaId)
+      return this.downloadProforma(proformaId, { role: 'SUPER_ADMIN' } /* cagiran zaten yetkilendirdi */)
     }
 
     // Plasiyer sadece approved ise indirebilir
@@ -773,6 +829,6 @@ export class ProformaService {
       }
     }
 
-    return this.downloadProforma(proformaId)
+    return this.downloadProforma(proformaId, { role: 'SUPER_ADMIN' } /* cagiran zaten yetkilendirdi */)
   }
 }

@@ -100,16 +100,16 @@ export class OrdersController {
    * Get order status history (timeline)
    */
   @Get(':orderId/history')
-  async getOrderHistory(@Param('orderId') orderId: string) {
-    return this.ordersService.getOrderHistory(orderId);
+  async getOrderHistory(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.getOrderHistory(orderId, req.user);
   }
 
   /**
    * Get order details by ID
    */
   @Get(':orderId')
-  async getOrder(@Param('orderId') orderId: string) {
-    return this.ordersService.getOrderById(orderId);
+  async getOrder(@Param('orderId') orderId: string, @Request() req: any) {
+    return this.ordersService.getOrderById(orderId, req.user);
   }
 
   /**

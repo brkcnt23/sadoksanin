@@ -20,6 +20,8 @@ import { Response } from 'express';
 import { ProformaService } from './proforma.service';
 import { GenerateProformaDto, CreateProformaDraftDto } from './dto/generate-proforma.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('proforma')
 @UseGuards(JwtAuthGuard)
@@ -139,13 +141,38 @@ export class ProformaController {
     return product;
   }
 
+  // ─── Approval Workflow — Static Routes (BEFORE :id!) ──────────────────
+
+  /**
+   * GET /api/proforma/pending — Admin: onay bekleyenler
+   */
+  @Get('pending')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async getPendingProformas(@Query('search') search?: string, @Query('limit') limit?: string) {
+    return this.proformaService.getPendingProformas(search, limit ? parseInt(limit) : 50)
+  }
+
+  /**
+   * GET /api/proforma/my — Plasiyer: kendi proformaları
+   */
+  @Get('my')
+  async getMyProformas(
+    @Request() req,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = req.user?.sub || req.user?.id
+    return this.proformaService.getMyProformas(userId, status, limit ? parseInt(limit) : 50)
+  }
+
   /**
    * GET /api/proforma/:id - Get single proforma details
    */
   @Get(':id')
-  async getProforma(@Param('id') proformaId: string) {
+  async getProforma(@Param('id') proformaId: string, @Request() req) {
     try {
-      const proforma = await this.proformaService.getProforma(proformaId);
+      const proforma = await this.proformaService.getProforma(proformaId, req.user);
 
       if (!proforma) {
         throw new NotFoundException('Proforma not found');
@@ -169,7 +196,7 @@ export class ProformaController {
   ) {
     try {
       const userId = req.user?.sub || req.user?.id;
-      return await this.proformaService.updateProforma(proformaId, dto, userId);
+      return await this.proformaService.updateProforma(proformaId, dto, userId, req.user);
     } catch (error) {
       this.logger.error(`Failed to update proforma ${proformaId}: ${error.message}`);
       throw new BadRequestException(error.message);
@@ -188,7 +215,7 @@ export class ProformaController {
       const userId = req.user?.sub || req.user?.id;
       this.logger.log(`Admin ${userId} marking proforma ${proformaId} as sent`);
 
-      return await this.proformaService.sendProforma(proformaId, userId);
+      return await this.proformaService.sendProforma(proformaId, userId, req.user);
     } catch (error) {
       this.logger.error(`Failed to send proforma: ${error.message}`);
       throw new BadRequestException(error.message);
@@ -221,29 +248,6 @@ export class ProformaController {
     }
   }
 
-  // ─── Approval Workflow — Static Routes (BEFORE :id!) ──────────────────
-
-  /**
-   * GET /api/proforma/pending — Admin: onay bekleyenler
-   */
-  @Get('pending')
-  async getPendingProformas(@Query('search') search?: string, @Query('limit') limit?: string) {
-    return this.proformaService.getPendingProformas(search, limit ? parseInt(limit) : 50)
-  }
-
-  /**
-   * GET /api/proforma/my — Plasiyer: kendi proformaları
-   */
-  @Get('my')
-  async getMyProformas(
-    @Request() req,
-    @Query('status') status?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const userId = req.user?.sub || req.user?.id
-    return this.proformaService.getMyProformas(userId, status, limit ? parseInt(limit) : 50)
-  }
-
   // ─── Approval Workflow — Parameterized Routes ──────────────────────────
 
   /**
@@ -261,6 +265,8 @@ export class ProformaController {
    * PATCH /api/proforma/:id/approve — Admin onaylar
    */
   @Patch(':id/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async approveProforma(@Param('id') proformaId: string, @Request() req) {
     const userId = req.user?.sub || req.user?.id
     this.logger.log(`Admin ${userId} approving proforma ${proformaId}`)
@@ -271,6 +277,8 @@ export class ProformaController {
    * PATCH /api/proforma/:id/reject — Admin reddeder
    */
   @Patch(':id/reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async rejectProforma(
     @Param('id') proformaId: string,
     @Body('reason') reason: string,
