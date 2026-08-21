@@ -916,3 +916,69 @@ enum StockMovementType {
   COUNT_ADJUST
   DAMAGE_LOSS
 }
+
+// ───── Ideasoft API Taklidi — ID Eşleme ────────────────────────────────────────
+// Ideasoft tüm kayıtları integer ID ile tanımlar; Sadoksan cuid kullanır.
+// Entegra (e-fatura entegratörü) admin-api'yi integer ID ile çağırdığında
+// doğru Sadoksan kaydını bulabilmek için bu iki tablo köprü görevi görür.
+//
+// Aşama 1 (IdeasoftIdMapping): Geçiş SONRASI Sadoksan'da oluşan kayıtlara
+//   entity_type başına artan integer ID atanır (app-managed: o tip için max+1,
+//   legacy max'ın üstünden başlar → çakışma olmaz).
+// Aşama 2 (IdeasoftLegacyId): Eski Ideasoft'tan son çekimde alınan ORİJİNAL
+//   integer ID'ler burada saklanır ki Entegra eski ID ile sorgularsa da bulalım.
+model IdeasoftIdMapping {
+  id         Int      @id @default(autoincrement())
+  entityType String   @db.VarChar(32) // 'order' | 'product' | 'member' | 'dealer' | 'shipment' ...
+  sadoksanId String   @db.VarChar(64) // Sadoksan cuid
+  ideasoftId Int // entity_type başına app tarafından atanan artan integer
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, sadoksanId])
+  @@unique([entityType, ideasoftId])
+  @@map("ideasoft_id_mapping")
+}
+
+model IdeasoftLegacyId {
+  entityType       String   @db.VarChar(32)
+  legacyIdeasoftId Int
+  sadoksanId       String   @db.VarChar(64)
+  createdAt        DateTime @default(now())
+
+  @@id([entityType, legacyIdeasoftId])
+  @@index([entityType, sadoksanId])
+  @@map("ideasoft_legacy_id")
+}
+
+// ───── Ideasoft API Taklidi — OAuth2 ───────────────────────────────────────────
+// Entegra, Ideasoft'un OAuth2 authorization_code akışıyla auth alır. Access token
+// stateless JWT (24h) olduğundan DB'de tutulmaz; sadece kısa ömürlü authorization
+// code ve uzun ömürlü (2 ay) refresh token saklanır.
+model IdeasoftAuthCode {
+  code        String    @id @db.VarChar(128) // /panel/auth'ta üretilen tek kullanımlık kod
+  clientId    String    @db.VarChar(255)
+  redirectUri String    @db.VarChar(500)
+  scope       String    @db.VarChar(500)
+  userId      String? // onaylayan admin (cuid)
+  expiresAt   DateTime // now + ~60sn
+  usedAt      DateTime? // tek kullanım: token'a çevrilince damgalanır
+  createdAt   DateTime  @default(now())
+
+  @@index([expiresAt])
+  @@map("ideasoft_auth_code")
+}
+
+model IdeasoftToken {
+  id           String    @id @default(cuid())
+  refreshToken String    @unique @db.VarChar(128)
+  clientId     String    @db.VarChar(255)
+  scope        String    @db.VarChar(500)
+  userId       String?
+  expiresAt    DateTime // refresh token bitişi (now + 2 ay)
+  revokedAt    DateTime? // rotasyonda eski token iptal edilir
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([clientId])
+  @@map("ideasoft_token")
+}

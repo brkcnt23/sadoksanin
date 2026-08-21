@@ -49,6 +49,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Entegra e-fatura OAuth2 client bilgileri (ENTEGRA_CLIENT_ID/SECRET).
+    # Ayrı dosyada (chmod 600, .gitignore'da) — Ideasoft API taklidi için.
+    env_file:
+      - ./entegra-credentials.txt
     environment:
       API_HOST: 0.0.0.0
       API_PORT: 3001
@@ -58,6 +62,15 @@ services:
       NODE_ENV: production
       PYTHON_SERVICE_URL: http://python-service:5000
       REDIS_URL: redis://redis:6379
+      NETSIS_API_URL: ${NETSIS_API_URL}
+      NETSIS_USER: ${NETSIS_USER}
+      NETSIS_USERNAME: ${NETSIS_USER}
+      NETSIS_PASSWORD: ${NETSIS_PASSWORD}
+      NETSIS_DB_NAME: ${NETSIS_DB_NAME}
+      NETSIS_DB_USER: ${NETSIS_DB_USER}
+      NETSIS_DB_PASSWORD: ${NETSIS_DB_PASSWORD:-}
+      NETSIS_BRANCH_CODE: ${NETSIS_BRANCH_CODE}
+      NETSIS_PUSH_API_KEY: ${NETSIS_PUSH_API_KEY}
     healthcheck:
       interval: 15s
       retries: 5
