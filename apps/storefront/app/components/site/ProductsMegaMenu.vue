@@ -72,11 +72,11 @@ const categories: Category[] = [
     ],
     children: [
       { label: '60 x 120 Seramikler', to: subTo('seramik', '60 x 120 Seramikler'), width: 60, height: 120, unit: 'cm' },
-      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), width: 40, height: 120, unit: 'cm', image: '/images/categories/sub-seramik-40x120.webp' },
-      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), width: 30, height: 90, unit: 'cm', image: '/images/categories/sub-seramik-30x90.webp' },
-      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), width: 30, height: 60, unit: 'cm', image: '/images/categories/sub-seramik-30x60.webp' },
+      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), width: 40, height: 120, unit: 'cm' },
+      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), width: 30, height: 90, unit: 'cm' },
+      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), width: 30, height: 60, unit: 'cm' },
       { label: '60 x 60 Seramikler', to: subTo('seramik', '60 x 60 Seramikler'), width: 60, height: 60, unit: 'cm' },
-      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), width: 45, height: 45, unit: 'cm', image: '/images/categories/sub-seramik-45x45.webp' },
+      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), width: 45, height: 45, unit: 'cm' },
       { label: 'Klips & Takozlar', to: subTo('seramik', 'Klips & Takozlar'), image: '/images/categories/sub-klips-takoz.webp' },
       { label: 'Profil & Bordürler', to: subTo('seramik', 'Profil & Bordürler'), image: '/images/categories/sub-profil-bordur.webp' },
     ],
@@ -92,7 +92,7 @@ const categories: Category[] = [
     children: [
       { label: 'Klozetler', to: subTo('vitrifiye', 'Klozet') },
       { label: 'Asma Klozetler', to: subTo('vitrifiye', 'Asma Klozet') },
-      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar'), image: '/images/categories/sub-pisuvar.webp' },
+      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar') },
       { label: 'Lavabolar', to: subTo('vitrifiye', 'Lavabo') },
       { label: 'Tezgah Üstü Lavabolar', to: subTo('vitrifiye', 'Tezgah Üstü'), image: '/images/categories/sub-tezgah-ustu-lavabo.webp' },
       { label: 'Engelli Serisi', to: subTo('vitrifiye', 'Engelli') },
@@ -125,7 +125,7 @@ const categories: Category[] = [
     ],
     children: [
       { label: 'Banyo Mobilyaları', to: subTo('banyo-grubu', 'Banyo Mobilya') },
-      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap'), image: '/images/categories/sub-banyo-dolabi.webp' },
+      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap') },
       { label: 'Boy Dolapları', to: subTo('banyo-grubu', 'Boy Dolap') },
       { label: 'Duş Kabinleri', to: subTo('banyo-grubu', 'Duş Kabin') },
     ],
@@ -174,7 +174,7 @@ const categories: Category[] = [
     children: [
       { label: 'Alçı-Sıva-İzolasyon', to: subTo('alci-alci-plaka', 'Alçı') },
       { label: 'Fayans Yapıştırıcı', to: subTo('alci-alci-plaka', 'Fayans Yapıştırıcı') },
-      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz'), image: '/images/categories/sub-derz-dolgu.webp' },
+      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz') },
     ],
   },
   {
