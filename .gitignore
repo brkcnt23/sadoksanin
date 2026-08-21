@@ -48,3 +48,8 @@ secrets/
 # Entegra e-fatura OAuth2 secrets (asla commit etme)
 entegra-credentials.txt
 .ideasoft-env
+
+# Raw token / env yedekleri (asla commit etme)
+scripts/.ideasoft-token-raw.json
+.env.bak-*
+*.bak-*
