@@ -170,7 +170,9 @@ export const useProductsStore = defineStore('products', {
     loaded: false,
     search: '',
     filter: { category: null, brand: null, visibility: 'all', purchasable: 'all', syncStatus: 'all', stock: 'all' },
-    sort: { key: 'name', dir: 'asc' },
+    // 5414 urunde alfabetik siralama iseyaramiyor (stoksuzlar basta kaliyordu);
+    // varsayilan olarak en cok stoklu urun once. Arama icin search bar var.
+    sort: { key: 'displayStock', dir: 'desc' },
     page: 1,
     pageSize: 25,
     error: null,

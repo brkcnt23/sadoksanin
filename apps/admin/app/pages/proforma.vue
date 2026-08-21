@@ -295,7 +295,14 @@
             <!-- PDF Preview -->
             <div v-if="pdfBlobUrl" class="border border-ink-200 rounded-lg overflow-hidden">
               <h3 class="text-sm font-semibold text-ink-700 px-4 pt-4">PDF Önizleme</h3>
-              <iframe :src="pdfBlobUrl" class="w-full" style="height: 500px; border: none;" />
+              <object :data="pdfBlobUrl" type="application/pdf" class="w-full" style="height: 500px;">
+                <embed :src="pdfBlobUrl" type="application/pdf" class="w-full" style="height: 500px;" />
+                <div class="p-6 text-center text-sm text-ink-600">
+                  Tarayıcınız PDF önizlemeyi gömülü gösteremiyor.
+                  <a :href="pdfBlobUrl" target="_blank" rel="noopener"
+                     class="text-primary-600 font-medium underline">Yeni sekmede aç</a>
+                </div>
+              </object>
             </div>
             <div v-else class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg text-sm">
               PDF önizleme şu anda kullanılamıyor. Python servisinin çalıştığından emin olun.

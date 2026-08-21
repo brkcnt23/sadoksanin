@@ -152,7 +152,9 @@ export class ReportsService {
     })
 
     const critical = products
-      .filter(p => p.displayStock <= p.minimumStock)
+      // Kritik = 1 .. minimumStock. Stogu tamamen biten urun 'kritik' degil,
+      // ayri ele alinir (min=0 olan binlerce urun listeyi dolduruyordu).
+      .filter(p => p.displayStock > 0 && p.displayStock <= p.minimumStock)
       .map(p => ({
         productId: p.id,
         sku: p.sku,

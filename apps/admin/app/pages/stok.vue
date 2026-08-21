@@ -34,7 +34,7 @@ const warningAndCriticalStock = computed(() => {
     .filter((p) => p.visible)
     .filter((p) => {
       const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
-      return status.status === 'red' || status.status === 'orange'
+      return status.status === 'red' || status.status === 'orange' || status.status === 'out'
     })
     .sort((a, b) => a.displayStock - b.displayStock)
 })
@@ -53,12 +53,26 @@ const outOfStockAll = computed(() =>
   }),
 )
 
+// Stok tamamen biten urunler — kritikten AYRI liste
+const zeroStockAll = computed(() =>
+  warningAndCriticalStock.value.filter((p) => {
+    const status = getStockStatusAndInfo(p.displayStock, p.minimumStock, p.middleStock)
+    return status.status === 'out'
+  }),
+)
+
 // Uyarı listeleri sayfalama (10'ar)
 const WARNING_PAGE_SIZE = 10
 const lowStockPage = ref(1)
 const outOfStockPage = ref(1)
+const zeroStockPage = ref(1)
 const lowStockTotalPages = computed(() => Math.max(1, Math.ceil(lowStockAll.value.length / WARNING_PAGE_SIZE)))
 const outOfStockTotalPages = computed(() => Math.max(1, Math.ceil(outOfStockAll.value.length / WARNING_PAGE_SIZE)))
+const zeroStockTotalPages = computed(() => Math.max(1, Math.ceil(zeroStockAll.value.length / WARNING_PAGE_SIZE)))
+const zeroStock = computed(() => {
+  const start = (zeroStockPage.value - 1) * WARNING_PAGE_SIZE
+  return zeroStockAll.value.slice(start, start + WARNING_PAGE_SIZE)
+})
 const lowStock = computed(() => {
   const start = (lowStockPage.value - 1) * WARNING_PAGE_SIZE
   return lowStockAll.value.slice(start, start + WARNING_PAGE_SIZE)
@@ -154,6 +168,7 @@ const onModalSaved = () => {
       />
       <StatCard label="Orta Uyarı (Turuncu)" :value="lowStockAll.length" icon="lucide:trending-down" color="amber" />
       <StatCard label="Kritik (Kırmızı)" :value="outOfStockAll.length" icon="lucide:alert-circle" color="red" />
+      <StatCard label="Stokta Yok" :value="zeroStockAll.length" icon="lucide:package-x" color="slate" />
     </div>
 
     <!-- Sync detail -->
@@ -247,7 +262,7 @@ const onModalSaved = () => {
             </div>
           </div>
         </div>
-        <EmptyState v-else icon="lucide:check-circle" title="Stoksuz ürün yok" />
+        <EmptyState v-else icon="lucide:check-circle" title="Kritik seviyede ürün yok" />
         <div v-if="outOfStockTotalPages > 1" class="px-5 py-2.5 border-t border-ink-100 flex items-center justify-between">
           <span class="text-xs text-ink-500">{{ outOfStockAll.length }} ürün</span>
           <div class="flex items-center gap-1">

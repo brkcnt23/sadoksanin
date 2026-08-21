@@ -67,7 +67,9 @@ export class DealerService {
    */
   async getAllDealers() {
     return this.prisma.dealer.findMany({
-      where: { status: 'ACTIVE' },
+      // Proforma/teklif ekranlarinda kullaniliyor: onay bekleyen bayilere de
+      // teklif verilebilmeli. Reddedilen/pasif olanlar disarida birakilir.
+      where: { status: { in: ['ACTIVE', 'PENDING'] } },
       select: {
         id: true,
         name: true,

@@ -2,8 +2,8 @@
  * Stock status utilities for 3-level warning system
  */
 
-export type StockStatus = 'green' | 'orange' | 'red'
-export type StockStatusLabel = 'Normal' | 'Orta Uyarı' | 'Kritik'
+export type StockStatus = 'green' | 'orange' | 'red' | 'out'
+export type StockStatusLabel = 'Normal' | 'Orta Uyarı' | 'Kritik' | 'Stokta Yok'
 
 export interface StockStatusResult {
   status: StockStatus
@@ -25,6 +25,12 @@ export function getStockStatus(
   middleStock?: number
 ): StockStatus {
   // If stock is below/equal minimum, it's critical (red)
+  // Stok tamamen bittiyse bu 'kritik' degil, ayri bir durum: stokta yok.
+  // (Aksi halde min=0 olan binlerce urun kritik listesini dolduruyordu.)
+  if (currentStock <= 0) {
+    return 'out'
+  }
+
   if (currentStock <= minimumStock) {
     return 'red'
   }
@@ -69,6 +75,13 @@ export function getStockStatusInfo(status: StockStatus): StockStatusResult {
       backgroundColor: 'bg-red-50',
       borderColor: 'border-red-200',
     },
+    out: {
+      status: 'out',
+      label: 'Stokta Yok',
+      color: 'text-ink-600',
+      backgroundColor: 'bg-ink-100',
+      borderColor: 'border-ink-300',
+    },
   }
 
   return statusMap[status]
@@ -82,6 +95,7 @@ export function getStockStatusBadgeVariant(status: StockStatus): 'success' | 'wa
     green: 'success',
     orange: 'warning',
     red: 'error',
+    out: 'error',
   }
 
   return variantMap[status]

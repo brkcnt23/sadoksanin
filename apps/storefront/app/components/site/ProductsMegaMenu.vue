@@ -194,9 +194,10 @@ const categories: Category[] = [
     to: '/kategori/insort-urunler',
     slug: 'insort-urunler',
     iconPaths: [
-      'M12 3v4 M12 17v4 M3 12h4 M17 12h4',
-      'M5.6 5.6l2.8 2.8 M15.6 15.6l2.8 2.8 M5.6 18.4l2.8-2.8 M15.6 8.4l2.8-2.8',
-      'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',
+      'M9.5 3h5v2.5l-1 1h-3l-1-1V3z',
+      'M10.5 6.5v8 M13.5 6.5v8',
+      'M10.5 9h3 M10.5 11.5h3 M10.5 14h3',
+      'M12 14.5l1.5 3.5h-3l1.5-3.5z',
     ],
     children: [
       { label: 'Tüm İnsört Ürünler', to: '/kategori/insort-urunler' },

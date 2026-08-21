@@ -184,6 +184,13 @@ const handleClose = () => {
             <!-- Body (Rich Text) -->
             <div>
               <label class="block text-sm font-medium text-ink-700 mb-1.5">İçerik (HTML) *</label>
+              <p class="text-xs text-ink-500 mb-1.5">
+                Sadece popup'ın <strong>içine</strong> girecek HTML yazın.
+                Tam sayfa yapıştırmayın: <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>,
+                <code>&lt;style&gt;</code> ve <code>&lt;script&gt;</code> güvenlik için çalıştırılmaz.
+                Örnek:
+                <code>&lt;p&gt;&lt;strong&gt;İndirim Başladı&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;%50&lt;/p&gt;</code>
+              </p>
               <textarea
                 v-model="form.bodyHtml"
                 rows="4"

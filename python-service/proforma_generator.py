@@ -127,7 +127,8 @@ class ProformaGenerator:
         elements = []
 
         # Title
-        elements.append(Paragraph("PROFORMA INVOICE", self.styles['CustomTitle']))
+        baslik = "PROFORMA FATURA" if template_type == "LOCAL" else "PROFORMA INVOICE"
+        elements.append(Paragraph(baslik, self.styles['CustomTitle']))
         elements.append(Spacer(1, 0.15*inch))
 
         # Header section (company + customer info)
@@ -288,8 +289,8 @@ class ProformaGenerator:
                 Paragraph(str(item.get('sku', 'N/A')), self.styles['TurkishNormal']),
                 Paragraph(str(item.get('description', '')), self.styles['TurkishNormal']),
                 Paragraph(str(item.get('quantity', 0)), self.styles['TurkishNormal']),
-                Paragraph(f"${item.get('price', 0):.2f}", self.styles['TurkishNormal']),
-                Paragraph(f"${amount:.2f}", self.styles['TurkishNormal'])
+                Paragraph(self._para(item.get('price', 0), template_type), self.styles['TurkishNormal']),
+                Paragraph(self._para(amount, template_type), self.styles['TurkishNormal'])
             ])
 
         # Image column kept narrow; description takes the remaining slack
@@ -311,13 +312,28 @@ class ProformaGenerator:
 
         return table
 
-    def _build_totals_section(self, total, items):
+    def _para(self, tutar, template_type='INTERNATIONAL'):
+        """Tutari sablona gore bicimlendirir (yurtici TL, ihracat USD)."""
+        try:
+            tutar = float(tutar or 0)
+        except (TypeError, ValueError):
+            tutar = 0.0
+        if template_type == 'LOCAL':
+            s = f"{tutar:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            return f"{s} TL"
+        return f"${tutar:.2f}"
+
+    def _build_totals_section(self, total, items, template_type='INTERNATIONAL'):
         """Build totals section"""
         totals_data = [
-            [Paragraph("<b>Subtotal:</b>", self.styles['Normal']), Paragraph(f"${total:.2f}", self.styles['Normal'])],
-            [Paragraph("<b>Shipping:</b>", self.styles['Normal']), Paragraph("$0.00", self.styles['Normal'])],
-            [Paragraph("<b>Tax:</b>", self.styles['Normal']), Paragraph("$0.00", self.styles['Normal'])],
-            [Paragraph("<b>TOTAL:</b>", self.styles['Normal']), Paragraph(f"${total:.2f}", self.styles['Normal'])]
+            [Paragraph(f"<b>{'Ara Toplam:' if template_type == 'LOCAL' else 'Subtotal:'}</b>", self.styles['Normal']),
+             Paragraph(self._para(total, template_type), self.styles['Normal'])],
+            [Paragraph(f"<b>{'Kargo:' if template_type == 'LOCAL' else 'Shipping:'}</b>", self.styles['Normal']),
+             Paragraph(self._para(0, template_type), self.styles['Normal'])],
+            [Paragraph(f"<b>{'KDV:' if template_type == 'LOCAL' else 'Tax:'}</b>", self.styles['Normal']),
+             Paragraph(self._para(0, template_type), self.styles['Normal'])],
+            [Paragraph(f"<b>{'GENEL TOPLAM:' if template_type == 'LOCAL' else 'TOTAL:'}</b>", self.styles['Normal']),
+             Paragraph(self._para(total, template_type), self.styles['Normal'])]
         ]
 
         table = Table(totals_data, colWidths=[3.5*inch, 2.5*inch])

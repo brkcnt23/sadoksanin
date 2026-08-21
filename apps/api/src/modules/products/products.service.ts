@@ -293,7 +293,9 @@ export class ProductsService {
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         include: { variations: true },
-        orderBy: { createdAt: 'desc' },
+        // Stoku olan urunler once (panelde 5414 kayit var; stoksuzlar basta
+        // kalinca liste kullanissiz oluyordu)
+        orderBy: [{ displayStock: 'desc' }, { createdAt: 'desc' }],
         take: limit,
         skip: offset,
       }),
