@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private mailerService: MailerService,
   ) {}
 
   async register(dto: CreateUserDto) {
@@ -161,9 +163,26 @@ export class AuthService {
     const login = dto.login.trim();
     const isEmail = login.includes('@');
 
-    const user = await this.prisma.user.findFirst({
-      where: isEmail ? { email: login } : { name: login },
-    });
+    // Giris kimligi sirasi:
+    //   1. E-posta (icinde @ varsa)
+    //   2. Cari No — bayinin faturasinda yazan, bildigi tek kimlik.
+    //      Netsis'ten gelen 1446 bayinin e-postasi yer tutucu
+    //      (cari-xxx@netsis.local) oldugu icin asil giris yolu budur.
+    //   3. Unvan (geriye donuk uyumluluk)
+    let user: Awaited<ReturnType<typeof this.prisma.user.findFirst>> = null;
+
+    if (isEmail) {
+      user = await this.prisma.user.findFirst({ where: { email: login } });
+    } else {
+      const dealer = await this.prisma.dealer.findFirst({
+        where: { cariNo: { equals: login, mode: 'insensitive' } },
+        select: { userId: true },
+      });
+
+      user = dealer
+        ? await this.prisma.user.findUnique({ where: { id: dealer.userId } })
+        : await this.prisma.user.findFirst({ where: { name: login } });
+    }
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -227,8 +246,28 @@ export class AuthService {
       { expiresIn: '15m' },
     );
 
-    // In production, send this via email. For dev, return the reset URL.
     const resetUrl = `${process.env.STOREFRONT_URL || 'http://localhost:3000'}/sifre-sifirla?token=${resetToken}`;
+
+    // GUVENLIK: resetUrl'i ASLA yanitta dondurme. Yanitta donerse e-posta
+    // adresini bilen herkes token alip hesabi devralabilir (admin dahil).
+    // SMTP baglanana kadar link yalnizca sunucu loguna yazilir.
+    if (process.env.NODE_ENV === 'production') {
+      const gonderildi = await this.mailerService.send({
+        to: user.email,
+        subject: 'Şifre sıfırlama',
+        body: `Merhaba ${user.name},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın. Bağlantı 15 dakika geçerlidir.\n\n${resetUrl}\n\nBu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz.`,
+      });
+
+      if (!gonderildi) {
+        // SMTP yoksa/gonderim basarisizsa link YALNIZCA loga yazilir.
+        // Yanitta ASLA donmemeli — donerse hesap devralinabilir.
+        this.logger.warn(
+          `Sifre sifirlama e-postasi gonderilemedi: ${user.email} — link yalnizca logda: ${resetUrl}`,
+        );
+      }
+
+      return { message: 'Şifre sıfırlama bağlantısı email adresinize gönderildi.' };
+    }
 
     return {
       message: 'Şifre sıfırlama bağlantısı email adresinize gönderildi.',

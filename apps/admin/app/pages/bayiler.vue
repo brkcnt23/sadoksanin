@@ -2,6 +2,7 @@
 import { formatPrice, formatRelative } from '~/utils/storage'
 import type { Dealer, DealerStatus } from '~/types'
 import DealerCreateModal from '~/components/DealerCreateModal.vue'
+import DealerPasswordModal from '~/components/DealerPasswordModal.vue'
 
 definePageMeta({
   layout: 'default',
@@ -16,6 +17,7 @@ const toast = useToast()
 const showCreateModal = ref(false)
 const showTestCreateModal = ref(false)
 const editingCredit = ref<{ id: string; value: number } | null>(null)
+const pwDealer = ref<Dealer | null>(null)
 
 onMounted(() => {
   if (!dealers.loaded) dealers.load()
@@ -349,6 +351,19 @@ const statusBadge = (s: DealerStatus) => {
             <p class="text-xs text-ink-400 mt-0.5">{{ detail.cariBalance < 0 ? 'Borçlu' : 'Alacaklı' }}</p>
           </div>
           <div>
+            <p class="text-xs text-ink-500">Giriş Bilgileri</p>
+            <div class="flex items-center gap-2 mt-1">
+              <p class="font-mono text-sm text-ink-900">{{ detail.cariNo || '—' }}</p>
+              <button
+                class="px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                title="Bayiye giriş şifresi ata"
+                @click="pwDealer = detail"
+              >
+                Şifre Ata
+              </button>
+            </div>
+          </div>
+          <div>
             <p class="text-xs text-ink-500">Kredi Limiti</p>
             <div v-if="editingCredit && editingCredit.id === detail.id" class="flex items-center gap-2 mt-1">
               <input
@@ -436,6 +451,12 @@ const statusBadge = (s: DealerStatus) => {
         </div>
       </template>
     </Modal>
+
+    <DealerPasswordModal
+      :open="!!pwDealer"
+      :dealer="pwDealer"
+      @close="pwDealer = null"
+    />
 
     <!-- Create Dealer Modals -->
     <DealerCreateModal

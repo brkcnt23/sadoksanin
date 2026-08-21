@@ -1,4 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { NetsisService } from '../netsis/netsis.service';
@@ -65,11 +67,15 @@ export class DealerService {
   /**
    * List all active dealers (for admin dropdowns)
    */
-  async getAllDealers() {
+  async getAllDealers(user?: { sub?: string; id?: string; role?: string }) {
+    // PLASIYER sadece kendisine atanmis bayileri gorur; ADMIN/SUPER_ADMIN hepsini.
+    const scope =
+      user?.role === 'PLASIYER' ? { salesRepId: user.sub || user.id } : {};
+
     return this.prisma.dealer.findMany({
       // Proforma/teklif ekranlarinda kullaniliyor: onay bekleyen bayilere de
       // teklif verilebilmeli. Reddedilen/pasif olanlar disarida birakilir.
-      where: { status: { in: ['ACTIVE', 'PENDING'] } },
+      where: { status: { in: ['ACTIVE', 'PENDING'] }, ...scope },
       select: {
         id: true,
         name: true,
@@ -646,6 +652,50 @@ export class DealerService {
   /**
    * Admin: List all dealers with full details
    */
+  /**
+   * Bayinin giris sifresini ata. Sifre verilmezse okunabilir bir tane uretir.
+   * Uretilen sifre CAGIRANA DUZ METIN doner (yonetici bayiye iletsin diye) —
+   * DB'ye yalnizca bcrypt hash'i yazilir, log'a hicbir sey yazilmaz.
+   */
+  async setDealerPassword(dealerId: string, password?: string) {
+    const dealer = await this.prisma.dealer.findUnique({
+      where: { id: dealerId },
+      select: { id: true, company: true, cariNo: true, userId: true },
+    });
+    if (!dealer) throw new NotFoundException('Bayi bulunamadi');
+
+    const plain = password?.trim() || DealerService.generatePassword();
+    if (plain.length < 6) {
+      throw new BadRequestException('Sifre en az 6 karakter olmali');
+    }
+
+    await this.prisma.user.update({
+      where: { id: dealer.userId },
+      data: { password: await bcrypt.hash(plain, 10) },
+    });
+
+    this.logger.log(`Bayi sifresi guncellendi: ${dealer.cariNo}`);
+
+    return {
+      cariNo: dealer.cariNo,
+      company: dealer.company,
+      password: plain,
+    };
+  }
+
+  /**
+   * Telefonda okunabilir sifre: karisan karakterler (0/O, 1/l/I) disarida.
+   */
+  static generatePassword(length = 8): string {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = randomBytes(length);
+    let out = '';
+    for (let i = 0; i < length; i++) {
+      out += alphabet[bytes[i] % alphabet.length];
+    }
+    return out;
+  }
+
   async adminListAll(user?: { sub?: string; id?: string; role?: string }) {
     // PLASIYER sadece kendisine atanmış bayileri görür; ADMIN/SUPER_ADMIN hepsini.
     const where =

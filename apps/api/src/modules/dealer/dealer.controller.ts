@@ -29,8 +29,11 @@ export class DealerController {
    * GET /api/dealer/list - List all active dealers (admin dropdowns)
    */
   @Get('list')
-  async getAllDealers() {
-    return await this.dealerService.getAllDealers();
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN', 'PLASIYER')
+  async getAllDealers(@Request() req) {
+    // PLASIYER sadece kendi bayilerini görür (teklif/proforma bayi seçici bunu kullanır)
+    return await this.dealerService.getAllDealers(req.user);
   }
 
   /**
@@ -123,11 +126,15 @@ export class DealerController {
    * GET /api/dealer/carts - Aktif/terkedilen bayi sepetleri (admin)
    */
   @Get('carts')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async getDealerCarts() {
     return await this.dealerService.getDealerCarts();
   }
 
   @Get('admin/list')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN', 'PLASIYER')
   async adminListAll(@Request() req) {
     // PLASIYER ise service kendi bayileriyle filtreler
     return await this.dealerService.adminListAll(req.user);
@@ -160,6 +167,8 @@ export class DealerController {
    * PATCH /api/dealer/:id/approve — Bayi onayla
    */
   @Patch(':id/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async approveDealer(@Param('id') dealerId: string, @Request() req) {
     const userId = req.user?.sub || req.user?.id;
     return await this.dealerService.approveDealer(dealerId, userId);
@@ -169,6 +178,8 @@ export class DealerController {
    * PATCH /api/dealer/:id/reject — Bayi reddet
    */
   @Patch(':id/reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async rejectDealer(
     @Param('id') dealerId: string,
     @Body() body: { reason: string },
@@ -179,9 +190,31 @@ export class DealerController {
   }
 
   /**
+   * PATCH /api/dealer/:id/password — Bayinin şifresini ata/değiştir.
+   *
+   * Netsis'ten aktarılan 1446 bayiye import sırasında rastgele şifre verildi
+   * ve hiçbir yere kaydedilmedi; SMTP de yok. Bu yüzden bayinin hesabına
+   * erişmesinin tek yolu yöneticinin buradan şifre atamasıdır.
+   *
+   * Body boş bırakılırsa sunucu okunabilir bir şifre üretir ve düz metin
+   * olarak DÖNER — yönetici bayiye telefonla iletsin diye. Yanıt loglanmaz.
+   */
+  @Patch(':id/password')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async setDealerPassword(
+    @Param('id') dealerId: string,
+    @Body() body: { password?: string },
+  ) {
+    return await this.dealerService.setDealerPassword(dealerId, body?.password);
+  }
+
+  /**
    * PATCH /api/dealer/:id/credit-limit — Kredi limiti güncelle
    */
   @Patch(':id/credit-limit')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updateCreditLimit(
     @Param('id') dealerId: string,
     @Body() body: { creditLimit: number },
@@ -196,6 +229,8 @@ export class DealerController {
    * "geçerli" görünebiliyordu. Artık gerçek Netsis sorgusu yapılıyor.
    */
   @Post('validate-cari')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN', 'PLASIYER')
   async validateCari(@Body() body: { cariNo?: string }) {
     return await this.dealerService.validateCari(body?.cariNo || '');
   }
