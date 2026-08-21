@@ -72,13 +72,13 @@ const categories: Category[] = [
     ],
     children: [
       { label: '60 x 120 Seramikler', to: subTo('seramik', '60 x 120 Seramikler'), width: 60, height: 120, unit: 'cm' },
-      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), width: 40, height: 120, unit: 'cm' },
-      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), width: 30, height: 90, unit: 'cm' },
-      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), width: 30, height: 60, unit: 'cm' },
+      { label: '40 x 120 Seramikler', to: subTo('seramik', '40 x 120 Seramikler'), width: 40, height: 120, unit: 'cm', image: '/images/categories/sub-seramik-40x120.webp' },
+      { label: '30 x 90 Seramikler', to: subTo('seramik', '30 x 90 Seramikler'), width: 30, height: 90, unit: 'cm', image: '/images/categories/sub-seramik-30x90.webp' },
+      { label: '30 x 60 Seramikler', to: subTo('seramik', '30 x 60 Seramikler'), width: 30, height: 60, unit: 'cm', image: '/images/categories/sub-seramik-30x60.webp' },
       { label: '60 x 60 Seramikler', to: subTo('seramik', '60 x 60 Seramikler'), width: 60, height: 60, unit: 'cm' },
-      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), width: 45, height: 45, unit: 'cm' },
-      { label: 'Klips & Takozlar', to: subTo('seramik', 'Klips & Takozlar') },
-      { label: 'Profil & Bordürler', to: subTo('seramik', 'Profil & Bordürler') },
+      { label: '45 x 45 Seramikler', to: subTo('seramik', '45 x 45 Seramikler'), width: 45, height: 45, unit: 'cm', image: '/images/categories/sub-seramik-45x45.webp' },
+      { label: 'Klips & Takozlar', to: subTo('seramik', 'Klips & Takozlar'), image: '/images/categories/sub-klips-takoz.webp' },
+      { label: 'Profil & Bordürler', to: subTo('seramik', 'Profil & Bordürler'), image: '/images/categories/sub-profil-bordur.webp' },
     ],
   },
   {
@@ -92,9 +92,9 @@ const categories: Category[] = [
     children: [
       { label: 'Klozetler', to: subTo('vitrifiye', 'Klozet') },
       { label: 'Asma Klozetler', to: subTo('vitrifiye', 'Asma Klozet') },
-      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar') },
+      { label: 'Pisuvarlar', to: subTo('vitrifiye', 'Pisuvar'), image: '/images/categories/sub-pisuvar.webp' },
       { label: 'Lavabolar', to: subTo('vitrifiye', 'Lavabo') },
-      { label: 'Tezgah Üstü Lavabolar', to: subTo('vitrifiye', 'Tezgah Üstü') },
+      { label: 'Tezgah Üstü Lavabolar', to: subTo('vitrifiye', 'Tezgah Üstü'), image: '/images/categories/sub-tezgah-ustu-lavabo.webp' },
       { label: 'Engelli Serisi', to: subTo('vitrifiye', 'Engelli') },
       { label: 'Hela Taşları', to: subTo('vitrifiye', 'Hela Taşı') },
     ],
@@ -125,7 +125,7 @@ const categories: Category[] = [
     ],
     children: [
       { label: 'Banyo Mobilyaları', to: subTo('banyo-grubu', 'Banyo Mobilya') },
-      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap') },
+      { label: 'Banyo Dolapları', to: subTo('banyo-grubu', 'Banyo Dolap'), image: '/images/categories/sub-banyo-dolabi.webp' },
       { label: 'Boy Dolapları', to: subTo('banyo-grubu', 'Boy Dolap') },
       { label: 'Duş Kabinleri', to: subTo('banyo-grubu', 'Duş Kabin') },
     ],
@@ -140,7 +140,7 @@ const categories: Category[] = [
     ],
     children: [
       { label: 'Yer Sifonları', to: subTo('banyo-aksesuarlari', 'Yer Sifon') },
-      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set') },
+      { label: 'Aksesuar Setleri', to: subTo('banyo-aksesuarlari', 'Aksesuar Set'), image: '/images/categories/sub-aksesuar-seti.webp' },
     ],
   },
   {
@@ -158,7 +158,7 @@ const categories: Category[] = [
       { label: 'Köpükler (PU)', to: subTo('silikon-kopuk', 'Köpük') },
       { label: 'Yapıştırıcılar', to: subTo('silikon-kopuk', 'Yapıştırıcı') },
       { label: 'Sprey Boyalar', to: subTo('silikon-kopuk', 'Sprey Boya') },
-      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey') },
+      { label: 'Multispreyler', to: subTo('silikon-kopuk', 'Multisprey'), image: '/images/categories/sub-multisprey.webp' },
       { label: 'Yardımcı Ürünler', to: subTo('silikon-kopuk', 'Yardımcı') },
     ],
   },
@@ -174,7 +174,7 @@ const categories: Category[] = [
     children: [
       { label: 'Alçı-Sıva-İzolasyon', to: subTo('alci-alci-plaka', 'Alçı') },
       { label: 'Fayans Yapıştırıcı', to: subTo('alci-alci-plaka', 'Fayans Yapıştırıcı') },
-      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz') },
+      { label: 'Derz Dolgular', to: subTo('alci-alci-plaka', 'Derz'), image: '/images/categories/sub-derz-dolgu.webp' },
     ],
   },
   {
@@ -186,7 +186,7 @@ const categories: Category[] = [
       'M7 7h.01',
     ],
     children: [
-      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax' },
+      { label: 'Tüm RTRMAX Ürünleri', to: '/kategori/rtrmax', image: '/images/categories/sub-rtrmax-tum.webp' },
     ],
   },
   {
