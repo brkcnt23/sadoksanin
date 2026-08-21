@@ -6,9 +6,10 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '../../common/prisma.service';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
-  imports: [
+  imports: [MailerModule, 
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({

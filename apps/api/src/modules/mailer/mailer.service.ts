@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../common/prisma.service';
 
 export interface MailAttachment {
@@ -18,20 +20,82 @@ export interface MailOptions {
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
+  private transporter?: Transporter;
+  private transporterKurulmadi = false;
 
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Send an email.
-   * Currently logs to console. When SMTP is configured, replace with nodemailer.
+   * SMTP taşıyıcısı — ilk kullanımda kurulur.
+   *
+   * SMTP_HOST tanımlı değilse `undefined` döner ve `send()` eski davranışına
+   * (yalnızca log) düşer. Böylece kimlik bilgileri gelmeden de sistem çalışır
+   * ve e-posta gönderemediği için hiçbir akış kırılmaz.
+   */
+  private getTransporter(): Transporter | undefined {
+    if (this.transporter || this.transporterKurulmadi) return this.transporter;
+
+    const host = process.env.SMTP_HOST;
+    if (!host) {
+      this.transporterKurulmadi = true;
+      this.logger.warn('SMTP_HOST tanımlı değil — e-postalar yalnızca loglanıyor, gönderilmiyor.');
+      return undefined;
+    }
+
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      // 465 = örtük TLS. 587 STARTTLS ile yükseltir, secure=false olmalı.
+      secure: process.env.SMTP_SECURE === 'true' || port === 465,
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    });
+
+    this.logger.log(`SMTP hazır: ${host}:${port}`);
+    return this.transporter;
+  }
+
+  /**
+   * E-posta gönder.
+   *
+   * SMTP yapılandırılmışsa gerçekten gönderir; değilse yalnızca loglar ve
+   * `false` döner. Her iki durumda da AuditLog'a kayıt düşer.
+   * Gönderim hatası ÇAĞIRANI KIRMAZ — sipariş/proforma akışları e-posta
+   * gitmedi diye durmamalı.
    */
   async send(opts: MailOptions): Promise<boolean> {
-    this.logger.log(`📧 EMAIL → ${opts.to}`);
-    this.logger.log(`   Subject: ${opts.subject}`);
-    this.logger.log(`   Body: ${opts.body.substring(0, 200)}${opts.body.length > 200 ? '...' : ''}`);
-    if (opts.attachments?.length) {
-      for (const a of opts.attachments) {
-        this.logger.log(`   📎 Ek: ${a.filename} (${(a.content.length / 1024).toFixed(1)} KB)`);
+    const transporter = this.getTransporter();
+    let gonderildi = false;
+
+    if (transporter) {
+      try {
+        await transporter.sendMail({
+          from: process.env.MAIL_FROM || process.env.SMTP_USER,
+          to: opts.to,
+          subject: opts.subject,
+          text: opts.body,
+          html: opts.html,
+          attachments: opts.attachments?.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+            contentType: a.contentType,
+          })),
+        });
+        gonderildi = true;
+        this.logger.log(`📧 Gönderildi → ${opts.to} — ${opts.subject}`);
+      } catch (err: any) {
+        this.logger.error(`E-posta gönderilemedi (${opts.to}): ${err.message}`);
+      }
+    } else {
+      this.logger.log(`📧 EMAIL (gönderilmedi, SMTP yok) → ${opts.to}`);
+      this.logger.log(`   Subject: ${opts.subject}`);
+      this.logger.log(`   Body: ${opts.body.substring(0, 200)}${opts.body.length > 200 ? '...' : ''}`);
+      if (opts.attachments?.length) {
+        for (const a of opts.attachments) {
+          this.logger.log(`   📎 Ek: ${a.filename} (${(a.content.length / 1024).toFixed(1)} KB)`);
+        }
       }
     }
 
@@ -47,7 +111,7 @@ export class MailerService {
       // Don't fail if AuditLog insert fails
     }
 
-    return true;
+    return gonderildi;
   }
 
   /**

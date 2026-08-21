@@ -53,3 +53,11 @@ entegra-credentials.txt
 scripts/.ideasoft-token-raw.json
 .env.bak-*
 *.bak-*
+
+# Bayi giris bilgileri — DUZ METIN SIFRE, asla commit etme
+bayi-giris-bilgileri*.csv
+uploads/bayi-giris-bilgileri*.csv
+
+# .env yedekleri — sifre icerir
+.env.yedek-*
+.env.domain-oncesi-*

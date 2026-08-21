@@ -71,6 +71,20 @@ services:
       NETSIS_DB_PASSWORD: ${NETSIS_DB_PASSWORD:-}
       NETSIS_BRANCH_CODE: ${NETSIS_BRANCH_CODE}
       NETSIS_PUSH_API_KEY: ${NETSIS_PUSH_API_KEY}
+      # Storefront'un dis adresi. proforma.service.ts ve sifre sifirlama
+      # linki bunu kullanir; tanimli degilse koda gomulu eski domain'e /
+      # localhost'a duser. Domain degisiminde BURASI da guncellenmeli.
+      STOREFRONT_URL: ${STOREFRONT_URL}
+      # SMTP — tanimli degilse e-postalar yalnizca loglanir (sistem calisir).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Netsis siparis yazma — go-live'da true yapilacak.
+      NETSIS_ORDER_PUSH_ENABLED: ${NETSIS_ORDER_PUSH_ENABLED:-false}
+      NETSIS_ORDER_DEPO_KODU: ${NETSIS_ORDER_DEPO_KODU:-15610}
     healthcheck:
       interval: 15s
       retries: 5
