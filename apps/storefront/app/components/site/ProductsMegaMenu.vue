@@ -203,7 +203,8 @@ const categories: Category[] = [
       'M12 14.5l1.5 3.5h-3l1.5-3.5z',
     ],
     children: [
-      { label: 'Tüm İnsört Ürünler', to: '/kategori/insort-urunler' },
+      // Parent'a giden kısayol — gerçek kategori değil, görsel bilinçli override
+      { label: 'Tüm İnsört Ürünler', to: '/kategori/insort-urunler', image: '/images/categories/sub-insort-tum.webp' },
     ],
   },
 ]
