@@ -252,24 +252,6 @@ async function quickTestOrder() {
 
     <!-- Quick Test Order Card -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 -mt-2">
-      <button
-        @click="quickTestOrder"
-        :disabled="quickTestRunning"
-        class="w-full bg-white rounded-2xl border border-purple-200/60 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group text-left disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        <div class="flex items-start gap-4">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-            <Icon
-              :name="quickTestRunning ? 'lucide:loader-2' : 'lucide:flask-conical'"
-              :class="['w-5 h-5 text-white', quickTestRunning && 'animate-spin']"
-            />
-          </div>
-          <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-ink-900 group-hover:text-purple-900 transition-colors">Hızlı Test Siparişi</h3>
-            <p class="text-sm text-ink-500 mt-0.5">Tek tıkla B2C test siparişi oluştur</p>
-          </div>
-        </div>
-      </button>
     </div>
 
     <!-- Stats Grid -->

@@ -502,19 +502,71 @@ export class ProductsService {
       orderBy: { category: 'asc' },
     });
 
-    const headers = ['SKU', 'Ürün Adı', 'Marka', 'Kategori', 'Birim Fiyat', 'KDV Oranı', 'Birim', 'Netsis Stok', 'Netsis Bekleyen', 'Min Stok', 'Orta Stok', 'Görünür', 'Satılabilir', 'Açıklama', 'Görsel URL'];
-    const csvEscape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // CSV yerine GERÇEK .xlsx üretiliyor: Türkçe/Avrupa yerel ayarlı Excel'de
+    // virgülle ayrılmış CSV tek sütunda (A sütununda) birleşik açılıyordu.
+    // xlsx'te ayraç kavramı yok, sütunlar her bilgisayarda doğru ayrılır.
+    const columns = [
+      { key: 'sku', label: 'SKU', type: 'text', width: 18 },
+      { key: 'name', label: 'Ürün Adı', type: 'text', width: 42 },
+      { key: 'brand', label: 'Marka', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'text', width: 24 },
+      { key: 'basePrice', label: 'Birim Fiyat', type: 'money' },
+      { key: 'taxRate', label: 'KDV Oranı', type: 'percent' },
+      { key: 'unit', label: 'Birim', type: 'text' },
+      { key: 'netsisStock', label: 'Netsis Stok', type: 'number' },
+      { key: 'netsisPendingQuantity', label: 'Netsis Bekleyen', type: 'number' },
+      { key: 'minimumStock', label: 'Min Stok', type: 'number' },
+      { key: 'middleStock', label: 'Orta Stok', type: 'number' },
+      { key: 'visible', label: 'Görünür', type: 'text' },
+      { key: 'purchasable', label: 'Satılabilir', type: 'text' },
+      { key: 'description', label: 'Açıklama', type: 'text', width: 40 },
+      { key: 'imageUrl', label: 'Görsel URL', type: 'text', width: 40 },
+    ];
 
-    const rows = products.map((p) =>
-      [p.sku, p.name, p.brand, p.category, p.basePrice, p.taxRate, p.unit, p.netsisStock, p.netsisPendingQuantity, p.minimumStock, p.middleStock ?? '', p.visible ? 'Evet' : 'Hayır', p.purchasable ? 'Evet' : 'Hayır', p.description ?? '', p.imageUrl ?? '']
-        .map(csvEscape).join(','),
-    );
+    const rows = products.map((p) => ({
+      sku: p.sku,
+      name: p.name,
+      brand: p.brand,
+      category: p.category,
+      basePrice: p.basePrice,
+      taxRate: p.taxRate,
+      unit: p.unit,
+      netsisStock: p.netsisStock,
+      netsisPendingQuantity: p.netsisPendingQuantity,
+      minimumStock: p.minimumStock,
+      middleStock: p.middleStock ?? null,
+      visible: p.visible ? 'Evet' : 'Hayır',
+      purchasable: p.purchasable ? 'Evet' : 'Hayır',
+      description: p.description ?? '',
+      imageUrl: p.imageUrl ?? '',
+    }));
 
-    // 'sep=,' ipucu: Türkçe/Avrupa Windows Excel varsayılan liste ayracı ';' olduğu için,
-    // bu satır olmadan virgülle ayrılmış CSV Excel'de tek sütunda birleşik görünür.
-    const csv =
-      '﻿' + 'sep=,\r\n' + headers.map(csvEscape).join(',') + '\r\n' + rows.join('\r\n');
-    return Buffer.from(csv, 'utf-8');
+    return this.buildExcel({
+      filename: 'urunler',
+      title: 'Ürün Listesi',
+      sheets: [{ name: 'Ürünler', columns, rows }],
+    });
+  }
+
+  /**
+   * python-service üzerinden .xlsx üretir (tek merkezden Excel çıktısı).
+   */
+  private async buildExcel(payload: Record<string, unknown>): Promise<Buffer> {
+    const url =
+      (process.env.PYTHON_SERVICE_URL || 'http://python-service:5000') + '/generate-excel';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`python-service ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      throw new BadRequestException(
+        'Excel servisi şu anda kullanılamıyor. python-service çalışıyor mu kontrol edin.',
+      );
+    }
   }
 
   /**

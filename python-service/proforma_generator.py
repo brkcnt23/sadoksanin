@@ -145,11 +145,11 @@ class ProformaGenerator:
 
         # Totals section
         total_amount = sum(item['quantity'] * item['price'] for item in items)
-        elements.append(self._build_totals_section(total_amount, items))
+        elements.append(self._build_totals_section(total_amount, items, template_type))
         elements.append(Spacer(1, 0.15*inch))
 
         # Footer with bank details
-        elements.append(self._build_footer(company_info))
+        elements.append(self._build_footer(company_info, template_type))
 
         # Build PDF
         try:
@@ -265,13 +265,13 @@ class ProformaGenerator:
     def _build_items_table(self, items, template_type):
         """Build items table with product images (image column always rendered;
         missing images render a placeholder so columns stay aligned)."""
+        basliklar = (
+            ['Görsel', 'Stok Kodu', 'Açıklama', 'Miktar', 'Birim Fiyat', 'Tutar']
+            if template_type == 'LOCAL'
+            else ['Image', 'SKU', 'Description', 'Qty.', 'Price', 'Amount']
+        )
         header = [
-            Paragraph("<b>Image</b>", self.styles['TableHeader']),
-            Paragraph("<b>SKU</b>", self.styles['TableHeader']),
-            Paragraph("<b>Description</b>", self.styles['TableHeader']),
-            Paragraph("<b>Qty.</b>", self.styles['TableHeader']),
-            Paragraph("<b>Price</b>", self.styles['TableHeader']),
-            Paragraph("<b>Amount</b>", self.styles['TableHeader'])
+            Paragraph(f"<b>{b}</b>", self.styles['TableHeader']) for b in basliklar
         ]
 
         table_data = [header]
@@ -350,12 +350,23 @@ class ProformaGenerator:
 
         return table
 
-    def _build_footer(self, company_info):
-        """Build footer with bank details and declaration"""
-        bank = company_info.get('bank', 'N/A')
-        account = company_info.get('bankAccount', 'N/A')
+    def _build_footer(self, company_info, template_type='INTERNATIONAL'):
+        """Alt bilgi: banka bilgileri + beyan (yurtici Turkce, ihracat Ingilizce)"""
+        bank = company_info.get('bank', '-')
+        account = company_info.get('bankAccount', '-')
 
-        footer_text = f"""
+        if template_type == 'LOCAL':
+            footer_text = f"""
+<b>Banka Bilgileri:</b><br/>
+Banka: {bank}<br/>
+Hesap No: {account}<br/>
+<br/>
+<b>Beyan:</b><br/>
+<i>Bu proformada belirtilen fiyatlar gecerli satis fiyatlaridir ve tum bilgiler
+dogrudur. Proforma fatura olup resmi fatura yerine gecmez.</i>
+            """
+        else:
+            footer_text = f"""
 <b>Bank Details:</b><br/>
 Bank: {bank}<br/>
 Account: {account}<br/>
@@ -363,7 +374,7 @@ Account: {account}<br/>
 <b>Declaration:</b><br/>
 <i>We declare that this invoice shows the actual price of the goods described
 and that all particulars are true and correct.</i>
-        """
+            """
 
         return Paragraph(footer_text, self.styles['Normal'])
 

@@ -47,7 +47,8 @@ const validateField = (field: keyof Omit<FormData, 'beniBaba'>) => {
     case 'email':
       if (!value.trim()) {
         newErrors[field] = 'Bu alan zorunludur'
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      } else if (value.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        // Bayiler CARI NO ile giriyor — '@' zorunlu degil.
         newErrors[field] = 'Geçerli bir email adresi girin'
       } else {
         delete newErrors[field]
@@ -95,7 +96,7 @@ const handleSubmit = async () => {
 
       navigateTo('/bayi')
     } else {
-      serverError.value = result.error || 'Email veya şifre hatalı. Lütfen tekrar deneyin.'
+      serverError.value = result.error || 'Cari no/e-posta veya şifre hatalı. Lütfen tekrar deneyin.'
     }
   } catch (error: any) {
     serverError.value = 'Bir hata oluştu. Lütfen tekrar deneyin.'
@@ -123,14 +124,6 @@ const handleForgotPassword = () => {
         <p class="text-ink-500 mt-2">Hesabınıza giriş yapın</p>
       </div>
 
-      <!-- Demo Credentials -->
-      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p class="text-xs font-semibold text-blue-900 mb-2">Demo Bayi Kimlik Bilgileri:</p>
-        <p class="text-xs text-blue-800">Email: <code class="font-mono font-bold">erzurum@test.com</code></p>
-        <p class="text-xs text-blue-800">Şifre: <code class="font-mono font-bold">asd123</code></p>
-        <p class="text-xs text-ink-500 mt-1">(veya trabzon@test.com, testbayi@test.com)</p>
-      </div>
-
       <!-- Error Message -->
       <transition name="fade">
         <div v-if="serverError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -149,12 +142,14 @@ const handleForgotPassword = () => {
         <!-- Email -->
         <div>
           <label class="block text-sm font-semibold text-primary-900 mb-2">
-            Email Adresiniz <span class="text-red-500">*</span>
+            Cari No veya E-posta <span class="text-red-500">*</span>
           </label>
           <input
             v-model="formData.email"
-            type="email"
-            placeholder="email@ornek.com"
+            type="text"
+            autocapitalize="none"
+            autocomplete="username"
+            placeholder="Cari No veya e-posta"
             @blur="validateField('email')"
             @input="() => errors.email && validateField('email')"
             class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 transition"

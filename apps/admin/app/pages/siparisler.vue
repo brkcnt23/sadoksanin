@@ -164,13 +164,6 @@ const reject = async (o: Order) => {
             <Icon name="lucide:check-check" class="w-4 h-4" />
             Tümünü Onayla ({{ orders.pendingCount }})
           </button>
-          <button
-            @click="showTestModal = true"
-            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <Icon name="lucide:flask-conical" class="w-4 h-4" />
-            Test Siparişi
-          </button>
         </div>
       </template>
     </PageHeader>

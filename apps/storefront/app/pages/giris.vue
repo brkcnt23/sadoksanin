@@ -47,9 +47,13 @@ const validateField = (field: keyof Omit<FormData, 'beniBaba'>) => {
 
   switch (field) {
     case 'email':
+      // Bayiler CARI NO ile giriyor (ör. N2517-N07859) — Netsis'ten gelen
+      // 446 bayinin e-postasi yer tutucu oldugu icin asil kimlik cari no.
+      // Bu yuzden '@' zorunlu degil. Kullanici e-posta yazdiysa (icinde @
+      // varsa) formatini yine de kontrol ediyoruz.
       if (!value.trim()) {
         newErrors[field] = 'Bu alan zorunludur'
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      } else if (value.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         newErrors[field] = 'Geçerli bir email adresi girin'
       } else {
         delete newErrors[field]
@@ -136,12 +140,14 @@ const handleForgotPassword = () => {
         <!-- Email -->
         <div>
           <label class="block text-sm font-semibold text-primary-900 mb-2">
-            Email Adresiniz <span class="text-red-500">*</span>
+            Cari No veya E-posta <span class="text-red-500">*</span>
           </label>
           <input
             v-model="formData.email"
-            type="email"
-            placeholder="email@ornek.com"
+            type="text"
+            autocapitalize="none"
+            autocomplete="username"
+            placeholder="Cari No veya e-posta"
             @blur="validateField('email')"
             @input="() => errors.email && validateField('email')"
             class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500 transition"

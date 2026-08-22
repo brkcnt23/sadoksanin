@@ -132,12 +132,15 @@ watch([itemsPerPage, () => filteredProducts.value.length], () => {
 
 // ─── Actions ─────────────────────────────────────────────────────────────
 const toggleCategory = (catId: string, parentId?: string) => {
-  // If clicking parent with children, toggle expand
+  // Alt kategorisi olan bir ana kategoriye tıklandığında eskiden SADECE menü
+  // açılıp kapanıyor, filtre hiç uygulanmıyordu ("Banyo Aksesuarları 211"e
+  // basınca liste 2491 üründe kalıyordu). Artık hem genişletiliyor hem filtre
+  // uygulanıyor.
   if (parentId === undefined) {
     const node = categoryTree.value.find(c => c.id === catId)
     if (node && (node.children?.length || 0) > 0) {
-      expandedParents.value[catId] = !expandedParents.value[catId]
-      return
+      // Seçim kaldırılıyorsa menüyü kapat, seçiliyorsa aç
+      expandedParents.value[catId] = !selectedCategoryIds.value.includes(catId)
     }
   }
   const idx = selectedCategoryIds.value.indexOf(catId)

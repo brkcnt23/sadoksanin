@@ -26,7 +26,23 @@ export class OrdersService {
    * B2B: status PENDING_APPROVAL for admin approval
    */
   async createOrder(createOrderDto: CreateOrderDto, customerId: string) {
-    const { items, dealerId, customerType, shippingCity, shippingAddress, promoCode, notes, paymentMethod } = createOrderDto;
+    const { items, customerType, shippingCity, shippingAddress, promoCode, notes, paymentMethod } = createOrderDto;
+
+    // Bayi bağı SUNUCUDA belirlenir: istemciden gelen dealerId'ye güvenilmez.
+    // (Eskiden istemci göndermezse sipariş bayisiz kalıyor, Netsis'e push
+    // 'dealer_cariNo_missing' ile düşüyordu; ayrıca başka bir bayinin id'si
+    // gönderilebiliyordu.) Giriş yapan kullanıcının bayi kaydı esas alınır.
+    const kullaniciBayisi = await this.prisma.dealer.findFirst({
+      where: { userId: customerId },
+      select: { id: true },
+    });
+    const dealerId = kullaniciBayisi?.id ?? createOrderDto.dealerId ?? null;
+
+    if (customerType === 'B2B' && !dealerId) {
+      throw new BadRequestException(
+        'Bu hesaba bağlı bayi kaydı bulunamadı. Bayi siparişi oluşturulamaz.',
+      );
+    }
 
     // Ürünleri TEK sorguda çek (stok kontrolü + sunucu tarafı fiyatlandırma)
     const productMap = new Map(

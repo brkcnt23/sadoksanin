@@ -7,6 +7,7 @@ import os
 import logging
 from flask import Flask, request, jsonify, send_file
 from proforma_generator import ProformaGenerator
+from excel_generator import ExcelGenerator
 from document_generator import DocumentGenerator
 from datetime import datetime
 import io
@@ -203,6 +204,62 @@ def generate_document():
         return jsonify({'status': 'error', 'message': 'Failed to generate PDF. Please check your request and try again.'}), 500
 
 # Debug endpoint (remove in production)
+@app.route('/generate-excel', methods=['POST'])
+def generate_excel():
+    """
+    Genel Excel (.xlsx) uretimi.
+
+    CSV ciktilari Turkce/Avrupa yerel ayarli Excel'de tek sutunda aciliyordu;
+    gercek xlsx uretilince ayrac sorunu ortadan kalkiyor, sutunlar her yerde
+    dogru ayriliyor ve sayi/tarih/para bicimleri korunuyor.
+
+    Beklenen govde:
+    {
+      "filename": "urunler",
+      "title": "Urun Listesi",
+      "sheets": [{
+        "name": "Urunler",
+        "columns": [{"key":"sku","label":"SKU","type":"text","width":18}],
+        "rows": [{"sku":"A123", ...}]
+      }]
+    }
+    Tip degerleri: text | number | decimal | money | usd | percent | date | datetime
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        sheets = payload.get('sheets')
+
+        # Tek sayfalik kisa kullanim: {"columns": [...], "rows": [...]}
+        if not sheets and (payload.get('rows') is not None):
+            sheets = [{
+                'name': payload.get('sheetName') or 'Sayfa1',
+                'columns': payload.get('columns') or [],
+                'rows': payload.get('rows') or [],
+            }]
+
+        if not sheets:
+            return jsonify({'status': 'error', 'message': 'sheets veya rows alani gerekli'}), 400
+
+        toplam = sum(len(sh.get('rows') or []) for sh in sheets)
+        logger.info(f"Excel uretiliyor: {len(sheets)} sayfa, {toplam} satir")
+
+        buf = ExcelGenerator().generate(sheets=sheets, title=payload.get('title'))
+
+        ad = (payload.get('filename') or 'rapor').replace('"', '').strip() or 'rapor'
+        if not ad.lower().endswith('.xlsx'):
+            ad += '.xlsx'
+
+        return send_file(
+            buf,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=ad,
+        )
+    except Exception as e:
+        logger.error(f"Excel uretiminde hata: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': 'Excel olusturulamadi'}), 500
+
+
 @app.route('/debug/info', methods=['GET'])
 def debug_info():
     """Debug information (disable in production)"""

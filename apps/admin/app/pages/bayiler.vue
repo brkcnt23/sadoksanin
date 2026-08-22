@@ -128,13 +128,6 @@ const statusBadge = (s: DealerStatus) => {
       <template #actions>
         <div class="flex gap-2">
           <button
-            @click="showTestCreateModal = true"
-            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <Icon name="lucide:flask-conical" class="w-4 h-4" />
-            Test Bayi
-          </button>
-          <button
             @click="showCreateModal = true"
             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-sm"
           >
